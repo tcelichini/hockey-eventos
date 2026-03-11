@@ -35,6 +35,6 @@ export async function verifySession(cookie: string): Promise<boolean> {
 }
 
 export function checkAdminPassword(input: string): boolean {
-  const password = process.env.ADMIN_PASSWORD || ""
-  return input === password && password.length > 0
+  const password = (process.env.ADMIN_PASSWORD || "").trim()
+  return input.trim() === password && password.length > 0
 }
