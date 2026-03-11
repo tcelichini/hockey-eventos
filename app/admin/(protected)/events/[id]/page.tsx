@@ -1,12 +1,12 @@
 import { db } from "@/db"
 import { events, attendees } from "@/db/schema"
-import { eq, and } from "drizzle-orm"
+import { eq } from "drizzle-orm"
 import { notFound } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { ArrowLeftIcon, CopyIcon, PencilIcon } from "lucide-react"
+import { ArrowLeftIcon, PencilIcon } from "lucide-react"
 import MarkPaidButton from "@/components/mark-paid-button"
 import CopyLinkButton from "@/components/copy-link-button"
 
@@ -22,10 +22,6 @@ function formatDate(date: Date | null) {
   }).format(new Date(date))
 }
 
-function formatCurrency(amount: string | null) {
-  if (!amount) return ""
-  return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(Number(amount))
-}
 
 export default async function EventDetailPage({ params }: { params: { id: string } }) {
   const [event] = await db.select().from(events).where(eq(events.id, params.id)).limit(1)
