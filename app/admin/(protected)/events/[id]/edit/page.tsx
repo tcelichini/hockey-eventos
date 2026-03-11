@@ -20,6 +20,7 @@ type EventData = {
   payment_account: string
   payment_amount: string
   whatsapp_number: string
+  max_capacity: number | null
 }
 
 function toDatetimeLocal(isoString: string) {
@@ -53,6 +54,7 @@ export default function EditEventPage() {
     setError("")
 
     const form = e.currentTarget
+    const maxCapacityVal = (form.elements.namedItem("max_capacity") as HTMLInputElement).value
     const data = {
       title: (form.elements.namedItem("title") as HTMLInputElement).value,
       description: (form.elements.namedItem("description") as HTMLTextAreaElement).value,
@@ -61,6 +63,7 @@ export default function EditEventPage() {
       payment_account: (form.elements.namedItem("payment_account") as HTMLInputElement).value,
       payment_amount: parseFloat((form.elements.namedItem("payment_amount") as HTMLInputElement).value),
       whatsapp_number: (form.elements.namedItem("whatsapp_number") as HTMLInputElement).value,
+      max_capacity: maxCapacityVal ? parseInt(maxCapacityVal) : null,
     }
 
     const res = await fetch(`/api/events/${id}`, {
@@ -132,6 +135,18 @@ export default function EditEventPage() {
                 type="datetime-local"
                 defaultValue={toDatetimeLocal(event.date)}
                 required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="max_capacity">Límite de cupos (opcional)</Label>
+              <Input
+                id="max_capacity"
+                name="max_capacity"
+                type="number"
+                min="1"
+                placeholder="Sin límite"
+                defaultValue={event.max_capacity ?? ""}
               />
             </div>
 

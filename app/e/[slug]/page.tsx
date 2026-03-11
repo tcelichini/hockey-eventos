@@ -1,6 +1,6 @@
 import { db } from "@/db"
-import { events } from "@/db/schema"
-import { eq } from "drizzle-orm"
+import { events, attendees as attendeesTable } from "@/db/schema"
+import { eq, and, count } from "drizzle-orm"
 import { notFound } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
@@ -26,6 +26,14 @@ function formatCurrency(amount: string | null) {
 export default async function EventPage({ params }: { params: { slug: string } }) {
   const [event] = await db.select().from(events).where(eq(events.slug, params.slug)).limit(1)
   if (!event) notFound()
+
+  const [{ value: confirmedCount }] = await db
+    .select({ value: count() })
+    .from(attendeesTable)
+    .where(and(eq(attendeesTable.event_id, event.id), eq(attendeesTable.status, "confirmed")))
+
+  const isFull = event.max_capacity ? Number(confirmedCount) >= event.max_capacity : false
+  const canConfirm = event.is_open && !isFull
 
   return (
     <div className="min-h-screen bg-[#001435]">
@@ -81,13 +89,34 @@ export default async function EventPage({ params }: { params: { slug: string } }
             </div>
           </div>
 
+          {/* Capacity indicator */}
+          {event.max_capacity && (
+            <div className="flex items-center gap-2 bg-gray-50 rounded-xl px-4 py-2.5">
+              <div className="flex-1 bg-gray-200 rounded-full h-1.5">
+                <div
+                  className="bg-[#00A651] h-1.5 rounded-full transition-all"
+                  style={{ width: `${Math.min(100, (Number(confirmedCount) / event.max_capacity) * 100)}%` }}
+                />
+              </div>
+              <span className="text-xs text-gray-500 shrink-0">
+                {isFull ? "Sin lugares" : `${event.max_capacity - Number(confirmedCount)} lugares`}
+              </span>
+            </div>
+          )}
+
           {/* CTA Buttons */}
           <div className="space-y-3 pt-1">
-            <Link href={`/e/${event.slug}/confirm`} className="block">
-              <button className="w-full h-14 bg-[#00A651] hover:bg-[#009045] active:bg-[#00803e] text-white font-bold text-base rounded-xl transition-colors uppercase tracking-wide shadow-md shadow-[#00A651]/20">
-                ✅ Confirmar asistencia
-              </button>
-            </Link>
+            {canConfirm ? (
+              <Link href={`/e/${event.slug}/confirm`} className="block">
+                <button className="w-full h-14 bg-[#00A651] hover:bg-[#009045] active:bg-[#00803e] text-white font-bold text-base rounded-xl transition-colors uppercase tracking-wide shadow-md shadow-[#00A651]/20">
+                  ✅ Confirmar asistencia
+                </button>
+              </Link>
+            ) : (
+              <div className="w-full h-14 bg-gray-100 text-gray-400 font-bold text-base rounded-xl flex items-center justify-center uppercase tracking-wide cursor-not-allowed">
+                {!event.is_open ? "🔒 Inscripciones cerradas" : "❌ Sin lugares disponibles"}
+              </div>
+            )}
             <Link href={`/e/${event.slug}/decline`} className="block">
               <button className="w-full h-11 bg-white border-2 border-gray-200 hover:border-gray-300 text-gray-400 font-medium text-sm rounded-xl transition-colors">
                 No puedo ir esta vez

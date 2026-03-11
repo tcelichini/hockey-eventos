@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button"
 import { ArrowLeftIcon, PencilIcon } from "lucide-react"
 import MarkPaidButton from "@/components/mark-paid-button"
 import CopyLinkButton from "@/components/copy-link-button"
+import DeleteEventButton from "@/components/delete-event-button"
+import ToggleEventButton from "@/components/toggle-event-button"
 
 function formatDate(date: Date | null) {
   if (!date) return ""
@@ -49,21 +51,39 @@ export default async function EventDetailPage({ params }: { params: { id: string
             Volver
           </Button>
         </Link>
-        <Link href={`/admin/events/${params.id}/edit`}>
-          <Button variant="outline" size="sm">
-            <PencilIcon className="w-4 h-4 mr-1" />
-            Editar evento
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <ToggleEventButton eventId={params.id} isOpen={event.is_open} />
+          <Link href={`/admin/events/${params.id}/edit`}>
+            <Button variant="outline" size="sm">
+              <PencilIcon className="w-4 h-4 mr-1" />
+              Editar
+            </Button>
+          </Link>
+          <DeleteEventButton eventId={params.id} />
+        </div>
       </div>
 
       {/* Event Info */}
       <Card>
         <CardContent className="pt-5">
-          <h2 className="text-xl font-bold text-gray-900">{event.title}</h2>
+          <div className="flex items-start justify-between gap-2">
+            <h2 className="text-xl font-bold text-gray-900">{event.title}</h2>
+            <Badge className={event.is_open ? "bg-green-100 text-green-700 hover:bg-green-100 shrink-0" : "bg-gray-100 text-gray-500 hover:bg-gray-100 shrink-0"}>
+              {event.is_open ? "Abierto" : "Cerrado"}
+            </Badge>
+          </div>
           <p className="text-gray-500 mt-1 capitalize">{formatDate(event.date)}</p>
           {event.description && (
             <p className="text-gray-600 mt-2 text-sm">{event.description}</p>
+          )}
+          {event.max_capacity && (
+            <p className="text-sm mt-2">
+              <span className="font-medium text-gray-700">{confirmed.length}</span>
+              <span className="text-gray-400"> / {event.max_capacity} cupos</span>
+              {confirmed.length >= event.max_capacity && (
+                <span className="ml-2 text-red-500 font-medium text-xs">COMPLETO</span>
+              )}
+            </p>
           )}
           <div className="mt-3 flex items-center gap-2">
             <code className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600 break-all">{publicLink}</code>

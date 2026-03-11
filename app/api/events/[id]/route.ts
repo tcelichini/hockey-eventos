@@ -4,14 +4,18 @@ import { events } from "@/db/schema"
 import { eq } from "drizzle-orm"
 import { COOKIE_NAME, verifySession } from "@/lib/auth"
 
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+async function authCheck(request: NextRequest) {
   const cookie = request.cookies.get(COOKIE_NAME)?.value
-  if (!cookie || !(await verifySession(cookie))) {
+  return cookie ? await verifySession(cookie) : false
+}
+
+export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+  if (!(await authCheck(request))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
   const body = await request.json()
-  const { title, description, date, flyer_url, payment_account, payment_amount, whatsapp_number } = body
+  const { title, description, date, flyer_url, payment_account, payment_amount, whatsapp_number, max_capacity, is_open } = body
 
   if (!title || !date || !payment_account || !payment_amount || !whatsapp_number) {
     return NextResponse.json({ error: "Faltan campos requeridos" }, { status: 400 })
@@ -27,6 +31,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       payment_account,
       payment_amount: String(payment_amount),
       whatsapp_number,
+      max_capacity: max_capacity ? Number(max_capacity) : null,
+      is_open: is_open !== undefined ? Boolean(is_open) : undefined,
     })
     .where(eq(events.id, params.id))
     .returning()
@@ -36,4 +42,21 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   }
 
   return NextResponse.json(updated)
+}
+
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+  if (!(await authCheck(request))) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  const [deleted] = await db
+    .delete(events)
+    .where(eq(events.id, params.id))
+    .returning()
+
+  if (!deleted) {
+    return NextResponse.json({ error: "Evento no encontrado" }, { status: 404 })
+  }
+
+  return NextResponse.json({ ok: true })
 }

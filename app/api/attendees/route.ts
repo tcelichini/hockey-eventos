@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/db"
 import { attendees, events } from "@/db/schema"
-import { eq } from "drizzle-orm"
+import { eq, and, count } from "drizzle-orm"
 
 export async function POST(request: NextRequest) {
   const body = await request.json()
@@ -15,10 +15,27 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "El nombre es requerido" }, { status: 400 })
   }
 
-  // Fetch event for payment info
+  // Fetch event for payment info and status checks
   const [event] = await db.select().from(events).where(eq(events.id, event_id)).limit(1)
   if (!event) {
     return NextResponse.json({ error: "Evento no encontrado" }, { status: 404 })
+  }
+
+  // Check if event is open
+  if (status === "confirmed" && !event.is_open) {
+    return NextResponse.json({ error: "Las inscripciones para este evento están cerradas" }, { status: 409 })
+  }
+
+  // Check capacity
+  if (status === "confirmed" && event.max_capacity) {
+    const [{ value: confirmedCount }] = await db
+      .select({ value: count() })
+      .from(attendees)
+      .where(and(eq(attendees.event_id, event_id), eq(attendees.status, "confirmed")))
+
+    if (Number(confirmedCount) >= event.max_capacity) {
+      return NextResponse.json({ error: "El evento está completo, no hay más lugares disponibles" }, { status: 409 })
+    }
   }
 
   const [attendee] = await db

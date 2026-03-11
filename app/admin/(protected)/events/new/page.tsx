@@ -23,6 +23,7 @@ export default function NewEventPage() {
     setError("")
 
     const form = e.currentTarget
+    const maxCapacityVal = (form.elements.namedItem("max_capacity") as HTMLInputElement).value
     const data = {
       title: (form.elements.namedItem("title") as HTMLInputElement).value,
       description: (form.elements.namedItem("description") as HTMLTextAreaElement).value,
@@ -31,6 +32,7 @@ export default function NewEventPage() {
       payment_amount: parseFloat((form.elements.namedItem("payment_amount") as HTMLInputElement).value),
       whatsapp_number: (form.elements.namedItem("whatsapp_number") as HTMLInputElement).value,
       flyer_url: flyerUrl,
+      max_capacity: maxCapacityVal ? parseInt(maxCapacityVal) : null,
     }
 
     const res = await fetch("/api/events", {
@@ -99,6 +101,17 @@ export default function NewEventPage() {
                 name="date"
                 type="datetime-local"
                 required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="max_capacity">Límite de cupos (opcional)</Label>
+              <Input
+                id="max_capacity"
+                name="max_capacity"
+                type="number"
+                min="1"
+                placeholder="Ej: 20 (dejá vacío para sin límite)"
               />
             </div>
 
