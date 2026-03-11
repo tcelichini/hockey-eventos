@@ -37,7 +37,7 @@ export default async function EventDetailPage({ params }: { params: { id: string
   const declined = attendeeList.filter((a) => a.status === "declined")
   const paid = confirmed.filter((a) => a.payment_status === "paid")
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").trim()
   const publicLink = `${appUrl}/e/${event.slug}`
 
   return (
