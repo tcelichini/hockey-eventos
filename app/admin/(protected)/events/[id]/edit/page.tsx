@@ -10,6 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import Link from "next/link"
 import { ArrowLeftIcon } from "lucide-react"
 import ImageUpload from "@/components/image-upload"
+import PricingTiersEditor from "@/components/pricing-tiers-editor"
+import type { PricingTier } from "@/db/schema"
 
 type EventData = {
   id: string
@@ -21,6 +23,7 @@ type EventData = {
   payment_amount: string
   whatsapp_number: string
   max_capacity: number | null
+  pricing_tiers: PricingTier[] | null
 }
 
 function toDatetimeLocal(isoString: string) {
@@ -36,6 +39,7 @@ export default function EditEventPage() {
 
   const [event, setEvent] = useState<EventData | null>(null)
   const [flyerUrl, setFlyerUrl] = useState<string | null>(null)
+  const [pricingTiers, setPricingTiers] = useState<PricingTier[] | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
@@ -45,6 +49,7 @@ export default function EditEventPage() {
       .then((data: EventData) => {
         setEvent(data)
         setFlyerUrl(data.flyer_url)
+        setPricingTiers(data.pricing_tiers)
       })
   }, [id])
 
@@ -64,6 +69,7 @@ export default function EditEventPage() {
       payment_amount: parseFloat((form.elements.namedItem("payment_amount") as HTMLInputElement).value),
       whatsapp_number: (form.elements.namedItem("whatsapp_number") as HTMLInputElement).value,
       max_capacity: maxCapacityVal ? parseInt(maxCapacityVal) : null,
+      pricing_tiers: pricingTiers,
     }
 
     const res = await fetch(`/api/events/${id}`, {
@@ -165,6 +171,8 @@ export default function EditEventPage() {
                   required
                 />
               </div>
+
+              <PricingTiersEditor value={pricingTiers} onChange={setPricingTiers} />
 
               <div className="space-y-2">
                 <Label htmlFor="payment_account">CBU / Alias de destino *</Label>

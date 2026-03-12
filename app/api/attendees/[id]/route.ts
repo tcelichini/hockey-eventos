@@ -4,6 +4,24 @@ import { attendees } from "@/db/schema"
 import { eq } from "drizzle-orm"
 import { COOKIE_NAME, verifySession } from "@/lib/auth"
 
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+  const cookie = request.cookies.get(COOKIE_NAME)?.value
+  if (!cookie || !(await verifySession(cookie))) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  const [deleted] = await db
+    .delete(attendees)
+    .where(eq(attendees.id, params.id))
+    .returning()
+
+  if (!deleted) {
+    return NextResponse.json({ error: "Asistente no encontrado" }, { status: 404 })
+  }
+
+  return NextResponse.json({ ok: true })
+}
+
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   const cookie = request.cookies.get(COOKIE_NAME)?.value
   if (!cookie || !(await verifySession(cookie))) {

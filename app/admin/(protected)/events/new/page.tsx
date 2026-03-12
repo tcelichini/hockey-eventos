@@ -10,12 +10,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import Link from "next/link"
 import { ArrowLeftIcon } from "lucide-react"
 import ImageUpload from "@/components/image-upload"
+import PricingTiersEditor from "@/components/pricing-tiers-editor"
+import type { PricingTier } from "@/db/schema"
 
 export default function NewEventPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [flyerUrl, setFlyerUrl] = useState<string | null>(null)
+  const [pricingTiers, setPricingTiers] = useState<PricingTier[] | null>(null)
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -33,6 +36,7 @@ export default function NewEventPage() {
       whatsapp_number: (form.elements.namedItem("whatsapp_number") as HTMLInputElement).value,
       flyer_url: flyerUrl,
       max_capacity: maxCapacityVal ? parseInt(maxCapacityVal) : null,
+      pricing_tiers: pricingTiers,
     }
 
     const res = await fetch("/api/events", {
@@ -130,6 +134,8 @@ export default function NewEventPage() {
                   required
                 />
               </div>
+
+              <PricingTiersEditor value={pricingTiers} onChange={setPricingTiers} />
 
               <div className="space-y-2">
                 <Label htmlFor="payment_account">CBU / Alias de destino *</Label>

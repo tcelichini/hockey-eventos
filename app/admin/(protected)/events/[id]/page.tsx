@@ -11,6 +11,12 @@ import MarkPaidButton from "@/components/mark-paid-button"
 import CopyLinkButton from "@/components/copy-link-button"
 import DeleteEventButton from "@/components/delete-event-button"
 import ToggleEventButton from "@/components/toggle-event-button"
+import DeleteAttendeeButton from "@/components/delete-attendee-button"
+import ExportCsvButton from "@/components/export-csv-button"
+
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 0 }).format(value)
+}
 
 function formatDate(date: Date | null) {
   if (!date) return ""
@@ -38,6 +44,11 @@ export default async function EventDetailPage({ params }: { params: { id: string
   const confirmed = attendeeList.filter((a) => a.status === "confirmed")
   const declined = attendeeList.filter((a) => a.status === "declined")
   const paid = confirmed.filter((a) => a.payment_status === "paid")
+  const unpaid = confirmed.filter((a) => a.payment_status !== "paid")
+  const amount = Number(event.payment_amount) || 0
+  const getPrice = (a: typeof confirmed[0]) => Number(a.price_paid) || amount
+  const totalCollected = paid.reduce((sum, a) => sum + getPrice(a), 0)
+  const totalPending = unpaid.reduce((sum, a) => sum + getPrice(a), 0)
 
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").trim()
   const publicLink = `${appUrl}/e/${event.slug}`
@@ -52,6 +63,7 @@ export default async function EventDetailPage({ params }: { params: { id: string
           </Button>
         </Link>
         <div className="flex items-center gap-2">
+          <ExportCsvButton eventId={params.id} />
           <ToggleEventButton eventId={params.id} isOpen={event.is_open} />
           <Link href={`/admin/events/${params.id}/edit`}>
             <Button variant="outline" size="sm">
@@ -85,6 +97,18 @@ export default async function EventDetailPage({ params }: { params: { id: string
               )}
             </p>
           )}
+          {event.pricing_tiers && event.pricing_tiers.length > 0 && (
+            <div className="mt-3 space-y-1">
+              <p className="text-xs text-gray-400 uppercase tracking-wide">Precios por tramo</p>
+              {[...event.pricing_tiers]
+                .sort((a, b) => (a.upTo ?? Infinity) - (b.upTo ?? Infinity))
+                .map((tier, i) => (
+                  <p key={i} className="text-sm text-gray-700">
+                    {tier.upTo ? `Primeros ${tier.upTo}` : "Resto"}: {formatCurrency(tier.price)}
+                  </p>
+                ))}
+            </div>
+          )}
           <div className="mt-3 flex items-center gap-2">
             <code className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600 break-all">{publicLink}</code>
             <CopyLinkButton link={publicLink} />
@@ -114,6 +138,26 @@ export default async function EventDetailPage({ params }: { params: { id: string
         </Card>
       </div>
 
+      {/* Money Stats */}
+      {amount > 0 && (
+        <div className="grid grid-cols-2 gap-3">
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <div className="text-xs text-gray-500 mb-1">Recaudado</div>
+              <div className="text-xl font-bold text-green-600">{formatCurrency(totalCollected)}</div>
+              <div className="text-xs text-gray-400 mt-0.5">{paid.length} pagaron de {confirmed.length}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <div className="text-xs text-gray-500 mb-1">Falta cobrar</div>
+              <div className="text-xl font-bold text-orange-500">{formatCurrency(totalPending)}</div>
+              <div className="text-xs text-gray-400 mt-0.5">{unpaid.length} pendiente{unpaid.length !== 1 ? "s" : ""}</div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Attendees */}
       <Card>
         <CardHeader>
@@ -129,7 +173,7 @@ export default async function EventDetailPage({ params }: { params: { id: string
                   <div className="min-w-0">
                     <p className="font-medium text-gray-900 truncate">{attendee.full_name}</p>
                     <p className="text-xs text-gray-400 mt-0.5">
-                      {new Intl.DateTimeFormat("es-AR", {
+                      {formatCurrency(getPrice(attendee))} · {new Intl.DateTimeFormat("es-AR", {
                         day: "numeric",
                         month: "short",
                         hour: "2-digit",
@@ -138,6 +182,13 @@ export default async function EventDetailPage({ params }: { params: { id: string
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
+                    {attendee.payment_proof_url && (
+                      <a href={attendee.payment_proof_url} target="_blank" rel="noopener noreferrer">
+                        <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 cursor-pointer">
+                          Comprobante
+                        </Badge>
+                      </a>
+                    )}
                     {attendee.payment_status === "paid" ? (
                       <Badge className="bg-green-100 text-green-700 hover:bg-green-100">Pagó</Badge>
                     ) : (
@@ -146,6 +197,7 @@ export default async function EventDetailPage({ params }: { params: { id: string
                         <MarkPaidButton attendeeId={attendee.id} />
                       </>
                     )}
+                    <DeleteAttendeeButton attendeeId={attendee.id} />
                   </div>
                 </div>
               ))}
@@ -162,8 +214,9 @@ export default async function EventDetailPage({ params }: { params: { id: string
           <CardContent>
             <div className="divide-y">
               {declined.map((attendee) => (
-                <div key={attendee.id} className="py-2">
+                <div key={attendee.id} className="py-2 flex items-center justify-between gap-2">
                   <p className="text-gray-500 text-sm">{attendee.full_name}</p>
+                  <DeleteAttendeeButton attendeeId={attendee.id} />
                 </div>
               ))}
             </div>

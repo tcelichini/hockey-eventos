@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/db"
-import { events } from "@/db/schema"
-import { eq } from "drizzle-orm"
+import { events, attendees } from "@/db/schema"
+import { eq, and, count } from "drizzle-orm"
 
 export async function GET(_request: NextRequest, { params }: { params: { slug: string } }) {
   const [event] = await db
@@ -11,6 +11,7 @@ export async function GET(_request: NextRequest, { params }: { params: { slug: s
       payment_amount: events.payment_amount,
       payment_account: events.payment_account,
       whatsapp_number: events.whatsapp_number,
+      pricing_tiers: events.pricing_tiers,
     })
     .from(events)
     .where(eq(events.slug, params.slug))
@@ -20,5 +21,10 @@ export async function GET(_request: NextRequest, { params }: { params: { slug: s
     return NextResponse.json({ error: "Not found" }, { status: 404 })
   }
 
-  return NextResponse.json(event)
+  const [{ value: confirmedCount }] = await db
+    .select({ value: count() })
+    .from(attendees)
+    .where(and(eq(attendees.event_id, event.id), eq(attendees.status, "confirmed")))
+
+  return NextResponse.json({ ...event, confirmedCount: Number(confirmedCount) })
 }

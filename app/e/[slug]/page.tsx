@@ -5,6 +5,7 @@ import { notFound } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
 import { CalendarIcon } from "lucide-react"
+import { calculatePrice } from "@/lib/pricing"
 
 function formatDate(date: Date | null) {
   if (!date) return ""
@@ -79,15 +80,38 @@ export default async function EventPage({ params }: { params: { slug: string } }
           )}
 
           {/* Cost badge */}
-          <div className="flex items-center gap-3 bg-[#002060]/5 border border-[#002060]/10 rounded-xl px-4 py-3">
-            <div className="w-8 h-8 bg-[#00A651] rounded-lg flex items-center justify-center shrink-0">
-              <span className="text-white text-sm font-bold">$</span>
-            </div>
-            <div>
+          {event.pricing_tiers && event.pricing_tiers.length > 0 ? (
+            <div className="bg-[#002060]/5 border border-[#002060]/10 rounded-xl px-4 py-3 space-y-2">
               <p className="text-xs text-gray-400 uppercase tracking-wide">Costo por persona</p>
-              <p className="font-bold text-[#002060] text-lg">{formatCurrency(event.payment_amount)}</p>
+              {[...event.pricing_tiers]
+                .sort((a, b) => (a.upTo ?? Infinity) - (b.upTo ?? Infinity))
+                .map((tier, i) => (
+                  <div key={i} className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">
+                      {tier.upTo ? `Primeros ${tier.upTo}` : "Resto"}
+                    </span>
+                    <span className="font-bold text-[#002060]">
+                      {formatCurrency(String(tier.price))}
+                    </span>
+                  </div>
+                ))}
+              <div className="pt-1 border-t border-[#002060]/10">
+                <p className="text-xs text-[#00A651] font-medium">
+                  Tu precio: {formatCurrency(String(calculatePrice(event.pricing_tiers, event.payment_amount, Number(confirmedCount))))}
+                </p>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="flex items-center gap-3 bg-[#002060]/5 border border-[#002060]/10 rounded-xl px-4 py-3">
+              <div className="w-8 h-8 bg-[#00A651] rounded-lg flex items-center justify-center shrink-0">
+                <span className="text-white text-sm font-bold">$</span>
+              </div>
+              <div>
+                <p className="text-xs text-gray-400 uppercase tracking-wide">Costo por persona</p>
+                <p className="font-bold text-[#002060] text-lg">{formatCurrency(event.payment_amount)}</p>
+              </div>
+            </div>
+          )}
 
           {/* Capacity indicator */}
           {event.max_capacity && (

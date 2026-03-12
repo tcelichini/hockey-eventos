@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
 import { CheckCircleIcon, ArrowLeftIcon } from "lucide-react"
 import Link from "next/link"
+import PaymentProofUpload from "@/components/payment-proof-upload"
 
 type EventData = {
   id: string
@@ -15,6 +16,8 @@ type EventData = {
   payment_amount: string
   payment_account: string
   whatsapp_number: string
+  pricing_tiers: { upTo: number | null; price: number }[] | null
+  confirmedCount: number
 }
 
 type PaymentData = {
@@ -43,6 +46,8 @@ export default function ConfirmPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [paymentData, setPaymentData] = useState<PaymentData | null>(null)
+  const [attendeeId, setAttendeeId] = useState<string | null>(null)
+  const [proofUrl, setProofUrl] = useState<string | null>(null)
 
   useEffect(() => {
     fetch(`/api/events/by-slug/${slug}`)
@@ -64,6 +69,7 @@ export default function ConfirmPage() {
 
     if (res.ok) {
       const data = await res.json()
+      setAttendeeId(data.attendee.id)
       setPaymentData({
         payment_account: data.payment_account,
         payment_amount: data.payment_amount,
@@ -80,7 +86,10 @@ export default function ConfirmPage() {
   }
 
   function buildWhatsAppUrl(data: PaymentData): string {
-    const message = `Hola! Te mando el comprobante del evento "${data.event_title}". Soy ${data.attendee_name}.`
+    let message = `Hola! Te mando el comprobante del evento "${data.event_title}". Soy ${data.attendee_name}.`
+    if (proofUrl) {
+      message += `\n\nComprobante: ${proofUrl}`
+    }
     return `https://wa.me/${data.whatsapp_number}?text=${encodeURIComponent(message)}`
   }
 
@@ -166,6 +175,16 @@ export default function ConfirmPage() {
               </CardContent>
             </Card>
 
+            {attendeeId && (
+              <PaymentProofUpload attendeeId={attendeeId} onUploaded={(url) => setProofUrl(url)} />
+            )}
+
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-px bg-gray-200" />
+              <span className="text-xs text-gray-400">o envialo por WhatsApp</span>
+              <div className="flex-1 h-px bg-gray-200" />
+            </div>
+
             <a
               href={buildWhatsAppUrl(paymentData)}
               target="_blank"
@@ -175,10 +194,6 @@ export default function ConfirmPage() {
               <WhatsAppIcon />
               Enviar comprobante por WhatsApp
             </a>
-
-            <p className="text-center text-xs text-gray-400">
-              Tocá el botón para abrir WhatsApp y mandar el comprobante al organizador.
-            </p>
           </div>
         ) : null}
       </div>
