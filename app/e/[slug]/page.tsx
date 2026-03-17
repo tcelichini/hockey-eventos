@@ -6,6 +6,29 @@ import Image from "next/image"
 import Link from "next/link"
 import { CalendarIcon } from "lucide-react"
 import { calculatePrice } from "@/lib/pricing"
+import type { Metadata } from "next"
+
+export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+  const [event] = await db.select().from(events).where(eq(events.slug, params.slug)).limit(1)
+  if (!event) return {}
+
+  const title = event.title
+  const description = event.description || "Evento del club de hockey - San Martín"
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: "website",
+      siteName: "Eventos del Club",
+      ...(event.flyer_url && {
+        images: [{ url: event.flyer_url, width: 1200, height: 630, alt: title }],
+      }),
+    },
+  }
+}
 
 function formatDate(date: Date | null) {
   if (!date) return ""
@@ -145,6 +168,11 @@ export default async function EventPage({ params }: { params: { slug: string } }
               <button className="w-full h-11 bg-white border-2 border-gray-200 hover:border-gray-300 text-gray-400 font-medium text-sm rounded-xl transition-colors">
                 No puedo ir esta vez
               </button>
+            </Link>
+            <Link href={`/e/${event.slug}/confirm`} className="block text-center pt-1">
+              <span className="text-xs text-gray-400 underline">
+                Ya me anoté, quiero subir el comprobante
+              </span>
             </Link>
           </div>
         </div>
