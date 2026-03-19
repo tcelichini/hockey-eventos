@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
-import { CheckCircleIcon, ArrowLeftIcon } from "lucide-react"
+import { CheckCircleIcon, ArrowLeftIcon, CopyIcon, CheckIcon } from "lucide-react"
 import Link from "next/link"
 import PaymentProofUpload from "@/components/payment-proof-upload"
 
@@ -16,6 +16,7 @@ type EventData = {
   payment_amount: string
   payment_account: string
   whatsapp_number: string
+  whatsapp_confirmation: boolean
   pricing_tiers: { upTo: number | null; price: number }[] | null
   confirmedCount: number
 }
@@ -48,6 +49,16 @@ export default function ConfirmPage() {
   const [paymentData, setPaymentData] = useState<PaymentData | null>(null)
   const [attendeeId, setAttendeeId] = useState<string | null>(null)
   const [proofUrl, setProofUrl] = useState<string | null>(null)
+  const [isExisting, setIsExisting] = useState(false)
+  const [alreadyPaid, setAlreadyPaid] = useState(false)
+  const [existingProofUrl, setExistingProofUrl] = useState<string | null>(null)
+  const [copiedAlias, setCopiedAlias] = useState(false)
+
+  function copyAlias(text: string) {
+    navigator.clipboard.writeText(text)
+    setCopiedAlias(true)
+    setTimeout(() => setCopiedAlias(false), 2000)
+  }
 
   useEffect(() => {
     fetch(`/api/events/by-slug/${slug}`)
@@ -70,6 +81,9 @@ export default function ConfirmPage() {
     if (res.ok) {
       const data = await res.json()
       setAttendeeId(data.attendee.id)
+      setIsExisting(!!data.existing)
+      setAlreadyPaid(data.attendee.payment_status === "paid")
+      setExistingProofUrl(data.attendee.payment_proof_url || null)
       setPaymentData({
         payment_account: data.payment_account,
         payment_amount: data.payment_amount,
@@ -125,6 +139,7 @@ export default function ConfirmPage() {
                 <div className="text-4xl mb-2">✅</div>
                 <h2 className="text-xl font-bold text-gray-900">Confirmar asistencia</h2>
                 <p className="text-gray-500 text-sm mt-1">¡Qué bueno que venís!</p>
+                <p className="text-gray-400 text-xs mt-2">Si ya te anotaste, poné tu nombre para ver los datos de pago.</p>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -153,47 +168,94 @@ export default function ConfirmPage() {
           <div className="space-y-4">
             <Card>
               <CardContent className="pt-6">
-                <div className="text-center mb-6">
-                  <CheckCircleIcon className="w-12 h-12 text-green-500 mx-auto mb-2" />
-                  <h2 className="text-xl font-bold text-gray-900">¡Anotado, {paymentData.attendee_name.split(" ")[0]}!</h2>
-                  <p className="text-gray-500 text-sm mt-1">Ahora completá el pago para confirmar tu lugar.</p>
-                </div>
-
-                <div className="bg-gray-50 rounded-xl p-4 space-y-3">
-                  <h3 className="font-semibold text-gray-700 text-sm">Datos para la transferencia</h3>
-                  <div className="space-y-2">
-                    <div>
-                      <p className="text-xs text-gray-400 uppercase tracking-wide">Monto</p>
-                      <p className="text-2xl font-bold text-green-600">{formatCurrency(paymentData.payment_amount)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-400 uppercase tracking-wide">CBU / Alias</p>
-                      <p className="font-mono font-medium text-gray-800 text-sm break-all">{paymentData.payment_account}</p>
-                    </div>
+                {alreadyPaid ? (
+                  /* Already paid state */
+                  <div className="text-center mb-4">
+                    <CheckCircleIcon className="w-12 h-12 text-green-500 mx-auto mb-2" />
+                    <h2 className="text-xl font-bold text-gray-900">
+                      ¡Ya estás anotado y pagaste, {paymentData.attendee_name.split(" ")[0]}!
+                    </h2>
+                    <p className="text-gray-500 text-sm mt-1">Tu pago ya fue registrado. No necesitás hacer nada más.</p>
+                    {existingProofUrl && (
+                      <a
+                        href={existingProofUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block mt-3 text-sm text-blue-600 underline"
+                      >
+                        Ver comprobante subido
+                      </a>
+                    )}
                   </div>
-                </div>
+                ) : (
+                  /* Payment pending state */
+                  <>
+                    <div className="text-center mb-6">
+                      <CheckCircleIcon className="w-12 h-12 text-green-500 mx-auto mb-2" />
+                      <h2 className="text-xl font-bold text-gray-900">
+                        {isExisting
+                          ? `¡Ya estás anotado, ${paymentData.attendee_name.split(" ")[0]}!`
+                          : `¡Anotado, ${paymentData.attendee_name.split(" ")[0]}!`}
+                      </h2>
+                      <p className="text-gray-500 text-sm mt-1">
+                        {isExisting
+                          ? "Subí tu comprobante de pago para confirmar tu lugar."
+                          : "Ahora completá el pago para confirmar tu lugar."}
+                      </p>
+                    </div>
+
+                    <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+                      <h3 className="font-semibold text-gray-700 text-sm">Datos para la transferencia</h3>
+                      <div className="space-y-2">
+                        <div>
+                          <p className="text-xs text-gray-400 uppercase tracking-wide">Monto</p>
+                          <p className="text-2xl font-bold text-green-600">{formatCurrency(paymentData.payment_amount)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-400 uppercase tracking-wide">CBU / Alias</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-mono font-medium text-gray-800 text-sm break-all">{paymentData.payment_account}</p>
+                            <button
+                              onClick={() => copyAlias(paymentData.payment_account)}
+                              className="shrink-0 p-1.5 rounded-lg hover:bg-gray-200 transition-colors text-gray-400 hover:text-gray-700"
+                              title="Copiar alias"
+                            >
+                              {copiedAlias
+                                ? <CheckIcon className="w-4 h-4 text-green-500" />
+                                : <CopyIcon className="w-4 h-4" />}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
 
-            {attendeeId && (
+            {!alreadyPaid && attendeeId && (
               <PaymentProofUpload attendeeId={attendeeId} onUploaded={(url) => setProofUrl(url)} />
             )}
 
-            <div className="flex items-center gap-3">
-              <div className="flex-1 h-px bg-gray-200" />
-              <span className="text-xs text-gray-400">o envialo por WhatsApp</span>
-              <div className="flex-1 h-px bg-gray-200" />
-            </div>
+            {!alreadyPaid && event.whatsapp_confirmation && (
+              <>
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-px bg-gray-200" />
+                  <span className="text-xs text-gray-400">o envialo por WhatsApp</span>
+                  <div className="flex-1 h-px bg-gray-200" />
+                </div>
 
-            <a
-              href={buildWhatsAppUrl(paymentData)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center gap-3 bg-green-500 hover:bg-green-600 text-white rounded-xl px-5 py-4 w-full text-base font-semibold transition-colors"
-            >
-              <WhatsAppIcon />
-              Enviar comprobante por WhatsApp
-            </a>
+                <a
+                  href={buildWhatsAppUrl(paymentData)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-3 bg-green-500 hover:bg-green-600 text-white rounded-xl px-5 py-4 w-full text-base font-semibold transition-colors"
+                >
+                  <WhatsAppIcon />
+                  Enviar comprobante por WhatsApp
+                </a>
+              </>
+            )}
           </div>
         ) : null}
       </div>

@@ -22,6 +22,7 @@ type EventData = {
   payment_account: string
   payment_amount: string
   whatsapp_number: string
+  whatsapp_confirmation: boolean
   max_capacity: number | null
   pricing_tiers: PricingTier[] | null
 }
@@ -40,6 +41,7 @@ export default function EditEventPage() {
   const [event, setEvent] = useState<EventData | null>(null)
   const [flyerUrl, setFlyerUrl] = useState<string | null>(null)
   const [pricingTiers, setPricingTiers] = useState<PricingTier[] | null>(null)
+  const [whatsappConfirmation, setWhatsappConfirmation] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
@@ -50,6 +52,7 @@ export default function EditEventPage() {
         setEvent(data)
         setFlyerUrl(data.flyer_url)
         setPricingTiers(data.pricing_tiers)
+        setWhatsappConfirmation(data.whatsapp_confirmation ?? false)
       })
   }, [id])
 
@@ -70,6 +73,7 @@ export default function EditEventPage() {
       whatsapp_number: (form.elements.namedItem("whatsapp_number") as HTMLInputElement).value,
       max_capacity: maxCapacityVal ? parseInt(maxCapacityVal) : null,
       pricing_tiers: pricingTiers,
+      whatsapp_confirmation: whatsappConfirmation,
     }
 
     const res = await fetch(`/api/events/${id}`, {
@@ -193,6 +197,20 @@ export default function EditEventPage() {
                   defaultValue={event.whatsapp_number}
                   required
                 />
+              </div>
+
+              <div className="flex items-center gap-3 pt-2">
+                <input
+                  type="checkbox"
+                  id="whatsapp_confirmation"
+                  checked={whatsappConfirmation}
+                  onChange={(e) => setWhatsappConfirmation(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                />
+                <div>
+                  <Label htmlFor="whatsapp_confirmation" className="cursor-pointer">Habilitar envío de comprobante por WhatsApp</Label>
+                  <p className="text-xs text-gray-400">Si está activado, los asistentes verán la opción de enviar el comprobante por WhatsApp después de anotarse.</p>
+                </div>
               </div>
             </div>
 

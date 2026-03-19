@@ -1,11 +1,14 @@
 import { db } from "@/db"
 import { events, attendees as attendeesTable } from "@/db/schema"
-import { eq, and, count } from "drizzle-orm"
+import { eq, and } from "drizzle-orm"
 import { notFound } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
-import { CalendarIcon } from "lucide-react"
+import { CalendarIcon, ReceiptIcon, UsersIcon, CheckCircleIcon } from "lucide-react"
 import { calculatePrice } from "@/lib/pricing"
+import ExpenseForm from "@/components/expense-form"
+
+import CollapsibleSection from "@/components/collapsible-section"
 import type { Metadata } from "next"
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
@@ -51,10 +54,16 @@ export default async function EventPage({ params }: { params: { slug: string } }
   const [event] = await db.select().from(events).where(eq(events.slug, params.slug)).limit(1)
   if (!event) notFound()
 
-  const [{ value: confirmedCount }] = await db
-    .select({ value: count() })
+  const confirmedAttendees = await db
+    .select({
+      full_name: attendeesTable.full_name,
+      payment_status: attendeesTable.payment_status,
+      price_paid: attendeesTable.price_paid,
+    })
     .from(attendeesTable)
     .where(and(eq(attendeesTable.event_id, event.id), eq(attendeesTable.status, "confirmed")))
+
+  const confirmedCount = confirmedAttendees.length
 
   const isFull = event.max_capacity ? Number(confirmedCount) >= event.max_capacity : false
   const canConfirm = event.is_open && !isFull
@@ -176,6 +185,39 @@ export default async function EventPage({ params }: { params: { slug: string } }
             </Link>
           </div>
         </div>
+
+        {/* Confirmed attendees section */}
+        {confirmedAttendees.length > 0 && (
+          <CollapsibleSection
+            icon={<UsersIcon className="w-4 h-4 text-[#002060]" />}
+            title="¿Quiénes van?"
+            badge={<span className="text-sm font-bold text-[#00A651]">{confirmedAttendees.length}</span>}
+          >
+            <div className="flex flex-wrap gap-2">
+              {confirmedAttendees.map((a, i) => (
+                <span
+                  key={i}
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-sm ${
+                    a.payment_status === "paid"
+                      ? "bg-green-50 text-green-700"
+                      : "bg-[#002060]/5 text-gray-700"
+                  }`}
+                >
+                  {a.payment_status === "paid" && <CheckCircleIcon className="w-3.5 h-3.5 text-green-500" />}
+                  {a.full_name}
+                </span>
+              ))}
+            </div>
+          </CollapsibleSection>
+        )}
+
+        {/* Expense form section */}
+        <CollapsibleSection
+          icon={<ReceiptIcon className="w-4 h-4 text-[#002060]" />}
+          title="Cargar gasto"
+        >
+          <ExpenseForm eventId={event.id} />
+        </CollapsibleSection>
 
         {/* Footer branding */}
         <div className="mx-3 rounded-b-2xl bg-[#002060] px-5 py-3 flex items-center justify-center gap-2">

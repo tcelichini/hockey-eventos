@@ -20,6 +20,7 @@ export const events = pgTable("events", {
   whatsapp_number: text("whatsapp_number").notNull(),
   max_capacity: integer("max_capacity"),
   is_open: boolean("is_open").notNull().default(true),
+  whatsapp_confirmation: boolean("whatsapp_confirmation").notNull().default(false),
   pricing_tiers: jsonb("pricing_tiers").$type<PricingTier[]>(),
   created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
 })
@@ -35,7 +36,19 @@ export const attendees = pgTable("attendees", {
   created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
 })
 
+export const expenses = pgTable("expenses", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  event_id: uuid("event_id").notNull().references(() => events.id, { onDelete: "cascade" }),
+  description: text("description").notNull(),
+  responsible: text("responsible").notNull(),
+  amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
+  notes: text("notes"),
+  created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
+})
+
 export type Event = typeof events.$inferSelect
 export type NewEvent = typeof events.$inferInsert
 export type Attendee = typeof attendees.$inferSelect
 export type NewAttendee = typeof attendees.$inferInsert
+export type Expense = typeof expenses.$inferSelect
+export type NewExpense = typeof expenses.$inferInsert

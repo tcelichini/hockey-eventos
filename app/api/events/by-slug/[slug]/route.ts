@@ -11,6 +11,7 @@ export async function GET(_request: NextRequest, { params }: { params: { slug: s
       payment_amount: events.payment_amount,
       payment_account: events.payment_account,
       whatsapp_number: events.whatsapp_number,
+      whatsapp_confirmation: events.whatsapp_confirmation,
       pricing_tiers: events.pricing_tiers,
     })
     .from(events)

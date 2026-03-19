@@ -80,7 +80,7 @@ export default function PricingTiersEditor({ value, onChange }: PricingTiersEdit
       </label>
 
       <div className="space-y-2 pl-1">
-        {sorted.map((tier, sortedIdx) => {
+        {sorted.map((tier) => {
           const realIdx = tiers.indexOf(tier)
           const isCatchAll = tier.upTo === null
 

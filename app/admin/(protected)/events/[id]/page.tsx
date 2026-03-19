@@ -1,9 +1,9 @@
 import { db } from "@/db"
-import { events, attendees } from "@/db/schema"
+import { events, attendees, expenses } from "@/db/schema"
 import { eq } from "drizzle-orm"
 import { notFound } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ArrowLeftIcon, PencilIcon } from "lucide-react"
@@ -13,6 +13,12 @@ import DeleteEventButton from "@/components/delete-event-button"
 import ToggleEventButton from "@/components/toggle-event-button"
 import DeleteAttendeeButton from "@/components/delete-attendee-button"
 import ExportCsvButton from "@/components/export-csv-button"
+import DeleteExpenseButton from "@/components/delete-expense-button"
+import EditExpenseButton from "@/components/edit-expense-button"
+import ExpenseSettlement from "@/components/expense-settlement"
+import CollapsibleCard from "@/components/collapsible-card"
+import PaymentReminderButton from "@/components/payment-reminder-button"
+import WhatsAppInviteButton from "@/components/whatsapp-invite-button"
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 0 }).format(value)
@@ -49,6 +55,15 @@ export default async function EventDetailPage({ params }: { params: { id: string
   const getPrice = (a: typeof confirmed[0]) => Number(a.price_paid) || amount
   const totalCollected = paid.reduce((sum, a) => sum + getPrice(a), 0)
   const totalPending = unpaid.reduce((sum, a) => sum + getPrice(a), 0)
+
+  const expenseList = await db
+    .select()
+    .from(expenses)
+    .where(eq(expenses.event_id, event.id))
+    .orderBy(expenses.created_at)
+
+  const totalExpenses = expenseList.reduce((sum, e) => sum + Number(e.amount), 0)
+  const balance = totalCollected - totalExpenses
 
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").trim()
   const publicLink = `${appUrl}/e/${event.slug}`
@@ -113,6 +128,15 @@ export default async function EventDetailPage({ params }: { params: { id: string
             <code className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600 break-all">{publicLink}</code>
             <CopyLinkButton link={publicLink} />
           </div>
+          <WhatsAppInviteButton
+            eventTitle={event.title}
+            eventDate={event.date}
+            publicLink={publicLink}
+            maxCapacity={event.max_capacity}
+            confirmedCount={confirmed.length}
+            paymentAmount={amount}
+            pricingTiers={event.pricing_tiers}
+          />
         </CardContent>
       </Card>
 
@@ -158,70 +182,143 @@ export default async function EventDetailPage({ params }: { params: { id: string
         </div>
       )}
 
-      {/* Attendees */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Asistentes ({confirmed.length})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {confirmed.length === 0 ? (
-            <p className="text-gray-400 text-sm text-center py-4">Nadie confirmó aún</p>
-          ) : (
+      {/* Summary — debtors + expense split */}
+      <CollapsibleCard title="Resumen">
+        {unpaid.length > 0 ? (
+          <div className="space-y-2">
+            <p className="text-xs text-gray-400 uppercase tracking-wide">Pendientes de pago ({unpaid.length})</p>
+            <div className="space-y-1.5">
+              {unpaid.map((a) => (
+                <div key={a.id} className="flex items-center justify-between text-sm">
+                  <span className="text-gray-700">{a.full_name}</span>
+                  <span className="font-medium text-orange-500">{formatCurrency(getPrice(a))}</span>
+                </div>
+              ))}
+            </div>
+            <PaymentReminderButton
+              unpaidList={unpaid.map(a => ({ name: a.full_name, amount: getPrice(a) }))}
+              eventTitle={event.title}
+            />
+          </div>
+        ) : confirmed.length > 0 ? (
+          <p className="text-sm text-green-600 font-medium">✅ Todos al día con el pago del evento</p>
+        ) : (
+          <p className="text-gray-400 text-sm text-center py-2">Sin asistentes confirmados</p>
+        )}
+        {totalExpenses > 0 && confirmed.length > 0 && (
+          <div className="mt-3 pt-3 border-t border-gray-100">
+            <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Gastos del evento</p>
+            <p className="text-sm text-gray-700">
+              Total: <span className="font-bold">{formatCurrency(totalExpenses)}</span>
+              <span className="text-gray-400"> ÷ {confirmed.length} personas = </span>
+              <span className="font-bold">{formatCurrency(Math.round(totalExpenses / confirmed.length))}</span>
+              <span className="text-gray-400"> c/u</span>
+            </p>
+          </div>
+        )}
+      </CollapsibleCard>
+
+      {/* Expenses */}
+      <CollapsibleCard
+        title={`Gastos del evento (${expenseList.length})`}
+        headerRight={totalExpenses > 0 ? (
+          <div className="flex items-center gap-3 text-sm">
+            <span className="text-gray-500">Total: <span className="font-bold text-red-500">{formatCurrency(totalExpenses)}</span></span>
+            {amount > 0 && (
+              <span className="text-gray-500">Balance: <span className={`font-bold ${balance >= 0 ? "text-green-600" : "text-red-500"}`}>{formatCurrency(balance)}</span></span>
+            )}
+          </div>
+        ) : undefined}
+      >
+        {expenseList.length === 0 ? (
+          <p className="text-gray-400 text-sm text-center py-4">No hay gastos cargados</p>
+        ) : (
+          <>
             <div className="divide-y">
-              {confirmed.map((attendee) => (
-                <div key={attendee.id} className="py-3 flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="font-medium text-gray-900 truncate">{attendee.full_name}</p>
+              {expenseList.map((expense) => (
+                <div key={expense.id} className="py-3 flex items-center justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-gray-900">{expense.description}</p>
                     <p className="text-xs text-gray-400 mt-0.5">
-                      {formatCurrency(getPrice(attendee))} · {new Intl.DateTimeFormat("es-AR", {
-                        day: "numeric",
-                        month: "short",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      }).format(new Date(attendee.created_at!))}
+                      {expense.responsible}
+                      {expense.notes && ` · ${expense.notes}`}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    {attendee.payment_proof_url && (
-                      <a href={attendee.payment_proof_url} target="_blank" rel="noopener noreferrer">
-                        <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 cursor-pointer">
-                          Comprobante
-                        </Badge>
-                      </a>
-                    )}
-                    {attendee.payment_status === "paid" ? (
-                      <Badge className="bg-green-100 text-green-700 hover:bg-green-100">Pagó</Badge>
-                    ) : (
-                      <>
-                        <Badge variant="secondary">Pendiente</Badge>
-                        <MarkPaidButton attendeeId={attendee.id} />
-                      </>
-                    )}
-                    <DeleteAttendeeButton attendeeId={attendee.id} />
+                    <span className="font-medium text-gray-700 text-sm">{formatCurrency(Number(expense.amount))}</span>
+                    <EditExpenseButton expense={{ id: expense.id, description: expense.description, responsible: expense.responsible, amount: expense.amount!, notes: expense.notes }} />
+                    <DeleteExpenseButton expenseId={expense.id} />
                   </div>
                 </div>
               ))}
             </div>
-          )}
-        </CardContent>
-      </Card>
+            {confirmed.length > 0 && (
+              <ExpenseSettlement
+                expenses={expenseList.map(e => ({ responsible: e.responsible, amount: e.amount! }))}
+                attendees={confirmed.map(a => ({ full_name: a.full_name }))}
+              />
+            )}
+          </>
+        )}
+      </CollapsibleCard>
 
-      {declined.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base text-gray-500">No van ({declined.length})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="divide-y">
-              {declined.map((attendee) => (
-                <div key={attendee.id} className="py-2 flex items-center justify-between gap-2">
-                  <p className="text-gray-500 text-sm">{attendee.full_name}</p>
+      {/* Attendees */}
+      <CollapsibleCard title={`Asistentes (${confirmed.length})`}>
+        {confirmed.length === 0 ? (
+          <p className="text-gray-400 text-sm text-center py-4">Nadie confirmó aún</p>
+        ) : (
+          <div className="divide-y">
+            {confirmed.map((attendee) => (
+              <div key={attendee.id} className="py-3 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-medium text-gray-900 truncate">{attendee.full_name}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {formatCurrency(getPrice(attendee))} · {new Intl.DateTimeFormat("es-AR", {
+                      day: "numeric",
+                      month: "short",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    }).format(new Date(attendee.created_at!))}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {attendee.payment_proof_url && (
+                    <a href={attendee.payment_proof_url} target="_blank" rel="noopener noreferrer">
+                      <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 cursor-pointer">
+                        Comprobante
+                      </Badge>
+                    </a>
+                  )}
+                  {attendee.payment_status === "paid" ? (
+                    <>
+                      <Badge className="bg-green-100 text-green-700 hover:bg-green-100">Pagó</Badge>
+                      <MarkPaidButton attendeeId={attendee.id} isPaid={true} />
+                    </>
+                  ) : (
+                    <>
+                      <Badge variant="secondary">Pendiente</Badge>
+                      <MarkPaidButton attendeeId={attendee.id} isPaid={false} />
+                    </>
+                  )}
                   <DeleteAttendeeButton attendeeId={attendee.id} />
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+              </div>
+            ))}
+          </div>
+        )}
+      </CollapsibleCard>
+
+      {declined.length > 0 && (
+        <CollapsibleCard title={`No van (${declined.length})`} defaultOpen={false}>
+          <div className="divide-y">
+            {declined.map((attendee) => (
+              <div key={attendee.id} className="py-2 flex items-center justify-between gap-2">
+                <p className="text-gray-500 text-sm">{attendee.full_name}</p>
+                <DeleteAttendeeButton attendeeId={attendee.id} />
+              </div>
+            ))}
+          </div>
+        </CollapsibleCard>
       )}
     </div>
   )

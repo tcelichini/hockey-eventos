@@ -3,9 +3,15 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { CheckIcon } from "lucide-react"
+import { CheckIcon, UndoIcon } from "lucide-react"
 
-export default function MarkPaidButton({ attendeeId }: { attendeeId: string }) {
+export default function MarkPaidButton({
+  attendeeId,
+  isPaid,
+}: {
+  attendeeId: string
+  isPaid: boolean
+}) {
   const [loading, setLoading] = useState(false)
   const router = useRouter()
 
@@ -14,10 +20,25 @@ export default function MarkPaidButton({ attendeeId }: { attendeeId: string }) {
     await fetch(`/api/attendees/${attendeeId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ payment_status: "paid" }),
+      body: JSON.stringify({ payment_status: isPaid ? "pending" : "paid" }),
     })
     router.refresh()
     setLoading(false)
+  }
+
+  if (isPaid) {
+    return (
+      <Button
+        size="sm"
+        variant="ghost"
+        onClick={handleClick}
+        disabled={loading}
+        className="text-xs h-7 text-gray-400 hover:text-orange-500"
+        title="Desmarcar pago"
+      >
+        <UndoIcon className="w-3 h-3" />
+      </Button>
+    )
   }
 
   return (

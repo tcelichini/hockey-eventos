@@ -19,6 +19,7 @@ export default function NewEventPage() {
   const [error, setError] = useState("")
   const [flyerUrl, setFlyerUrl] = useState<string | null>(null)
   const [pricingTiers, setPricingTiers] = useState<PricingTier[] | null>(null)
+  const [whatsappConfirmation, setWhatsappConfirmation] = useState(false)
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -37,6 +38,7 @@ export default function NewEventPage() {
       flyer_url: flyerUrl,
       max_capacity: maxCapacityVal ? parseInt(maxCapacityVal) : null,
       pricing_tiers: pricingTiers,
+      whatsapp_confirmation: whatsappConfirmation,
     }
 
     const res = await fetch("/api/events", {
@@ -159,6 +161,20 @@ export default function NewEventPage() {
                 <p className="text-xs text-gray-400">
                   Formato internacional sin +. Argentina: 549 + código de área + número (ej: 5491151234567)
                 </p>
+              </div>
+
+              <div className="flex items-center gap-3 pt-2">
+                <input
+                  type="checkbox"
+                  id="whatsapp_confirmation"
+                  checked={whatsappConfirmation}
+                  onChange={(e) => setWhatsappConfirmation(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                />
+                <div>
+                  <Label htmlFor="whatsapp_confirmation" className="cursor-pointer">Habilitar envío de comprobante por WhatsApp</Label>
+                  <p className="text-xs text-gray-400">Si está activado, los asistentes verán la opción de enviar el comprobante por WhatsApp después de anotarse.</p>
+                </div>
               </div>
             </div>
 

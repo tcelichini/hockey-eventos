@@ -7,7 +7,9 @@ import { CopyIcon, CheckIcon } from "lucide-react"
 export default function CopyLinkButton({ link }: { link: string }) {
   const [copied, setCopied] = useState(false)
 
-  async function handleCopy() {
+  async function handleCopy(e: React.MouseEvent) {
+    e.preventDefault()
+    e.stopPropagation()
     await navigator.clipboard.writeText(link)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
