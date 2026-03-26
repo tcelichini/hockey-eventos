@@ -53,28 +53,7 @@ function calculateSettlement(expenses: ExpenseData[], attendees: AttendeeData[])
   // Only show people who actually paid something (bought stuff)
   const buyers = balances.filter(b => b.paid > 0)
 
-  // Calculate optimal transfers (greedy)
-  const transfers: { from: string; to: string; amount: number }[] = []
-  const debtors = balances.filter(b => b.balance < -0.5).map(b => ({ name: b.name, amount: -b.balance }))
-  const creditors = balances.filter(b => b.balance > 0.5).map(b => ({ name: b.name, amount: b.balance }))
-
-  // Sort: biggest debtor first, biggest creditor first
-  debtors.sort((a, b) => b.amount - a.amount)
-  creditors.sort((a, b) => b.amount - a.amount)
-
-  let i = 0, j = 0
-  while (i < debtors.length && j < creditors.length) {
-    const transfer = Math.min(debtors[i].amount, creditors[j].amount)
-    if (transfer > 0.5) {
-      transfers.push({ from: debtors[i].name, to: creditors[j].name, amount: Math.round(transfer) })
-    }
-    debtors[i].amount -= transfer
-    creditors[j].amount -= transfer
-    if (debtors[i].amount < 0.5) i++
-    if (creditors[j].amount < 0.5) j++
-  }
-
-  return { total, perPerson, buyers, transfers, participantCount }
+  return { total, perPerson, buyers, participantCount }
 }
 
 export default function ExpenseSettlement({ expenses, attendees }: { expenses: ExpenseData[]; attendees: AttendeeData[] }) {
@@ -108,31 +87,12 @@ export default function ExpenseSettlement({ expenses, attendees }: { expenses: E
             {result.buyers.map((b) => (
               <div key={b.name} className="flex items-center justify-between text-sm">
                 <span className="font-medium text-gray-700">{b.name}</span>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-gray-400 text-xs">pagó {formatCurrency(b.paid)}</span>
-                  {b.balance > 0.5 && (
-                    <span className="font-semibold text-[#00A651]">+{formatCurrency(b.balance)}</span>
-                  )}
-                </div>
+                <span className="font-semibold text-[#00A651]">{formatCurrency(b.paid)}</span>
               </div>
             ))}
           </div>
         )}
 
-        {/* Transfers */}
-        {result.transfers.length > 0 && (
-          <div className="space-y-2 pt-2 border-t border-gray-100">
-            <p className="text-xs text-gray-400 uppercase tracking-wide">Para saldar</p>
-            {result.transfers.map((t, i) => (
-              <div key={i} className="flex items-center gap-2 bg-[#002060]/5 rounded-lg px-3 py-2 text-sm">
-                <span className="font-medium text-red-500">{t.from}</span>
-                <span className="text-gray-400">→</span>
-                <span className="font-medium text-[#00A651]">{t.to}</span>
-                <span className="ml-auto font-bold text-[#002060]">{formatCurrency(t.amount)}</span>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   )
