@@ -5,7 +5,7 @@ import { notFound } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
 import { CalendarIcon, ReceiptIcon, UsersIcon, CheckCircleIcon } from "lucide-react"
-import { calculatePrice } from "@/lib/pricing"
+import { calculatePrice, getTierLabel } from "@/lib/pricing"
 import ExpenseForm from "@/components/expense-form"
 
 import CollapsibleSection from "@/components/collapsible-section"
@@ -75,7 +75,11 @@ export default async function EventPage({ params }: { params: { slug: string } }
         {/* Banner */}
         {event.flyer_url ? (
           <div className="relative aspect-[4/3] w-full">
-            <Image src={event.flyer_url} alt={event.title} fill className="object-cover" />
+            {(() => {
+              const [imgUrl, pos] = (event.flyer_url ?? "").split("#")
+              const objectPosition = ["top", "center", "bottom"].includes(pos) ? pos : "center"
+              return <Image src={imgUrl} alt={event.title} fill className="object-cover" style={{ objectPosition }} />
+            })()}
             {/* Overlay gradient at bottom */}
             <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-[#001435] to-transparent" />
           </div>
@@ -115,18 +119,22 @@ export default async function EventPage({ params }: { params: { slug: string } }
           {event.pricing_tiers && event.pricing_tiers.length > 0 ? (
             <div className="bg-[#002060]/5 border border-[#002060]/10 rounded-xl px-4 py-3 space-y-2">
               <p className="text-xs text-gray-400 uppercase tracking-wide">Costo por persona</p>
-              {[...event.pricing_tiers]
-                .sort((a, b) => (a.upTo ?? Infinity) - (b.upTo ?? Infinity))
-                .map((tier, i) => (
-                  <div key={i} className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">
-                      {tier.upTo ? `Primeros ${tier.upTo}` : "Resto"}
-                    </span>
-                    <span className="font-bold text-[#002060]">
-                      {formatCurrency(String(tier.price))}
-                    </span>
-                  </div>
-                ))}
+              {(() => {
+                const sorted = [...event.pricing_tiers!].sort((a, b) => (a.upTo ?? Infinity) - (b.upTo ?? Infinity))
+                return sorted.map((tier, i) => {
+                  const isTierFull = tier.upTo !== null && Number(confirmedCount) >= tier.upTo
+                  return (
+                    <div key={i} className={`flex justify-between items-center ${isTierFull ? "opacity-40" : ""}`}>
+                      <span className={`text-sm text-gray-600 ${isTierFull ? "line-through" : ""}`}>
+                        {getTierLabel(tier, i, sorted)}
+                      </span>
+                      <span className={`font-bold text-[#002060] ${isTierFull ? "line-through" : ""}`}>
+                        {formatCurrency(String(tier.price))}
+                      </span>
+                    </div>
+                  )
+                })
+              })()}
               <div className="pt-1 border-t border-[#002060]/10">
                 <p className="text-xs text-[#00A651] font-medium">
                   Tu precio: {formatCurrency(String(calculatePrice(event.pricing_tiers, event.payment_amount, Number(confirmedCount))))}

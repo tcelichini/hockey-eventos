@@ -30,7 +30,10 @@ export default function PricingTiersEditor({ value, onChange }: PricingTiersEdit
     if (!value) return
     const updated = [...value]
     if (field === "upTo") {
-      updated[index] = { ...updated[index], upTo: val ? parseInt(val) : null }
+      // Solo actualizar si hay un número válido — no permitir convertir un tramo numerado en catch-all
+      if (val && parseInt(val) > 0) {
+        updated[index] = { ...updated[index], upTo: parseInt(val) }
+      }
     } else {
       updated[index] = { ...updated[index], price: val ? parseFloat(val) : 0 }
     }
@@ -51,8 +54,9 @@ export default function PricingTiersEditor({ value, onChange }: PricingTiersEdit
 
   function removeTier(index: number) {
     if (!value || value.length <= 2) return
-    // Don't allow removing the catch-all tier
-    if (value[index].upTo === null) return
+    // Permitir borrar un catch-all solo si hay más de uno (para limpiar duplicados)
+    const catchAllCount = value.filter((t) => t.upTo === null).length
+    if (value[index].upTo === null && catchAllCount <= 1) return
     onChange(value.filter((_, i) => i !== index))
   }
 
@@ -66,6 +70,7 @@ export default function PricingTiersEditor({ value, onChange }: PricingTiersEdit
   }
 
   const tiers = value || []
+  const catchAllCount = tiers.filter((t) => t.upTo === null).length
   const sorted = [...tiers].sort((a, b) => {
     if (a.upTo === null) return 1
     if (b.upTo === null) return -1
@@ -83,6 +88,7 @@ export default function PricingTiersEditor({ value, onChange }: PricingTiersEdit
         {sorted.map((tier) => {
           const realIdx = tiers.indexOf(tier)
           const isCatchAll = tier.upTo === null
+          const canDelete = !isCatchAll ? tiers.length > 2 : catchAllCount > 1
 
           return (
             <div key={realIdx} className="flex items-center gap-2">
@@ -115,7 +121,7 @@ export default function PricingTiersEditor({ value, onChange }: PricingTiersEdit
                   placeholder="Precio"
                 />
               </div>
-              {!isCatchAll && tiers.length > 2 ? (
+              {canDelete ? (
                 <Button
                   type="button"
                   variant="ghost"

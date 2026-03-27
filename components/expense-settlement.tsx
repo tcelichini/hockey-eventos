@@ -1,7 +1,7 @@
 import { ArrowRightLeft } from "lucide-react"
 
 type ExpenseData = { responsible: string; amount: string }
-type AttendeeData = { full_name: string }
+type AttendeeData = { full_name: string; price_paid?: string | null }
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 0 }).format(amount)
@@ -42,21 +42,26 @@ function calculateSettlement(expenses: ExpenseData[], attendees: AttendeeData[])
     paid.set(key, (paid.get(key) || 0) + Number(e.amount))
   }
 
-  // Calculate balances (positive = overpaid, negative = underpaid)
-  const balances: { name: string; paid: number; balance: number }[] = []
+  // Only show people who actually paid something (bought stuff)
+  const buyers: { name: string; paid: number }[] = []
   participantMap.forEach((displayName, key) => {
     const paidAmount = paid.get(key) || 0
-    balances.push({ name: displayName, paid: paidAmount, balance: paidAmount - perPerson })
+    if (paidAmount > 0) {
+      buyers.push({ name: displayName, paid: paidAmount })
+    }
   })
-  balances.sort((a, b) => b.balance - a.balance) // creditors first
-
-  // Only show people who actually paid something (bought stuff)
-  const buyers = balances.filter(b => b.paid > 0)
 
   return { total, perPerson, buyers, participantCount }
 }
 
-export default function ExpenseSettlement({ expenses, attendees }: { expenses: ExpenseData[]; attendees: AttendeeData[] }) {
+export default function ExpenseSettlement({
+  expenses,
+  attendees,
+}: {
+  expenses: ExpenseData[]
+  attendees: AttendeeData[]
+  paymentAmount?: number
+}) {
   const result = calculateSettlement(expenses, attendees)
   if (!result || result.total === 0) return null
 
@@ -92,7 +97,6 @@ export default function ExpenseSettlement({ expenses, attendees }: { expenses: E
             ))}
           </div>
         )}
-
       </div>
     </div>
   )

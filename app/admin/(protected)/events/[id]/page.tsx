@@ -15,10 +15,10 @@ import DeleteAttendeeButton from "@/components/delete-attendee-button"
 import ExportCsvButton from "@/components/export-csv-button"
 import DeleteExpenseButton from "@/components/delete-expense-button"
 import EditExpenseButton from "@/components/edit-expense-button"
-import ExpenseSettlement from "@/components/expense-settlement"
 import CollapsibleCard from "@/components/collapsible-card"
 import PaymentReminderButton from "@/components/payment-reminder-button"
 import WhatsAppInviteButton from "@/components/whatsapp-invite-button"
+import { getTierLabel } from "@/lib/pricing"
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 0 }).format(value)
@@ -64,6 +64,17 @@ export default async function EventDetailPage({ params }: { params: { id: string
 
   const totalExpenses = expenseList.reduce((sum, e) => sum + Number(e.amount), 0)
   const balance = totalCollected - totalExpenses
+
+  // Mapa de gastos adelantados por persona (nombre normalizado -> total)
+  const expenseByPerson = new Map<string, number>()
+  for (const e of expenseList) {
+    const key = e.responsible.trim().toLowerCase()
+    expenseByPerson.set(key, (expenseByPerson.get(key) || 0) + Number(e.amount))
+  }
+  const getNetBalance = (name: string, eventPrice: number) => {
+    const expPaid = expenseByPerson.get(name.trim().toLowerCase()) || 0
+    return eventPrice - expPaid
+  }
 
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").trim()
   const publicLink = `${appUrl}/e/${event.slug}`
@@ -115,13 +126,14 @@ export default async function EventDetailPage({ params }: { params: { id: string
           {event.pricing_tiers && event.pricing_tiers.length > 0 && (
             <div className="mt-3 space-y-1">
               <p className="text-xs text-gray-400 uppercase tracking-wide">Precios por tramo</p>
-              {[...event.pricing_tiers]
-                .sort((a, b) => (a.upTo ?? Infinity) - (b.upTo ?? Infinity))
-                .map((tier, i) => (
+              {(() => {
+                const sorted = [...event.pricing_tiers!].sort((a, b) => (a.upTo ?? Infinity) - (b.upTo ?? Infinity))
+                return sorted.map((tier, i) => (
                   <p key={i} className="text-sm text-gray-700">
-                    {tier.upTo ? `Primeros ${tier.upTo}` : "Resto"}: {formatCurrency(tier.price)}
+                    {getTierLabel(tier, i, sorted)}: {formatCurrency(tier.price)}
                   </p>
-                ))}
+                ))
+              })()}
             </div>
           )}
           <div className="mt-3 flex items-center gap-2">
@@ -130,6 +142,7 @@ export default async function EventDetailPage({ params }: { params: { id: string
           </div>
           <WhatsAppInviteButton
             eventTitle={event.title}
+            eventDescription={event.description}
             eventDate={event.date}
             publicLink={publicLink}
             maxCapacity={event.max_capacity}
@@ -184,38 +197,68 @@ export default async function EventDetailPage({ params }: { params: { id: string
 
       {/* Summary — debtors + expense split */}
       <CollapsibleCard title="Resumen">
-        {unpaid.length > 0 ? (
-          <div className="space-y-2">
-            <p className="text-xs text-gray-400 uppercase tracking-wide">Pendientes de pago ({unpaid.length})</p>
-            <div className="space-y-1.5">
-              {unpaid.map((a) => (
-                <div key={a.id} className="flex items-center justify-between text-sm">
-                  <span className="text-gray-700">{a.full_name}</span>
-                  <span className="font-medium text-orange-500">{formatCurrency(getPrice(a))}</span>
-                </div>
-              ))}
-            </div>
-            <PaymentReminderButton
-              unpaidList={unpaid.map(a => ({ name: a.full_name, amount: getPrice(a) }))}
-              eventTitle={event.title}
-            />
-          </div>
-        ) : confirmed.length > 0 ? (
-          <p className="text-sm text-green-600 font-medium">✅ Todos al día con el pago del evento</p>
-        ) : (
+        {confirmed.length === 0 ? (
           <p className="text-gray-400 text-sm text-center py-2">Sin asistentes confirmados</p>
-        )}
-        {totalExpenses > 0 && confirmed.length > 0 && (
-          <div className="mt-3 pt-3 border-t border-gray-100">
-            <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Gastos del evento</p>
-            <p className="text-sm text-gray-700">
-              Total: <span className="font-bold">{formatCurrency(totalExpenses)}</span>
-              <span className="text-gray-400"> ÷ {confirmed.length} personas = </span>
-              <span className="font-bold">{formatCurrency(Math.round(totalExpenses / confirmed.length))}</span>
-              <span className="text-gray-400"> c/u</span>
-            </p>
-          </div>
-        )}
+        ) : (() => {
+          // Calcular balance neto de cada asistente confirmado:
+          // net = (precio del evento si no pagó, 0 si ya pagó) - gastos adelantados
+          const balances = confirmed.map(a => {
+            const eventDebt = a.payment_status === "paid" ? 0 : getPrice(a)
+            const expPaid = expenseByPerson.get(a.full_name.trim().toLowerCase()) || 0
+            return { a, net: eventDebt - expPaid, expPaid }
+          })
+          const debtors = balances.filter(b => b.net > 0)   // deben plata
+          const creditors = balances.filter(b => b.net < 0) // se les debe plata
+
+          return (
+            <div className="space-y-3">
+              {debtors.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-xs text-gray-400 uppercase tracking-wide">Deben pagar ({debtors.length})</p>
+                  {debtors.map(({ a, net, expPaid }) => (
+                    <div key={a.id} className="flex items-center justify-between text-sm">
+                      <span className="text-gray-700">{a.full_name}</span>
+                      <div className="text-right">
+                        <span className="font-medium text-orange-500">{formatCurrency(net)}</span>
+                        {expPaid > 0 && (
+                          <p className="text-xs text-gray-400">{formatCurrency(getPrice(a))} − {formatCurrency(expPaid)} gastos</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  <PaymentReminderButton
+                    unpaidList={debtors.map(({ a, net }) => ({ name: a.full_name, amount: net }))}
+                    eventTitle={event.title}
+                  />
+                </div>
+              )}
+
+              {creditors.length > 0 && (
+                <div className={`space-y-1.5 ${debtors.length > 0 ? "pt-3 border-t border-gray-100" : ""}`}>
+                  <p className="text-xs text-gray-400 uppercase tracking-wide">Se les debe devolver</p>
+                  {creditors.map(({ a, net, expPaid }) => (
+                    <div key={a.id} className="flex items-center justify-between text-sm">
+                      <span className="text-gray-700">{a.full_name}</span>
+                      <div className="text-right">
+                        <span className="font-medium text-green-600">Le deben {formatCurrency(Math.abs(net))}</span>
+                        {expPaid > 0 && a.payment_status === "paid" && (
+                          <p className="text-xs text-gray-400">pagó evento + {formatCurrency(expPaid)} en gastos</p>
+                        )}
+                        {expPaid > 0 && a.payment_status !== "paid" && (
+                          <p className="text-xs text-gray-400">{formatCurrency(getPrice(a))} − {formatCurrency(expPaid)} gastos</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {debtors.length === 0 && creditors.length === 0 && (
+                <p className="text-sm text-green-600 font-medium">✅ Todos al día</p>
+              )}
+            </div>
+          )
+        })()}
       </CollapsibleCard>
 
       {/* Expenses */}
@@ -253,10 +296,14 @@ export default async function EventDetailPage({ params }: { params: { id: string
               ))}
             </div>
             {confirmed.length > 0 && (
-              <ExpenseSettlement
-                expenses={expenseList.map(e => ({ responsible: e.responsible, amount: e.amount! }))}
-                attendees={confirmed.map(a => ({ full_name: a.full_name }))}
-              />
+              <div className="pt-3 mt-1 border-t border-gray-100">
+                <p className="text-sm text-gray-700">
+                  Total: <span className="font-bold">{formatCurrency(totalExpenses)}</span>
+                  <span className="text-gray-400"> ÷ {confirmed.length} personas = </span>
+                  <span className="font-bold">{formatCurrency(Math.round(totalExpenses / confirmed.length))}</span>
+                  <span className="text-gray-400"> c/u</span>
+                </p>
+              </div>
             )}
           </>
         )}

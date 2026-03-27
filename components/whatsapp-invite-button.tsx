@@ -2,6 +2,7 @@
 
 import { MessageCircleIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { getTierLabel } from "@/lib/pricing"
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 0 }).format(value)
@@ -21,6 +22,7 @@ function formatDate(date: Date | null) {
 
 export default function WhatsAppInviteButton({
   eventTitle,
+  eventDescription,
   eventDate,
   publicLink,
   maxCapacity,
@@ -29,6 +31,7 @@ export default function WhatsAppInviteButton({
   pricingTiers,
 }: {
   eventTitle: string
+  eventDescription?: string | null
   eventDate: Date | null
   publicLink: string
   maxCapacity: number | null
@@ -38,9 +41,13 @@ export default function WhatsAppInviteButton({
 }) {
   function handleClick() {
     const lines: string[] = [
-      `🏑 *${eventTitle}*`,
+      `⚽ *${eventTitle}*`,
       "",
     ]
+
+    if (eventDescription) {
+      lines.push(eventDescription, "")
+    }
 
     if (eventDate) {
       lines.push(`📅 ${formatDate(eventDate)}`)
@@ -49,8 +56,8 @@ export default function WhatsAppInviteButton({
     if (pricingTiers && pricingTiers.length > 0) {
       const sorted = [...pricingTiers].sort((a, b) => (a.upTo ?? Infinity) - (b.upTo ?? Infinity))
       lines.push(`💰 Precios:`)
-      for (const tier of sorted) {
-        lines.push(`  • ${tier.upTo ? `Primeros ${tier.upTo}` : "Resto"}: ${formatCurrency(tier.price)}`)
+      for (let i = 0; i < sorted.length; i++) {
+        lines.push(`  • ${getTierLabel(sorted[i], i, sorted)}: ${formatCurrency(sorted[i].price)}`)
       }
     } else if (paymentAmount > 0) {
       lines.push(`💰 ${formatCurrency(paymentAmount)}`)
@@ -65,7 +72,7 @@ export default function WhatsAppInviteButton({
       }
     }
 
-    lines.push("", `✅ Anotate acá:`, publicLink)
+    lines.push("", `👉 Anotate acá:`, publicLink)
 
     const message = lines.join("\n")
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank")

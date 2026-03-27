@@ -11,7 +11,7 @@ export default async function ResumenPage({ params }: { params: { slug: string }
   if (!event) notFound()
 
   const confirmedAttendees = await db
-    .select({ full_name: attendeesTable.full_name })
+    .select({ full_name: attendeesTable.full_name, price_paid: attendeesTable.price_paid })
     .from(attendeesTable)
     .where(and(eq(attendeesTable.event_id, event.id), eq(attendeesTable.status, "confirmed")))
 
@@ -50,6 +50,7 @@ export default async function ResumenPage({ params }: { params: { slug: string }
             <ExpenseSettlement
               expenses={expenseList.map(e => ({ responsible: e.responsible, amount: e.amount! }))}
               attendees={confirmedAttendees}
+              paymentAmount={Number(event.payment_amount)}
             />
           )}
         </div>

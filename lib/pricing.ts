@@ -31,6 +31,21 @@ export function calculatePrice(
 }
 
 /**
+ * Genera la etiqueta de rango para un tramo de precio.
+ * Ejemplo: tiers [upTo:4, upTo:8, upTo:null] → "Del 1 al 4", "Del 5 al 8", "Resto"
+ */
+export function getTierLabel(
+  tier: { upTo: number | null },
+  index: number,
+  sortedTiers: { upTo: number | null }[],
+): string {
+  if (tier.upTo === null) return "Resto"
+  const prevUpTo = index > 0 ? (sortedTiers[index - 1].upTo ?? 0) : 0
+  const start = prevUpTo + 1
+  return start === tier.upTo ? `Asistente ${tier.upTo}` : `Del ${start} al ${tier.upTo}`
+}
+
+/**
  * Valida que los tramos sean correctos.
  * - Al menos 2 tramos
  * - Precios > 0
