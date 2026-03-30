@@ -71,11 +71,6 @@ export default async function EventDetailPage({ params }: { params: { id: string
     const key = e.responsible.trim().toLowerCase()
     expenseByPerson.set(key, (expenseByPerson.get(key) || 0) + Number(e.amount))
   }
-  const getNetBalance = (name: string, eventPrice: number) => {
-    const expPaid = expenseByPerson.get(name.trim().toLowerCase()) || 0
-    return eventPrice - expPaid
-  }
-
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").trim()
   const publicLink = `${appUrl}/e/${event.slug}`
 
