@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { PlusIcon, TrashIcon } from "lucide-react"
 import type { DateTier } from "@/db/schema"
 
@@ -50,9 +49,6 @@ export default function DateTiersEditor({ value, onChange }: Props) {
     update(updated)
   }
 
-  const numbered = tiers.filter((t) => t.until !== null)
-  const catchAllIndex = tiers.findIndex((t) => t.until === null)
-
   return (
     <div className="space-y-3 bg-gray-50 rounded-xl p-4">
       <div className="flex items-center justify-between">
@@ -60,7 +56,7 @@ export default function DateTiersEditor({ value, onChange }: Props) {
       </div>
 
       <p className="text-xs text-gray-400">
-        El precio se aplica según la fecha en que el asistente realiza el pago. El último tramo ("Resto") aplica después de todas las fechas.
+        El precio se aplica según la fecha en que el asistente realiza el pago. El último tramo (&quot;Resto&quot;) aplica después de todas las fechas.
       </p>
 
       {/* Tramos con fecha */}
