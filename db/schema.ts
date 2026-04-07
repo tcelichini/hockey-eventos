@@ -34,11 +34,27 @@ export const events = pgTable("events", {
 export const attendees = pgTable("attendees", {
   id: uuid("id").defaultRandom().primaryKey(),
   event_id: uuid("event_id").notNull().references(() => events.id, { onDelete: "cascade" }),
+  combo_id: uuid("combo_id").references(() => combos.id, { onDelete: "set null" }),
   full_name: text("full_name").notNull(),
   status: statusEnum("status").notNull(),
   payment_status: paymentStatusEnum("payment_status").notNull().default("pending"),
   payment_proof_url: text("payment_proof_url"),
   price_paid: numeric("price_paid", { precision: 10, scale: 2 }),
+  created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
+})
+
+export const combos = pgTable("combos", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  slug: text("slug").unique().notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  event_ids: jsonb("event_ids").$type<string[]>().notNull(),
+  date_tiers: jsonb("date_tiers").$type<DateTier[]>(),
+  payment_amount: numeric("payment_amount", { precision: 10, scale: 2 }).notNull(),
+  payment_account: text("payment_account").notNull(),
+  whatsapp_number: text("whatsapp_number").notNull(),
+  whatsapp_confirmation: boolean("whatsapp_confirmation").notNull().default(false),
+  is_open: boolean("is_open").notNull().default(true),
   created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
 })
 
@@ -58,3 +74,5 @@ export type Attendee = typeof attendees.$inferSelect
 export type NewAttendee = typeof attendees.$inferInsert
 export type Expense = typeof expenses.$inferSelect
 export type NewExpense = typeof expenses.$inferInsert
+export type Combo = typeof combos.$inferSelect
+export type NewCombo = typeof combos.$inferInsert

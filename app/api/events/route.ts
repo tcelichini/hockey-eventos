@@ -3,6 +3,15 @@ import { db } from "@/db"
 import { events } from "@/db/schema"
 import { COOKIE_NAME, verifySession } from "@/lib/auth"
 import { nanoid } from "nanoid"
+import { sql } from "drizzle-orm"
+
+export async function GET() {
+  const eventList = await db
+    .select({ id: events.id, title: events.title, date: events.date, slug: events.slug })
+    .from(events)
+    .orderBy(sql`${events.date} ASC`)
+  return NextResponse.json(eventList)
+}
 
 export async function POST(request: NextRequest) {
   const cookie = request.cookies.get(COOKIE_NAME)?.value

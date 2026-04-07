@@ -3,7 +3,7 @@
 import { useState, useRef } from "react"
 import { CameraIcon, CheckCircleIcon } from "lucide-react"
 
-export default function PaymentProofUpload({ attendeeId, onUploaded }: { attendeeId: string; onUploaded?: (url: string) => void }) {
+export default function PaymentProofUpload({ attendeeId, extraAttendeeIds, onUploaded }: { attendeeId: string; extraAttendeeIds?: string[]; onUploaded?: (url: string) => void }) {
   const [uploading, setUploading] = useState(false)
   const [uploaded, setUploaded] = useState(false)
   const [error, setError] = useState("")
@@ -20,6 +20,17 @@ export default function PaymentProofUpload({ attendeeId, onUploaded }: { attende
       const res = await fetch("/api/upload-proof", { method: "POST", body: form })
       if (res.ok) {
         const data = await res.json()
+        // If combo, also update proof for other attendees
+        if (extraAttendeeIds?.length) {
+          await Promise.all(
+            extraAttendeeIds.map((id) => {
+              const extraForm = new FormData()
+              extraForm.append("attendee_id", id)
+              extraForm.append("proof_url", data.url)
+              return fetch("/api/upload-proof-url", { method: "POST", body: JSON.stringify({ attendee_id: id, proof_url: data.url }), headers: { "Content-Type": "application/json" } })
+            })
+          )
+        }
         setUploaded(true)
         onUploaded?.(data.url)
       } else {

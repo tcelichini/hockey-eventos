@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { db } from "@/db"
-import { events, attendees, expenses } from "@/db/schema"
+import { events, attendees, expenses, combos } from "@/db/schema"
 import { eq, and, sql } from "drizzle-orm"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -11,6 +11,7 @@ import {
   UsersIcon,
   ClockIcon,
   TrendingUpIcon,
+  PackageIcon,
 } from "lucide-react"
 import CopyLinkButton from "@/components/copy-link-button"
 
@@ -99,6 +100,28 @@ export default async function AdminPage() {
   const totalExpenses = Number(globalExpenses.sum)
   const netRevenue = totalRevenue - totalExpenses
 
+  // Fetch combos
+  const comboList = await db.select().from(combos).orderBy(sql`${combos.created_at} DESC`)
+  const activeCombos = comboList.filter((c) => c.is_open)
+
+  // Combo attendee stats
+  const comboStats = await Promise.all(
+    comboList.map(async (combo) => {
+      const comboAttendees = await db
+        .select()
+        .from(attendees)
+        .where(and(eq(attendees.combo_id, combo.id), eq(attendees.status, "confirmed")))
+      // Unique persons
+      const personNames = Array.from(new Set(comboAttendees.map((a) => a.full_name.trim().toLowerCase())))
+      let paidCount = 0
+      for (let pi = 0; pi < personNames.length; pi++) {
+        const personAttendees = comboAttendees.filter((a) => a.full_name.trim().toLowerCase() === personNames[pi])
+        if (personAttendees.every((a) => a.payment_status === "paid")) paidCount++
+      }
+      return { total: personNames.length, paid: paidCount }
+    })
+  )
+
   // Split events
   const upcoming = eventList
     .map((e, i) => ({ event: e, stats: stats[i] }))
@@ -113,12 +136,20 @@ export default async function AdminPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-gray-900">Dashboard</h2>
-        <Link href="/admin/events/new">
-          <Button size="sm">
-            <PlusIcon className="w-4 h-4 mr-2" />
-            Nuevo evento
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href="/admin/combos/new">
+            <Button size="sm" variant="outline">
+              <PackageIcon className="w-4 h-4 mr-2" />
+              Nuevo combo
+            </Button>
+          </Link>
+          <Link href="/admin/events/new">
+            <Button size="sm">
+              <PlusIcon className="w-4 h-4 mr-2" />
+              Nuevo evento
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Global Stats */}
@@ -176,6 +207,48 @@ export default async function AdminPage() {
               Crear primer evento
             </Button>
           </Link>
+        </div>
+      )}
+
+      {/* Active Combos */}
+      {activeCombos.length > 0 && (
+        <div className="space-y-3">
+          <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide flex items-center gap-2">
+            <PackageIcon className="w-4 h-4" />
+            Combos activos
+          </h3>
+          {activeCombos.map((combo) => {
+            const stats = comboStats[comboList.indexOf(combo)]
+            const publicUrl = `${(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").trim()}/combo/${combo.slug}`
+            return (
+              <Link key={combo.id} href={`/admin/combos/${combo.id}`}>
+                <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border border-blue-200 p-4 hover:border-blue-300 hover:shadow-sm transition-all cursor-pointer mb-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-gray-900 truncate">{combo.title}</h3>
+                        <Badge className="bg-blue-100 text-blue-700 text-xs shrink-0">Combo</Badge>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-0.5">{combo.event_ids.length} eventos</p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex items-center gap-1 text-sm text-gray-600">
+                        <UsersIcon className="w-4 h-4" />
+                        <span>{stats.total}</span>
+                      </div>
+                      <Badge variant={stats.paid > 0 ? "default" : "secondary"}>
+                        {stats.paid} pagaron
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 mt-2">
+                    <span className="text-xs text-gray-400 truncate">/combo/{combo.slug}</span>
+                    <CopyLinkButton link={publicUrl} />
+                  </div>
+                </div>
+              </Link>
+            )
+          })}
         </div>
       )}
 

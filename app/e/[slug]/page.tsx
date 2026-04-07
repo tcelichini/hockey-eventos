@@ -1,10 +1,10 @@
 import { db } from "@/db"
-import { events, attendees as attendeesTable } from "@/db/schema"
+import { events, attendees as attendeesTable, combos } from "@/db/schema"
 import { eq, and } from "drizzle-orm"
 import { notFound } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
-import { CalendarIcon, ReceiptIcon, UsersIcon, CheckCircleIcon } from "lucide-react"
+import { CalendarIcon, ReceiptIcon, UsersIcon, CheckCircleIcon, PackageIcon } from "lucide-react"
 import { calculatePrice, getTierLabel, calculateDatePrice, getDateTierLabel } from "@/lib/pricing"
 import ExpenseForm from "@/components/expense-form"
 
@@ -67,6 +67,15 @@ export default async function EventPage({ params }: { params: { slug: string } }
 
   const isFull = event.max_capacity ? Number(confirmedCount) >= event.max_capacity : false
   const canConfirm = event.is_open && !isFull
+
+  // Check for active combo containing this event
+  const allCombos = await db.select().from(combos).where(eq(combos.is_open, true))
+  const activeCombo = allCombos.find((c) =>
+    (c.event_ids as string[]).includes(event.id)
+  )
+  const comboPrice = activeCombo?.date_tiers?.length
+    ? calculateDatePrice(activeCombo.date_tiers, activeCombo.payment_amount)
+    : activeCombo ? Number(activeCombo.payment_amount) : null
 
   return (
     <div className="min-h-screen bg-[#001435]">
@@ -199,6 +208,22 @@ export default async function EventPage({ params }: { params: { slug: string } }
                 {isFull ? "Sin lugares" : `${event.max_capacity - Number(confirmedCount)} lugares`}
               </span>
             </div>
+          )}
+
+          {/* Combo banner */}
+          {activeCombo && comboPrice && (
+            <Link href={`/combo/${activeCombo.slug}`} className="block">
+              <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl px-4 py-3 hover:border-blue-300 transition-colors">
+                <div className="flex items-center gap-2 mb-1">
+                  <PackageIcon className="w-4 h-4 text-blue-600" />
+                  <p className="text-sm font-semibold text-blue-800">Combo disponible</p>
+                </div>
+                <p className="text-sm text-gray-600">
+                  Paga {formatCurrency(String(comboPrice))} y anotate a los {(activeCombo.event_ids as string[]).length} partidos juntos
+                </p>
+                <p className="text-xs text-blue-600 font-medium mt-1 underline">Ver combo →</p>
+              </div>
+            </Link>
           )}
 
           {/* CTA Buttons */}
