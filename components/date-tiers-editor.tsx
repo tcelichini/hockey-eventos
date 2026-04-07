@@ -122,8 +122,8 @@ export default function DateTiersEditor({ value, onChange }: Props) {
         onClick={addTier}
         className="w-full text-xs"
       >
-        <PlusIcon className="w-3 h-3 mr-1" />
-        Agregar tramo de fecha
+        <PlusIcon className="w-3.5 h-3.5 mr-1" />
+        Agregar tramo por fecha
       </Button>
     </div>
   )

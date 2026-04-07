@@ -21,4 +21,4 @@ export default function RefreshButton() {
       Actualizar
     </Button>
   )
-}
+}

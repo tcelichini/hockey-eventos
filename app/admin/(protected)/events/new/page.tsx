@@ -226,7 +226,7 @@ export default function NewEventPage() {
             {error && <p className="text-red-500 text-sm">{error}</p>}
 
             <div className="pt-2">
-              <Button type="submit" className="w-full" disabled={loading}>
+              <Button type="submit" disabled={loading} className="w-full">
                 {loading ? "Creando..." : "Crear evento"}
               </Button>
             </div>
