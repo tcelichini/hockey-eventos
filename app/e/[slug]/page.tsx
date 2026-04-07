@@ -5,7 +5,7 @@ import { notFound } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
 import { CalendarIcon, ReceiptIcon, UsersIcon, CheckCircleIcon } from "lucide-react"
-import { calculatePrice, getTierLabel } from "@/lib/pricing"
+import { calculatePrice, getTierLabel, calculateDatePrice, getDateTierLabel } from "@/lib/pricing"
 import ExpenseForm from "@/components/expense-form"
 
 import CollapsibleSection from "@/components/collapsible-section"
@@ -116,7 +116,39 @@ export default async function EventPage({ params }: { params: { slug: string } }
           )}
 
           {/* Cost badge */}
-          {event.pricing_tiers && event.pricing_tiers.length > 0 ? (
+          {event.date_tiers && event.date_tiers.length > 0 ? (
+            // Precio por fecha
+            <div className="bg-[#002060]/5 border border-[#002060]/10 rounded-xl px-4 py-3 space-y-2">
+              <p className="text-xs text-gray-400 uppercase tracking-wide">Costo por persona</p>
+              {(() => {
+                const today = new Date().toISOString().slice(0, 10)
+                const sorted = [...event.date_tiers!].sort((a, b) => {
+                  if (a.until === null) return 1
+                  if (b.until === null) return -1
+                  return a.until.localeCompare(b.until)
+                })
+                return sorted.map((tier, i) => {
+                  const isPast = tier.until !== null && today > tier.until
+                  return (
+                    <div key={i} className={`flex justify-between items-center ${isPast ? "opacity-40" : ""}`}>
+                      <span className={`text-sm text-gray-600 ${isPast ? "line-through" : ""}`}>
+                        {getDateTierLabel(tier, i, sorted)}
+                      </span>
+                      <span className={`font-bold text-[#002060] ${isPast ? "line-through" : ""}`}>
+                        {formatCurrency(String(tier.price))}
+                      </span>
+                    </div>
+                  )
+                })
+              })()}
+              <div className="pt-1 border-t border-[#002060]/10">
+                <p className="text-xs text-[#00A651] font-medium">
+                  Tu precio hoy: {formatCurrency(String(calculateDatePrice(event.date_tiers, event.payment_amount)))}
+                </p>
+              </div>
+            </div>
+          ) : event.pricing_tiers && event.pricing_tiers.length > 0 ? (
+            // Precio por cantidad
             <div className="bg-[#002060]/5 border border-[#002060]/10 rounded-xl px-4 py-3 space-y-2">
               <p className="text-xs text-gray-400 uppercase tracking-wide">Costo por persona</p>
               {(() => {
@@ -142,6 +174,7 @@ export default async function EventPage({ params }: { params: { slug: string } }
               </div>
             </div>
           ) : (
+            // Precio fijo
             <div className="flex items-center gap-3 bg-[#002060]/5 border border-[#002060]/10 rounded-xl px-4 py-3">
               <div className="w-8 h-8 bg-[#00A651] rounded-lg flex items-center justify-center shrink-0">
                 <span className="text-white text-sm font-bold">$</span>

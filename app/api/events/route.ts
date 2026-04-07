@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json()
-  const { title, description, date, payment_account, payment_amount, whatsapp_number, flyer_url, max_capacity, pricing_tiers, whatsapp_confirmation } = body
+  const { title, description, date, payment_account, payment_amount, whatsapp_number, flyer_url, max_capacity, pricing_tiers, date_tiers, whatsapp_confirmation } = body
 
   if (!title || !date || !payment_account || !payment_amount || !whatsapp_number) {
     return NextResponse.json({ error: "Faltan campos requeridos" }, { status: 400 })
@@ -32,6 +32,7 @@ export async function POST(request: NextRequest) {
       whatsapp_number,
       max_capacity: max_capacity ? Number(max_capacity) : null,
       pricing_tiers: pricing_tiers || null,
+      date_tiers: date_tiers || null,
       whatsapp_confirmation: whatsapp_confirmation ?? false,
     })
     .returning()

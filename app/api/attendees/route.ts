@@ -3,7 +3,7 @@ import { db } from "@/db"
 import { attendees, events } from "@/db/schema"
 import { eq, and } from "drizzle-orm"
 import { notifyAdminWhatsApp } from "@/lib/whatsapp-notify"
-import { calculatePrice } from "@/lib/pricing"
+import { calculatePrice, calculateDatePrice } from "@/lib/pricing"
 
 export async function POST(request: NextRequest) {
   const body = await request.json()
@@ -46,11 +46,22 @@ export async function POST(request: NextRequest) {
     )
 
     if (existing) {
-      // Return existing record — no duplicate, no WhatsApp notification
+      // Para eventos con precio por fecha y asistente aún no pagado,
+      // recalcular el precio según la fecha actual (puede haber vencido un tramo)
+      let currentPaymentAmount = existing.price_paid || event.payment_amount
+      if (event.date_tiers && event.date_tiers.length > 0 && existing.payment_status !== "paid") {
+        const recalculated = calculateDatePrice(event.date_tiers, event.payment_amount)
+        currentPaymentAmount = String(recalculated)
+        // Actualizar price_paid en la DB con el precio vigente
+        await db.update(attendees)
+          .set({ price_paid: String(recalculated) })
+          .where(eq(attendees.id, existing.id))
+      }
+
       return NextResponse.json({
         attendee: existing,
         payment_account: event.payment_account,
-        payment_amount: existing.price_paid || event.payment_amount,
+        payment_amount: currentPaymentAmount,
         whatsapp_number: event.whatsapp_number,
         event_title: event.title,
         existing: true,
@@ -65,9 +76,11 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Calculate price based on tiers
+  // Calculate price based on tiers (by quantity or by date)
   const price = status === "confirmed"
-    ? calculatePrice(event.pricing_tiers, event.payment_amount, confirmedCount)
+    ? event.date_tiers && event.date_tiers.length > 0
+      ? calculateDatePrice(event.date_tiers, event.payment_amount)
+      : calculatePrice(event.pricing_tiers, event.payment_amount, confirmedCount)
     : 0
 
   const [attendee] = await db

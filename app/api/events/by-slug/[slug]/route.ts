@@ -13,6 +13,7 @@ export async function GET(_request: NextRequest, { params }: { params: { slug: s
       whatsapp_number: events.whatsapp_number,
       whatsapp_confirmation: events.whatsapp_confirmation,
       pricing_tiers: events.pricing_tiers,
+      date_tiers: events.date_tiers,
     })
     .from(events)
     .where(eq(events.slug, params.slug))

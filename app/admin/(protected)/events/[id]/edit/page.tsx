@@ -11,7 +11,10 @@ import Link from "next/link"
 import { ArrowLeftIcon } from "lucide-react"
 import ImageUpload from "@/components/image-upload"
 import PricingTiersEditor from "@/components/pricing-tiers-editor"
-import type { PricingTier } from "@/db/schema"
+import DateTiersEditor from "@/components/date-tiers-editor"
+import type { PricingTier, DateTier } from "@/db/schema"
+
+type PricingMode = "fixed" | "tiers" | "date"
 
 type EventData = {
   id: string
@@ -25,12 +28,19 @@ type EventData = {
   whatsapp_confirmation: boolean
   max_capacity: number | null
   pricing_tiers: PricingTier[] | null
+  date_tiers: DateTier[] | null
 }
 
 function toDatetimeLocal(isoString: string) {
   const d = new Date(isoString)
   const pad = (n: number) => String(n).padStart(2, "0")
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+function detectMode(data: EventData): PricingMode {
+  if (data.date_tiers && data.date_tiers.length > 0) return "date"
+  if (data.pricing_tiers && data.pricing_tiers.length > 0) return "tiers"
+  return "fixed"
 }
 
 export default function EditEventPage() {
@@ -40,7 +50,9 @@ export default function EditEventPage() {
 
   const [event, setEvent] = useState<EventData | null>(null)
   const [flyerUrl, setFlyerUrl] = useState<string | null>(null)
+  const [pricingMode, setPricingMode] = useState<PricingMode>("fixed")
   const [pricingTiers, setPricingTiers] = useState<PricingTier[] | null>(null)
+  const [dateTiers, setDateTiers] = useState<DateTier[] | null>(null)
   const [whatsappConfirmation, setWhatsappConfirmation] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -52,6 +64,8 @@ export default function EditEventPage() {
         setEvent(data)
         setFlyerUrl(data.flyer_url)
         setPricingTiers(data.pricing_tiers)
+        setDateTiers(data.date_tiers)
+        setPricingMode(detectMode(data))
         setWhatsappConfirmation(data.whatsapp_confirmation ?? false)
       })
   }, [id])
@@ -72,7 +86,8 @@ export default function EditEventPage() {
       payment_amount: parseFloat((form.elements.namedItem("payment_amount") as HTMLInputElement).value),
       whatsapp_number: (form.elements.namedItem("whatsapp_number") as HTMLInputElement).value,
       max_capacity: maxCapacityVal ? parseInt(maxCapacityVal) : null,
-      pricing_tiers: pricingTiers,
+      pricing_tiers: pricingMode === "tiers" ? pricingTiers : null,
+      date_tiers: pricingMode === "date" ? dateTiers : null,
       whatsapp_confirmation: whatsappConfirmation,
     }
 
@@ -163,8 +178,38 @@ export default function EditEventPage() {
             <div className="border-t pt-4 space-y-4">
               <h3 className="font-medium text-gray-700">Datos de pago</h3>
 
+              {/* Selector de modo de precio */}
               <div className="space-y-2">
-                <Label htmlFor="payment_amount">Monto a pagar (ARS) *</Label>
+                <Label>Tipo de precio</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(["fixed", "tiers", "date"] as PricingMode[]).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => setPricingMode(mode)}
+                      className={`text-sm py-2 px-3 rounded-lg border transition-colors ${
+                        pricingMode === mode
+                          ? "border-blue-500 bg-blue-50 text-blue-700 font-medium"
+                          : "border-gray-200 text-gray-500 hover:border-gray-300"
+                      }`}
+                    >
+                      {mode === "fixed" && "Precio fijo"}
+                      {mode === "tiers" && "Por cantidad"}
+                      {mode === "date" && "Por fecha"}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-400">
+                  {pricingMode === "fixed" && "Todos pagan el mismo monto."}
+                  {pricingMode === "tiers" && "El precio varía según cuántos se hayan anotado antes."}
+                  {pricingMode === "date" && "El precio varía según la fecha en que se realiza el pago."}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="payment_amount">
+                  {pricingMode === "fixed" ? "Monto a pagar (ARS) *" : "Monto base / fallback (ARS) *"}
+                </Label>
                 <Input
                   id="payment_amount"
                   name="payment_amount"
@@ -174,9 +219,18 @@ export default function EditEventPage() {
                   defaultValue={event.payment_amount}
                   required
                 />
+                {pricingMode !== "fixed" && (
+                  <p className="text-xs text-gray-400">Se usa si no aplica ningún tramo.</p>
+                )}
               </div>
 
-              <PricingTiersEditor value={pricingTiers} onChange={setPricingTiers} />
+              {pricingMode === "tiers" && (
+                <PricingTiersEditor value={pricingTiers} onChange={setPricingTiers} />
+              )}
+
+              {pricingMode === "date" && (
+                <DateTiersEditor value={dateTiers} onChange={setDateTiers} />
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="payment_account">CBU / Alias de destino *</Label>

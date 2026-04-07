@@ -18,7 +18,8 @@ import EditExpenseButton from "@/components/edit-expense-button"
 import CollapsibleCard from "@/components/collapsible-card"
 import PaymentReminderButton from "@/components/payment-reminder-button"
 import WhatsAppInviteButton from "@/components/whatsapp-invite-button"
-import { getTierLabel } from "@/lib/pricing"
+import RefreshButton from "@/components/refresh-button"
+import { getTierLabel, getDateTierLabel } from "@/lib/pricing"
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 0 }).format(value)
@@ -84,6 +85,7 @@ export default async function EventDetailPage({ params }: { params: { id: string
           </Button>
         </Link>
         <div className="flex items-center gap-2">
+          <RefreshButton />
           <ExportCsvButton eventId={params.id} />
           <ToggleEventButton eventId={params.id} isOpen={event.is_open} />
           <Link href={`/admin/events/${params.id}/edit`}>
@@ -117,6 +119,27 @@ export default async function EventDetailPage({ params }: { params: { id: string
                 <span className="ml-2 text-red-500 font-medium text-xs">COMPLETO</span>
               )}
             </p>
+          )}
+          {event.date_tiers && event.date_tiers.length > 0 && (
+            <div className="mt-3 space-y-1">
+              <p className="text-xs text-gray-400 uppercase tracking-wide">Precios por fecha</p>
+              {(() => {
+                const today = new Date().toISOString().slice(0, 10)
+                const sorted = [...event.date_tiers!].sort((a, b) => {
+                  if (a.until === null) return 1
+                  if (b.until === null) return -1
+                  return a.until.localeCompare(b.until)
+                })
+                return sorted.map((tier, i) => {
+                  const isPast = tier.until !== null && today > tier.until
+                  return (
+                    <p key={i} className={`text-sm ${isPast ? "text-gray-400 line-through" : "text-gray-700"}`}>
+                      {getDateTierLabel(tier, i, sorted)}: {formatCurrency(tier.price)}
+                    </p>
+                  )
+                })
+              })()}
+            </div>
           )}
           {event.pricing_tiers && event.pricing_tiers.length > 0 && (
             <div className="mt-3 space-y-1">

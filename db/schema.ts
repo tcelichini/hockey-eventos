@@ -5,6 +5,11 @@ export type PricingTier = {
   price: number
 }
 
+export type DateTier = {
+  until: string | null  // "YYYY-MM-DD", null = catch-all (después de todas las fechas)
+  price: number
+}
+
 export const statusEnum = pgEnum("rsvp_status", ["confirmed", "declined"])
 export const paymentStatusEnum = pgEnum("payment_status", ["pending", "paid"])
 
@@ -22,6 +27,7 @@ export const events = pgTable("events", {
   is_open: boolean("is_open").notNull().default(true),
   whatsapp_confirmation: boolean("whatsapp_confirmation").notNull().default(false),
   pricing_tiers: jsonb("pricing_tiers").$type<PricingTier[]>(),
+  date_tiers: jsonb("date_tiers").$type<DateTier[]>(),
   created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
 })
 
