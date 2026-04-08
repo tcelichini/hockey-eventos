@@ -35,6 +35,7 @@ function formatDate(date: Date | null) {
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "America/Argentina/Buenos_Aires",
   }).format(new Date(date))
 }
 
@@ -347,6 +348,7 @@ export default async function EventDetailPage({ params }: { params: { id: string
                       month: "short",
                       hour: "2-digit",
                       minute: "2-digit",
+                      timeZone: "America/Argentina/Buenos_Aires",
                     }).format(new Date(attendee.created_at!))}
                     {attendee.proof_uploaded_at && (
                       <> · <span className="text-green-600">Pagó {new Intl.DateTimeFormat("es-AR", {
@@ -354,6 +356,7 @@ export default async function EventDetailPage({ params }: { params: { id: string
                         month: "short",
                         hour: "2-digit",
                         minute: "2-digit",
+                        timeZone: "America/Argentina/Buenos_Aires",
                       }).format(new Date(attendee.proof_uploaded_at))}</span></>
                     )}
                   </p>

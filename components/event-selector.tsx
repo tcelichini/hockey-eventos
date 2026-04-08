@@ -18,6 +18,7 @@ function formatDate(date: string) {
     weekday: "short",
     day: "numeric",
     month: "short",
+    timeZone: "America/Argentina/Buenos_Aires",
   }).format(new Date(date))
 }
 

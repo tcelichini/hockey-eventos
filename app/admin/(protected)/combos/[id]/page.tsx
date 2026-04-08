@@ -26,6 +26,7 @@ function formatDate(date: Date | null) {
     month: "long",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "America/Argentina/Buenos_Aires",
   }).format(new Date(date))
 }
 
@@ -58,12 +59,14 @@ export default async function ComboDetailPage({ params }: { params: { id: string
     const totalPaid = attendeeList.reduce((sum, a) => sum + Number(a.price_paid || 0), 0)
     const allPaid = attendeeList.every((a) => a.payment_status === "paid")
     const proofUrl = attendeeList.find((a) => a.payment_proof_url)?.payment_proof_url
+    const proofUploadedAt = attendeeList.find((a) => a.proof_uploaded_at)?.proof_uploaded_at
     return {
       name: attendeeList[0].full_name,
       attendees: attendeeList,
       totalPaid,
       allPaid,
       proofUrl,
+      proofUploadedAt,
     }
   })
 
@@ -197,6 +200,15 @@ export default async function ComboDetailPage({ params }: { params: { id: string
                     <p className="font-medium text-gray-900 truncate">{person.name}</p>
                     <p className="text-xs text-gray-400 mt-0.5">
                       Combo: {formatCurrency(person.totalPaid)}
+                      {person.proofUploadedAt && (
+                        <> · <span className="text-green-600">Pagó {new Intl.DateTimeFormat("es-AR", {
+                          day: "numeric",
+                          month: "short",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          timeZone: "America/Argentina/Buenos_Aires",
+                        }).format(new Date(person.proofUploadedAt))}</span></>
+                      )}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">

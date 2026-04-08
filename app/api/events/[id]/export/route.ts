@@ -34,6 +34,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
+      timeZone: "America/Argentina/Buenos_Aires",
     }).format(new Date(a.created_at!))
     return `${name},${price},${payment},${date}`
   })

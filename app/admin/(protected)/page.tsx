@@ -24,6 +24,7 @@ function formatDate(date: Date | null) {
     month: "long",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "America/Argentina/Buenos_Aires",
   }).format(new Date(date))
 }
 
