@@ -30,6 +30,15 @@ git commit -m "descripción del cambio"
 git pull --rebase && git push
 ```
 Si el push es rechazado (remote has changes), usar `git pull --rebase` antes de `git push`.
+Si hay cambios locales sin commitear y necesitás traer cambios del remoto:
+```bash
+git stash
+git pull --rebase
+git stash pop
+```
+
+## Nota importante sobre archivos truncados
+Al editar archivos desde Cowork, pueden quedar truncados o con bytes nulos al final (problema de CRLF/LF en Windows). Antes de hacer commit, conviene correr `npx tsc --noEmit` para detectar archivos rotos. Si aparecen errores de "Invalid character" o "no corresponding closing tag", restaurar el archivo desde HEAD con `git show HEAD:ruta/archivo > ruta/archivo` y re-aplicar los cambios.
 
 ---
 
@@ -37,23 +46,31 @@ Si el push es rechazado (remote has changes), usar `git pull --rebase` antes de 
 
 | Archivo | Qué hace |
 |---|---|
-| `db/schema.ts` | Tipos `PricingTier`, `DateTier` y columnas de la tabla `events` |
+| `db/schema.ts` | Tipos `PricingTier`, `DateTier` y tablas `events`, `attendees`, `expenses`, `combos` |
 | `lib/pricing.ts` | Helpers: `getTierLabel`, `calculatePrice`, `calculateDatePrice`, `getDateTierLabel`, `validateTiers` |
 | `components/pricing-tiers-editor.tsx` | Editor de tramos por cantidad |
 | `components/date-tiers-editor.tsx` | Editor de tramos por fecha de pago |
 | `components/refresh-button.tsx` | Botón "Actualizar" que llama a `router.refresh()` |
 | `components/image-upload.tsx` | Upload con selector de posición (#top/#bottom en URL) |
-| `components/whatsapp-invite-button.tsx` | Botón WhatsApp con descripción, ⚽, 👉 |
-| `components/expense-settlement.tsx` | Versión simple: cuota por persona y quién compró |
-| `app/admin/(protected)/events/[id]/page.tsx` | Panel admin del evento (Resumen, Gastos, Asistentes) |
+| `components/whatsapp-invite-button.tsx` | Botón WhatsApp con descripción |
+| `components/payment-proof-upload.tsx` | Componente para subir comprobante de pago |
+| `app/admin/(protected)/page.tsx` | Dashboard admin general (stats globales, eventos, combos, botón Actualizar) |
+| `app/admin/(protected)/events/[id]/page.tsx` | Panel admin del evento (Resumen, Gastos, Asistentes con fecha de comprobante) |
 | `app/admin/(protected)/events/new/page.tsx` | Formulario nuevo evento (con selector de tipo de precio) |
 | `app/admin/(protected)/events/[id]/edit/page.tsx` | Formulario editar evento (con selector de tipo de precio) |
+| `app/admin/(protected)/combos/new/page.tsx` | Formulario nuevo combo |
+| `app/admin/(protected)/combos/[id]/page.tsx` | Panel admin del combo |
 | `app/api/attendees/route.ts` | API de registro: calcula precio por tramo, por fecha, o fijo |
 | `app/api/events/route.ts` | API POST eventos: guarda `pricing_tiers` y `date_tiers` |
 | `app/api/events/[id]/route.ts` | API PATCH eventos: actualiza `pricing_tiers` y `date_tiers` |
 | `app/api/events/by-slug/[slug]/route.ts` | API pública: expone `pricing_tiers` y `date_tiers` |
+| `app/api/combos/route.ts` | API POST combos |
+| `app/api/combos/[id]/route.ts` | API PATCH/DELETE combos |
+| `app/api/combos/by-slug/[slug]/route.ts` | API pública de combos |
+| `app/api/upload-proof/route.ts` | API de subida de comprobante (guarda `proof_uploaded_at`) |
 | `app/e/[slug]/page.tsx` | Página pública del evento (muestra precios por fecha, tramo o fijo) |
 | `app/e/[slug]/resumen/page.tsx` | Página pública de resumen de gastos |
+| `app/combo/[slug]/page.tsx` | Página pública del combo |
 
 ---
 
@@ -80,6 +97,33 @@ Si un asistente ya confirmado (sin pagar) vuelve a la página de confirmación e
 
 ---
 
+## Combos (agregado por Tomás)
+
+Un combo agrupa varios eventos con un precio conjunto (con descuento). El asistente se inscribe a todos los eventos del combo con un solo pago.
+
+### Tabla `combos`
+```typescript
+{
+  id: uuid
+  slug: text (único)
+  title: text
+  description: text | null
+  event_ids: jsonb (string[])     // IDs de los eventos incluidos
+  date_tiers: jsonb (DateTier[])  // Precios por fecha (misma lógica que eventos)
+  payment_amount: numeric         // Precio base del combo
+  payment_account: text
+  whatsapp_number: text
+  whatsapp_confirmation: boolean
+  is_open: boolean
+  created_at: timestamp
+}
+```
+
+### Relación con attendees
+La tabla `attendees` tiene un campo `combo_id` (nullable) que referencia al combo. Cuando alguien se inscribe a un combo, se crea un registro de attendee por cada evento del combo, todos con el mismo `combo_id`.
+
+---
+
 ## Lógica de balance neto (Resumen admin)
 ```
 net = eventDebt - expPaid
@@ -95,6 +139,20 @@ net = 0 → al día
 
 ---
 
+## Migraciones SQL (ejecutar en Supabase SQL Editor)
+
+Verificar que estas migraciones se hayan corrido:
+
+```sql
+-- Migración 1: precios por fecha en eventos
+ALTER TABLE "events" ADD COLUMN IF NOT EXISTS "date_tiers" json;
+
+-- Migración 2: fecha de carga de comprobante
+ALTER TABLE "attendees" ADD COLUMN IF NOT EXISTS "proof_uploaded_at" timestamp with time zone;
+```
+
+---
+
 ## Historial de cambios realizados
 
 ### Sesión 1
@@ -102,9 +160,9 @@ net = 0 → al día
 - **Etiquetas de tramo:** "Primeros N" → rangos "Del X al Y / Resto"
 - **Página pública:** tramos llenos con tachado
 - **Imagen del evento:** selector de posición (Arriba/Centro/Abajo), guardado como `#top`/`#bottom` en la URL
-- **WhatsApp invite:** descripción del evento, emoji ⚽, indicador 👉
+- **WhatsApp invite:** descripción del evento, emoji, indicador
 - **Admin Resumen:** balance neto por asistente (Deben pagar / Se les debe devolver) para todos los confirmados
-- **Admin Gastos:** resumen `Total ÷ personas = c/u` movido al card de Gastos (fuera del Resumen)
+- **Admin Gastos:** resumen `Total / personas = c/u` movido al card de Gastos (fuera del Resumen)
 - **Botón Actualizar:** `components/refresh-button.tsx` con `router.refresh()`
 
 ### Sesión 2
@@ -118,7 +176,24 @@ net = 0 → al día
   - API recalcula precio al momento del pago (no del registro)
   - Fix: al volver a cargar comprobante, recalcula precio según fecha actual
 
+### Cambios de Tomás
+- **Combos:** sistema completo de combos (descuento por pago conjunto de múltiples eventos)
+  - Nueva tabla `combos` en `db/schema.ts`
+  - Campo `combo_id` en tabla `attendees`
+  - CRUD completo: admin/combos/new, admin/combos/[id], API combos
+  - Página pública `/combo/[slug]`
+  - Dashboard admin muestra combos activos
+  - Fix: errores de lint en date-tiers-editor que rompían el build
+
+### Sesión 3
+- **Fix archivos truncados:** 4 archivos (edit/page, new/page, refresh-button, date-tiers-editor) estaban cortados desde la sesión anterior, causando que el build de Vercel fallara silenciosamente
+- **Fecha de carga de comprobante:** nueva columna `proof_uploaded_at` en attendees
+  - Migración: `drizzle/0002_add_proof_uploaded_at.sql`
+  - API `upload-proof` guarda el timestamp al subir comprobante
+  - Lista de Asistentes en admin muestra "Pagó [fecha]" en verde junto a la fecha de confirmación
+- **Botón Actualizar en dashboard:** agregado al panel general de admin (junto a "Nuevo combo" y "Nuevo evento")
+
 ---
 
 ## Pendientes / ideas futuras
-- (agregar acá próximas tareas)
+- Lista pre cargada con los nombres de los jugadores para los eventos de 3T, así no tienen que confirmar asistencia ya que es obligatorio.
