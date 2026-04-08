@@ -60,7 +60,7 @@ Al editar archivos desde Cowork, pueden quedar truncados o con bytes nulos al fi
 | `app/admin/(protected)/events/[id]/edit/page.tsx` | Formulario editar evento (con selector de tipo de precio) |
 | `app/admin/(protected)/combos/new/page.tsx` | Formulario nuevo combo |
 | `app/admin/(protected)/combos/[id]/page.tsx` | Panel admin del combo |
-| `lib/players.ts` | Lista estática del plantel (37 jugadores, formato "Apellido, Nombre") |
+| `lib/players.ts` | Lista estática del plantel (36 jugadores, formato "Apellido, Nombre") |
 | `components/add-attendee-button.tsx` | Botón inline para agregar asistente manualmente desde admin |
 | `app/api/attendees/route.ts` | API de registro: calcula precio por tramo, por fecha, o fijo; si es 3T encuentra al asistente ya pre-cargado |
 | `app/api/events/route.ts` | API POST eventos: guarda `pricing_tiers`, `date_tiers`, `is_3t`; si es 3T inserta todos los jugadores como asistentes confirmados |
@@ -205,9 +205,14 @@ ALTER TABLE "events" ADD COLUMN IF NOT EXISTS "is_3t" boolean NOT NULL DEFAULT f
   - Al crear un evento 3T, la API inserta automáticamente todos los jugadores como asistentes confirmados con `payment_status: pending`
   - Checkbox "🍖 Tercer Tiempo (3T)" en formularios de creación y edición, posicionado arriba de imagen/fecha
   - Página pública: banner "Asistencia obligatoria para todo el plantel" + botón "🧾 Subir comprobante de pago" (sin botón "No puedo ir")
-  - Página `/confirm`: dropdown con los 37 jugadores (Apellido, Nombre) en lugar de campo de texto libre
+  - Página `/confirm`: dropdown con los jugadores (Apellido, Nombre) en lugar de campo de texto libre
   - Panel admin: orden alfabético en secciones Asistentes y Resumen (`.orderBy(attendees.full_name)`)
   - Nuevo componente `add-attendee-button.tsx`: permite al admin agregar un asistente manualmente (inline) desde el panel del evento
+
+### Sesión 5
+- **Actualización de plantel:** `lib/players.ts` actualizado de 37 a 36 jugadores
+  - Salen: Battipede Octavio, Crovetto Jorge, Erriquenz Juan Pablo, Ponce Julian, Salas Pedro, Solari Matias
+  - Entran: Aguiar Franco Nicolás, Díaz Santiago, Salerno Picasso Lorenzo, Santoro Franco, Ugarte Joaquín
 
 ---
 
