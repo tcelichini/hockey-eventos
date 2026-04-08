@@ -60,10 +60,12 @@ Al editar archivos desde Cowork, pueden quedar truncados o con bytes nulos al fi
 | `app/admin/(protected)/events/[id]/edit/page.tsx` | Formulario editar evento (con selector de tipo de precio) |
 | `app/admin/(protected)/combos/new/page.tsx` | Formulario nuevo combo |
 | `app/admin/(protected)/combos/[id]/page.tsx` | Panel admin del combo |
-| `app/api/attendees/route.ts` | API de registro: calcula precio por tramo, por fecha, o fijo |
-| `app/api/events/route.ts` | API POST eventos: guarda `pricing_tiers` y `date_tiers` |
-| `app/api/events/[id]/route.ts` | API PATCH eventos: actualiza `pricing_tiers` y `date_tiers` |
-| `app/api/events/by-slug/[slug]/route.ts` | API pública: expone `pricing_tiers` y `date_tiers` |
+| `lib/players.ts` | Lista estática del plantel (37 jugadores, formato "Apellido, Nombre") |
+| `components/add-attendee-button.tsx` | Botón inline para agregar asistente manualmente desde admin |
+| `app/api/attendees/route.ts` | API de registro: calcula precio por tramo, por fecha, o fijo; si es 3T encuentra al asistente ya pre-cargado |
+| `app/api/events/route.ts` | API POST eventos: guarda `pricing_tiers`, `date_tiers`, `is_3t`; si es 3T inserta todos los jugadores como asistentes confirmados |
+| `app/api/events/[id]/route.ts` | API PATCH eventos: actualiza `pricing_tiers`, `date_tiers`, `is_3t` |
+| `app/api/events/by-slug/[slug]/route.ts` | API pública: expone `pricing_tiers`, `date_tiers`, `is_3t` |
 | `app/api/combos/route.ts` | API POST combos |
 | `app/api/combos/[id]/route.ts` | API PATCH/DELETE combos |
 | `app/api/combos/by-slug/[slug]/route.ts` | API pública de combos |
@@ -149,6 +151,9 @@ ALTER TABLE "events" ADD COLUMN IF NOT EXISTS "date_tiers" json;
 
 -- Migración 2: fecha de carga de comprobante
 ALTER TABLE "attendees" ADD COLUMN IF NOT EXISTS "proof_uploaded_at" timestamp with time zone;
+
+-- Migración 3: campo is_3t para eventos de Tercer Tiempo
+ALTER TABLE "events" ADD COLUMN IF NOT EXISTS "is_3t" boolean NOT NULL DEFAULT false;
 ```
 
 ---
@@ -193,7 +198,17 @@ ALTER TABLE "attendees" ADD COLUMN IF NOT EXISTS "proof_uploaded_at" timestamp w
   - Lista de Asistentes en admin muestra "Pagó [fecha]" en verde junto a la fecha de confirmación
 - **Botón Actualizar en dashboard:** agregado al panel general de admin (junto a "Nuevo combo" y "Nuevo evento")
 
+### Sesión 4
+- **Eventos 3T (Tercer Tiempo):** nuevo tipo de evento con asistencia obligatoria para todo el plantel
+  - Campo `is_3t boolean` en tabla `events` (migración: `drizzle/0003_add_is_3t.sql`)
+  - `lib/players.ts`: lista estática de 37 jugadores en formato "Apellido, Nombre"
+  - Al crear un evento 3T, la API inserta automáticamente todos los jugadores como asistentes confirmados con `payment_status: pending`
+  - Checkbox "🍖 Tercer Tiempo (3T)" en formularios de creación y edición, posicionado arriba de imagen/fecha
+  - Página pública: banner "Asistencia obligatoria para todo el plantel" + botón "🧾 Subir comprobante de pago" (sin botón "No puedo ir")
+  - Página `/confirm`: dropdown con los 37 jugadores (Apellido, Nombre) en lugar de campo de texto libre
+  - Panel admin: orden alfabético en secciones Asistentes y Resumen (`.orderBy(attendees.full_name)`)
+  - Nuevo componente `add-attendee-button.tsx`: permite al admin agregar un asistente manualmente (inline) desde el panel del evento
+
 ---
 
 ## Pendientes / ideas futuras
-- Lista pre cargada con los nombres de los jugadores para los eventos de 3T, así no tienen que confirmar asistencia ya que es obligatorio.
