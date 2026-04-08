@@ -19,6 +19,7 @@ import CollapsibleCard from "@/components/collapsible-card"
 import PaymentReminderButton from "@/components/payment-reminder-button"
 import WhatsAppInviteButton from "@/components/whatsapp-invite-button"
 import RefreshButton from "@/components/refresh-button"
+import AddAttendeeButton from "@/components/add-attendee-button"
 import { getTierLabel, getDateTierLabel } from "@/lib/pricing"
 
 function formatCurrency(value: number) {
@@ -46,7 +47,7 @@ export default async function EventDetailPage({ params }: { params: { id: string
     .select()
     .from(attendees)
     .where(eq(attendees.event_id, event.id))
-    .orderBy(attendees.created_at)
+    .orderBy(attendees.full_name)
 
   const confirmed = attendeeList.filter((a) => a.status === "confirmed")
   const declined = attendeeList.filter((a) => a.status === "declined")
@@ -329,6 +330,9 @@ export default async function EventDetailPage({ params }: { params: { id: string
 
       {/* Attendees */}
       <CollapsibleCard title={`Asistentes (${confirmed.length})`}>
+        <div className="pb-3">
+          <AddAttendeeButton eventId={params.id} />
+        </div>
         {confirmed.length === 0 ? (
           <p className="text-gray-400 text-sm text-center py-4">Nadie confirmó aún</p>
         ) : (

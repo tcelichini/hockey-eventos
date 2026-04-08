@@ -228,7 +228,19 @@ export default async function EventPage({ params }: { params: { slug: string } }
 
           {/* CTA Buttons */}
           <div className="space-y-3 pt-1">
-            {canConfirm ? (
+            {event.is_3t ? (
+              // Evento 3T: asistencia obligatoria, sólo subir comprobante
+              <>
+                <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 text-center">
+                  <p className="text-sm text-blue-700 font-medium">Asistencia obligatoria para todo el plantel</p>
+                </div>
+                <Link href={`/e/${event.slug}/confirm`} className="block">
+                  <button className="w-full h-14 bg-[#002060] hover:bg-[#001840] active:bg-[#001430] text-white font-bold text-base rounded-xl transition-colors uppercase tracking-wide shadow-md shadow-[#002060]/20">
+                    🧾 Subir comprobante de pago
+                  </button>
+                </Link>
+              </>
+            ) : canConfirm ? (
               <Link href={`/e/${event.slug}/confirm`} className="block">
                 <button className="w-full h-14 bg-[#00A651] hover:bg-[#009045] active:bg-[#00803e] text-white font-bold text-base rounded-xl transition-colors uppercase tracking-wide shadow-md shadow-[#00A651]/20">
                   ✅ Confirmar asistencia
@@ -239,16 +251,20 @@ export default async function EventPage({ params }: { params: { slug: string } }
                 {!event.is_open ? "🔒 Inscripciones cerradas" : "❌ Sin lugares disponibles"}
               </div>
             )}
-            <Link href={`/e/${event.slug}/decline`} className="block">
-              <button className="w-full h-11 bg-white border-2 border-gray-200 hover:border-gray-300 text-gray-400 font-medium text-sm rounded-xl transition-colors">
-                No puedo ir esta vez
-              </button>
-            </Link>
-            <Link href={`/e/${event.slug}/confirm`} className="block text-center pt-1">
-              <span className="text-xs text-gray-400 underline">
-                Ya me anoté, quiero subir el comprobante
-              </span>
-            </Link>
+            {!event.is_3t && (
+              <>
+                <Link href={`/e/${event.slug}/decline`} className="block">
+                  <button className="w-full h-11 bg-white border-2 border-gray-200 hover:border-gray-300 text-gray-400 font-medium text-sm rounded-xl transition-colors">
+                    No puedo ir esta vez
+                  </button>
+                </Link>
+                <Link href={`/e/${event.slug}/confirm`} className="block text-center pt-1">
+                  <span className="text-xs text-gray-400 underline">
+                    Ya me anoté, quiero subir el comprobante
+                  </span>
+                </Link>
+              </>
+            )}
           </div>
         </div>
 

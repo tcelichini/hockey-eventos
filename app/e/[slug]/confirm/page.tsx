@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { CheckCircleIcon, ArrowLeftIcon, CopyIcon, CheckIcon } from "lucide-react"
 import Link from "next/link"
 import PaymentProofUpload from "@/components/payment-proof-upload"
+import { PLAYERS } from "@/lib/players"
 
 type EventData = {
   id: string
@@ -19,6 +20,7 @@ type EventData = {
   whatsapp_confirmation: boolean
   pricing_tiers: { upTo: number | null; price: number }[] | null
   confirmedCount: number
+  is_3t: boolean
 }
 
 type PaymentData = {
@@ -119,6 +121,8 @@ export default function ConfirmPage() {
     )
   }
 
+  const is3t = event.is_3t
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-md mx-auto px-4 py-8 space-y-6">
@@ -136,30 +140,61 @@ export default function ConfirmPage() {
           <Card>
             <CardContent className="pt-6">
               <div className="text-center mb-6">
-                <div className="text-4xl mb-2">✅</div>
-                <h2 className="text-xl font-bold text-gray-900">Confirmar asistencia</h2>
-                <p className="text-gray-500 text-sm mt-1">¡Qué bueno que venís!</p>
-                <p className="text-gray-400 text-xs mt-2">Si ya te anotaste, poné tu nombre para ver los datos de pago.</p>
+                <div className="text-4xl mb-2">{is3t ? "🧾" : "✅"}</div>
+                <h2 className="text-xl font-bold text-gray-900">
+                  {is3t ? "Subir comprobante de pago" : "Confirmar asistencia"}
+                </h2>
+                <p className="text-gray-500 text-sm mt-1">
+                  {is3t
+                    ? "Seleccioná tu nombre de la lista y subí el comprobante."
+                    : "¡Qué bueno que venís!"}
+                </p>
+                {!is3t && (
+                  <p className="text-gray-400 text-xs mt-2">Si ya te anotaste, poné tu nombre para ver los datos de pago.</p>
+                )}
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Tu nombre completo</Label>
-                  <Input
-                    id="name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Ej: Juan Pérez"
-                    autoComplete="name"
-                    required
-                    autoFocus
-                  />
+                  <Label htmlFor="name">
+                    {is3t ? "Tu nombre" : "Tu nombre completo"}
+                  </Label>
+                  {is3t ? (
+                    <select
+                      id="name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      required
+                      className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
+                      <option value="">— Seleccioná tu nombre —</option>
+                      {PLAYERS.map((player) => (
+                        <option key={player} value={player}>
+                          {player}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <Input
+                      id="name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Ej: Juan Pérez"
+                      autoComplete="name"
+                      required
+                      autoFocus
+                    />
+                  )}
                 </div>
 
                 {error && <p className="text-red-500 text-sm">{error}</p>}
 
-                <Button type="submit" className="w-full h-12 bg-green-600 hover:bg-green-700" disabled={loading}>
-                  {loading ? "Confirmando..." : "Confirmar"}
+                <Button
+                  type="submit"
+                  className={`w-full h-12 ${is3t ? "bg-[#002060] hover:bg-[#001840]" : "bg-green-600 hover:bg-green-700"}`}
+                  disabled={loading || (is3t && !name)}
+                >
+                  {loading ? "Cargando..." : is3t ? "Continuar" : "Confirmar"}
                 </Button>
               </form>
             </CardContent>
@@ -173,7 +208,7 @@ export default function ConfirmPage() {
                   <div className="text-center mb-4">
                     <CheckCircleIcon className="w-12 h-12 text-green-500 mx-auto mb-2" />
                     <h2 className="text-xl font-bold text-gray-900">
-                      ¡Ya estás anotado y pagaste, {paymentData.attendee_name.split(" ")[0]}!
+                      ¡Ya pagaste, {paymentData.attendee_name.split(",")[0].trim()}!
                     </h2>
                     <p className="text-gray-500 text-sm mt-1">Tu pago ya fue registrado. No necesitás hacer nada más.</p>
                     {existingProofUrl && (
@@ -193,14 +228,18 @@ export default function ConfirmPage() {
                     <div className="text-center mb-6">
                       <CheckCircleIcon className="w-12 h-12 text-green-500 mx-auto mb-2" />
                       <h2 className="text-xl font-bold text-gray-900">
-                        {isExisting
-                          ? `¡Ya estás anotado, ${paymentData.attendee_name.split(" ")[0]}!`
-                          : `¡Anotado, ${paymentData.attendee_name.split(" ")[0]}!`}
+                        {is3t
+                          ? `¡Hola, ${paymentData.attendee_name.split(",")[0].trim()}!`
+                          : isExisting
+                            ? `¡Ya estás anotado, ${paymentData.attendee_name.split(" ")[0]}!`
+                            : `¡Anotado, ${paymentData.attendee_name.split(" ")[0]}!`}
                       </h2>
                       <p className="text-gray-500 text-sm mt-1">
-                        {isExisting
-                          ? "Subí tu comprobante de pago para confirmar tu lugar."
-                          : "Ahora completá el pago para confirmar tu lugar."}
+                        {is3t
+                          ? "Realizá la transferencia y subí el comprobante."
+                          : isExisting
+                            ? "Subí tu comprobante de pago para confirmar tu lugar."
+                            : "Ahora completá el pago para confirmar tu lugar."}
                       </p>
                     </div>
 

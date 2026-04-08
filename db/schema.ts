@@ -28,6 +28,7 @@ export const events = pgTable("events", {
   whatsapp_confirmation: boolean("whatsapp_confirmation").notNull().default(false),
   pricing_tiers: jsonb("pricing_tiers").$type<PricingTier[]>(),
   date_tiers: jsonb("date_tiers").$type<DateTier[]>(),
+  is_3t: boolean("is_3t").notNull().default(false),
   created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
 })
 

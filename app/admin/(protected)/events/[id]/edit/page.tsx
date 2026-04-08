@@ -29,6 +29,7 @@ type EventData = {
   max_capacity: number | null
   pricing_tiers: PricingTier[] | null
   date_tiers: DateTier[] | null
+  is_3t: boolean
 }
 
 function toDatetimeLocal(isoString: string) {
@@ -54,6 +55,7 @@ export default function EditEventPage() {
   const [pricingTiers, setPricingTiers] = useState<PricingTier[] | null>(null)
   const [dateTiers, setDateTiers] = useState<DateTier[] | null>(null)
   const [whatsappConfirmation, setWhatsappConfirmation] = useState(false)
+  const [is3t, setIs3t] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
@@ -67,6 +69,7 @@ export default function EditEventPage() {
         setDateTiers(data.date_tiers)
         setPricingMode(detectMode(data))
         setWhatsappConfirmation(data.whatsapp_confirmation ?? false)
+        setIs3t(data.is_3t ?? false)
       })
   }, [id])
 
@@ -89,6 +92,7 @@ export default function EditEventPage() {
       pricing_tiers: pricingMode === "tiers" ? pricingTiers : null,
       date_tiers: pricingMode === "date" ? dateTiers : null,
       whatsapp_confirmation: whatsappConfirmation,
+      is_3t: is3t,
     }
 
     const res = await fetch(`/api/events/${id}`, {
@@ -145,6 +149,22 @@ export default function EditEventPage() {
                 defaultValue={event.description ?? ""}
                 rows={3}
               />
+            </div>
+
+            <div className="flex items-center gap-3 pb-1">
+              <input
+                type="checkbox"
+                id="is_3t"
+                checked={is3t}
+                onChange={(e) => setIs3t(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <div>
+                <Label htmlFor="is_3t" className="cursor-pointer">🍖 Tercer Tiempo (3T)</Label>
+                <p className="text-xs text-gray-400">
+                  Evento obligatorio para todo el plantel. En la página pública sólo pueden seleccionar su nombre y subir el comprobante.
+                </p>
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -266,6 +286,7 @@ export default function EditEventPage() {
                   <p className="text-xs text-gray-400">Si está activado, los asistentes verán la opción de enviar el comprobante por WhatsApp después de anotarse.</p>
                 </div>
               </div>
+
             </div>
 
             {error && <p className="text-red-500 text-sm">{error}</p>}
