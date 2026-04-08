@@ -39,6 +39,7 @@ export const attendees = pgTable("attendees", {
   status: statusEnum("status").notNull(),
   payment_status: paymentStatusEnum("payment_status").notNull().default("pending"),
   payment_proof_url: text("payment_proof_url"),
+  proof_uploaded_at: timestamp("proof_uploaded_at", { withTimezone: true }),
   price_paid: numeric("price_paid", { precision: 10, scale: 2 }),
   created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
 })

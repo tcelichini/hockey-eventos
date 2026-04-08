@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
 
   await db
     .update(attendees)
-    .set({ payment_proof_url: data.publicUrl, payment_status: "paid" })
+    .set({ payment_proof_url: data.publicUrl, payment_status: "paid", proof_uploaded_at: new Date() })
     .where(eq(attendees.id, attendeeId))
 
   return NextResponse.json({ url: data.publicUrl }, { status: 201 })

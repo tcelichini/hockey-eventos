@@ -344,6 +344,14 @@ export default async function EventDetailPage({ params }: { params: { id: string
                       hour: "2-digit",
                       minute: "2-digit",
                     }).format(new Date(attendee.created_at!))}
+                    {attendee.proof_uploaded_at && (
+                      <> · <span className="text-green-600">Pagó {new Intl.DateTimeFormat("es-AR", {
+                        day: "numeric",
+                        month: "short",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      }).format(new Date(attendee.proof_uploaded_at))}</span></>
+                    )}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
