@@ -17,6 +17,8 @@ type ComboData = {
   payment_account: string
   whatsapp_number: string
   whatsapp_confirmation: boolean
+  is_3t?: boolean
+  players?: string[]
   events: { id: string; title: string; date: string }[]
 }
 
@@ -105,6 +107,14 @@ export default function ComboConfirmPage() {
     return `https://wa.me/${data.whatsapp_number}?text=${encodeURIComponent(message)}`
   }
 
+  // Extrae el nombre de pila de "Apellido, Nombre" → "Nombre", o "Nombre Apellido" → "Nombre"
+  function getFirstName(fullName: string): string {
+    if (fullName.includes(",")) {
+      return fullName.split(",")[1].trim().split(" ")[0]
+    }
+    return fullName.split(" ")[0]
+  }
+
   function formatCurrency(amount: string) {
     return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(Number(amount))
   }
@@ -116,6 +126,8 @@ export default function ComboConfirmPage() {
       </div>
     )
   }
+
+  const is3t = combo.is_3t && combo.players && combo.players.length > 0
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -135,9 +147,13 @@ export default function ComboConfirmPage() {
             <CardContent className="pt-6">
               <div className="text-center mb-6">
                 <div className="text-4xl mb-2">🎯</div>
-                <h2 className="text-xl font-bold text-gray-900">Anotarme al combo</h2>
+                <h2 className="text-xl font-bold text-gray-900">
+                  {is3t ? "Pagar el combo" : "Anotarme al combo"}
+                </h2>
                 <p className="text-gray-500 text-sm mt-1">
-                  Te anotas a {combo.events?.length || 0} partidos con descuento
+                  {is3t
+                    ? `Seleccioná tu nombre para pagar los ${combo.events?.length || 0} partidos juntos`
+                    : `Te anotas a ${combo.events?.length || 0} partidos con descuento`}
                 </p>
                 {combo.events && (
                   <div className="mt-2 space-y-0.5">
@@ -146,27 +162,51 @@ export default function ComboConfirmPage() {
                     ))}
                   </div>
                 )}
-                <p className="text-gray-400 text-xs mt-3">Si ya te anotaste al combo, pon tu nombre para ver los datos de pago.</p>
+                {is3t ? (
+                  <p className="text-gray-400 text-xs mt-3">Ya estás pre-inscripto. Seleccioná tu nombre y subí el comprobante.</p>
+                ) : (
+                  <p className="text-gray-400 text-xs mt-3">Si ya te anotaste al combo, pon tu nombre para ver los datos de pago.</p>
+                )}
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Tu nombre completo</Label>
-                  <Input
-                    id="name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Ej: Juan Perez"
-                    autoComplete="name"
-                    required
-                    autoFocus
-                  />
+                  {is3t ? (
+                    <>
+                      <Label htmlFor="name">Seleccioná tu nombre</Label>
+                      <select
+                        id="name"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        required
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <option value="">-- Seleccioná --</option>
+                        {combo.players!.map((player) => (
+                          <option key={player} value={player}>{player}</option>
+                        ))}
+                      </select>
+                    </>
+                  ) : (
+                    <>
+                      <Label htmlFor="name">Tu nombre completo</Label>
+                      <Input
+                        id="name"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="Ej: Juan Perez"
+                        autoComplete="name"
+                        required
+                        autoFocus
+                      />
+                    </>
+                  )}
                 </div>
 
                 {error && <p className="text-red-500 text-sm">{error}</p>}
 
-                <Button type="submit" className="w-full h-12 bg-green-600 hover:bg-green-700" disabled={loading}>
-                  {loading ? "Confirmando..." : "Confirmar"}
+                <Button type="submit" className="w-full h-12 bg-green-600 hover:bg-green-700" disabled={loading || (is3t ? !name : false)}>
+                  {loading ? "Confirmando..." : is3t ? "Ver datos de pago" : "Confirmar"}
                 </Button>
               </form>
             </CardContent>
@@ -179,7 +219,7 @@ export default function ComboConfirmPage() {
                   <div className="text-center mb-4">
                     <CheckCircleIcon className="w-12 h-12 text-green-500 mx-auto mb-2" />
                     <h2 className="text-xl font-bold text-gray-900">
-                      Ya estas anotado y pagaste, {paymentData.attendee_name.split(" ")[0]}!
+                      Ya pagaste el combo, {getFirstName(paymentData.attendee_name)}!
                     </h2>
                     <p className="text-gray-500 text-sm mt-1">Tu pago del combo ya fue registrado.</p>
                   </div>
@@ -189,13 +229,11 @@ export default function ComboConfirmPage() {
                       <CheckCircleIcon className="w-12 h-12 text-green-500 mx-auto mb-2" />
                       <h2 className="text-xl font-bold text-gray-900">
                         {isExisting
-                          ? `Ya estas anotado, ${paymentData.attendee_name.split(" ")[0]}!`
-                          : `Anotado al combo, ${paymentData.attendee_name.split(" ")[0]}!`}
+                          ? `Hola, ${getFirstName(paymentData.attendee_name)}!`
+                          : `Anotado al combo, ${getFirstName(paymentData.attendee_name)}!`}
                       </h2>
                       <p className="text-gray-500 text-sm mt-1">
-                        {isExisting
-                          ? "Subi tu comprobante de pago para confirmar."
-                          : "Ahora completa el pago para confirmar tu lugar en los partidos."}
+                        Subi tu comprobante de pago para confirmar.
                       </p>
                     </div>
 

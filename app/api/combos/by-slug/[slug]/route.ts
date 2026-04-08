@@ -23,6 +23,7 @@ export async function GET(_request: NextRequest, { params }: { params: { slug: s
           date: events.date,
           is_open: events.is_open,
           max_capacity: events.max_capacity,
+          is_3t: events.is_3t,
         })
         .from(events)
         .where(inArray(events.id, combo.event_ids))
@@ -39,5 +40,27 @@ export async function GET(_request: NextRequest, { params }: { params: { slug: s
     })
   )
 
-  return NextResponse.json({ ...combo, events: eventsWithCounts })
+  // Detectar si es un combo 3T (todos los eventos son 3T)
+  const is_3t = linkedEvents.length > 0 && linkedEvents.every((e) => e.is_3t)
+
+  // Si es 3T, obtener la lista de jugadores pre-inscriptos al combo (únicos, ordenados)
+  let players: string[] = []
+  if (is_3t) {
+    const comboAttendees = await db
+      .select({ full_name: attendees.full_name })
+      .from(attendees)
+      .where(and(eq(attendees.combo_id, combo.id), eq(attendees.status, "confirmed")))
+
+    const seen = new Set<string>()
+    const uniqueNames: string[] = []
+    for (const a of comboAttendees) {
+      if (!seen.has(a.full_name)) {
+        seen.add(a.full_name)
+        uniqueNames.push(a.full_name)
+      }
+    }
+    players = uniqueNames.sort((a, b) => a.localeCompare(b, "es"))
+  }
+
+  return NextResponse.json({ ...combo, events: eventsWithCounts, is_3t, players })
 }

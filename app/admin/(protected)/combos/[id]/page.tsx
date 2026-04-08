@@ -10,7 +10,7 @@ import { ArrowLeftIcon, PencilIcon } from "lucide-react"
 import CopyLinkButton from "@/components/copy-link-button"
 import ToggleComboButton from "@/components/toggle-combo-button"
 import DeleteComboButton from "@/components/delete-combo-button"
-import MarkPaidButton from "@/components/mark-paid-button"
+import MarkComboPaidButton from "@/components/mark-combo-paid-button"
 import RefreshButton from "@/components/refresh-button"
 import { getDateTierLabel } from "@/lib/pricing"
 
@@ -208,16 +208,14 @@ export default async function ComboDetailPage({ params }: { params: { id: string
                       </a>
                     )}
                     {person.allPaid ? (
-                      <Badge className="bg-green-100 text-green-700 hover:bg-green-100">Pago</Badge>
+                      <>
+                        <Badge className="bg-green-100 text-green-700 hover:bg-green-100">Pagó</Badge>
+                        <MarkComboPaidButton attendeeIds={person.attendees.map((a) => a.id)} isPaid={true} />
+                      </>
                     ) : (
                       <>
                         <Badge variant="secondary">Pendiente</Badge>
-                        {/* Mark all attendees in combo as paid */}
-                        {person.attendees.map((a) => (
-                          a.payment_status !== "paid" && (
-                            <MarkPaidButton key={a.id} attendeeId={a.id} isPaid={false} />
-                          )
-                        ))}
+                        <MarkComboPaidButton attendeeIds={person.attendees.filter((a) => a.payment_status !== "paid").map((a) => a.id)} isPaid={false} />
                       </>
                     )}
                   </div>
