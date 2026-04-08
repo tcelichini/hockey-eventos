@@ -14,6 +14,7 @@ import {
   PackageIcon,
 } from "lucide-react"
 import CopyLinkButton from "@/components/copy-link-button"
+import RefreshButton from "@/components/refresh-button"
 
 function formatDate(date: Date | null) {
   if (!date) return ""
@@ -137,6 +138,7 @@ export default async function AdminPage() {
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-gray-900">Dashboard</h2>
         <div className="flex items-center gap-2">
+          <RefreshButton />
           <Link href="/admin/combos/new">
             <Button size="sm" variant="outline">
               <PackageIcon className="w-4 h-4 mr-2" />
