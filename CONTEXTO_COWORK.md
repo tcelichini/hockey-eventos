@@ -37,6 +37,12 @@ git pull --rebase
 git stash pop
 ```
 
+## Nota importante sobre worktrees y .env.local
+Los git worktrees (usados por Claude Code para trabajar en ramas aisladas) **no copian archivos ignorados por .gitignore**, como `.env.local`. Si se trabaja en un worktree y el admin no acepta la contraseña o la app no conecta a la DB, lo primero que hay que verificar es que exista `.env.local` en el worktree. Solución: copiar el `.env.local` del repo principal al worktree:
+```bash
+cp "ruta/repo/.env.local" "ruta/worktree/.env.local"
+```
+
 ## Nota importante sobre archivos truncados
 Al editar archivos desde Cowork, pueden quedar truncados o con bytes nulos al final (problema de CRLF/LF en Windows). Antes de hacer commit, conviene correr `npx tsc --noEmit` para detectar archivos rotos. Si aparecen errores de "Invalid character" o "no corresponding closing tag", restaurar el archivo desde HEAD con `git show HEAD:ruta/archivo > ruta/archivo` y re-aplicar los cambios.
 
@@ -220,6 +226,20 @@ ALTER TABLE "events" ADD COLUMN IF NOT EXISTS "is_3t" boolean NOT NULL DEFAULT f
   - Fix: se agregó `timeZone: "America/Argentina/Buenos_Aires"` en 10 instancias de `DateTimeFormat` en 8 archivos
   - Archivos afectados: `whatsapp-invite-button.tsx`, `e/[slug]/page.tsx`, `combo/[slug]/page.tsx`, `admin/page.tsx`, `admin/events/[id]/page.tsx`, `admin/combos/[id]/page.tsx`, `api/events/[id]/export/route.ts`, `event-selector.tsx`
 - **Fecha de comprobante en combos:** la vista admin del combo ahora muestra "Pagó [fecha]" en verde (usa `proof_uploaded_at`), igual que en eventos individuales
+
+### Sesión 7
+- **Indicadores visuales combo vs individual en eventos:**
+  - En la vista admin de un evento, si un asistente pagó **vía combo** (todos los eventos del combo pagados), se muestra `(vía combo)` en violeta junto al monto + badge **Combo** violeta clickeable que lleva al combo
+  - Si pagó individualmente, no se muestra ningún indicador extra (evita confusión con montos menores)
+  - Archivos: `admin/events/[id]/page.tsx`
+- **Indicadores de pago parcial en combos:**
+  - En la vista admin del combo, si un inscripto pagó solo algunos eventos individualmente, se muestra en ámbar: `⚠ Pagó [evento] individual ($X)` + `Resta: [eventos pendientes]`
+  - Inscriptos del combo ahora ordenados alfabéticamente
+  - Archivos: `admin/combos/[id]/page.tsx`
+- **Auto-vinculación al combo al agregar asistente manualmente:**
+  - Cuando un admin agrega un asistente a un evento que pertenece a un combo, y esa persona ya está inscripta en todos los demás eventos del combo, se le asigna automáticamente `combo_id` a todos sus registros → aparece en el listado de inscriptos del combo
+  - Archivos: `api/attendees/route.ts`
+- **Documentación worktrees:** se agregó nota en CONTEXTO_COWORK sobre el problema de `.env.local` faltante en worktrees de git (causa que la contraseña admin no funcione)
 
 ---
 

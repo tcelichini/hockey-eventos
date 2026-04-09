@@ -1,6 +1,6 @@
 import { db } from "@/db"
-import { events, attendees, expenses } from "@/db/schema"
-import { eq } from "drizzle-orm"
+import { events, attendees, expenses, combos } from "@/db/schema"
+import { eq, inArray } from "drizzle-orm"
 import { notFound } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
@@ -54,6 +54,42 @@ export default async function EventDetailPage({ params }: { params: { id: string
   const declined = attendeeList.filter((a) => a.status === "declined")
   const paid = confirmed.filter((a) => a.payment_status === "paid")
   const unpaid = confirmed.filter((a) => a.payment_status !== "paid")
+
+  // Para cada asistente con combo_id, determinar si pagó vía combo o individualmente.
+  // Lógica: si TODOS sus registros del mismo combo están pagados → pagó vía combo.
+  // Si solo este está pagado (y otros no) → pagó individualmente.
+  const comboIds = Array.from(new Set(confirmed.filter(a => a.combo_id).map(a => a.combo_id!)))
+  const comboMap = new Map<string, string>()
+  // Set de attendee IDs que efectivamente pagaron vía combo
+  const paidViaCombo = new Set<string>()
+  if (comboIds.length > 0) {
+    const comboList = await db.select({ id: combos.id, title: combos.title }).from(combos).where(inArray(combos.id, comboIds))
+    for (const c of comboList) comboMap.set(c.id, c.title)
+
+    // Buscar TODOS los attendees de estos combos (incluyendo otros eventos)
+    const allComboAttendees = await db
+      .select({ id: attendees.id, combo_id: attendees.combo_id, full_name: attendees.full_name, payment_status: attendees.payment_status })
+      .from(attendees)
+      .where(inArray(attendees.combo_id, comboIds))
+
+    // Agrupar por combo_id + nombre normalizado
+    const normalize = (s: string) => s.trim().toLowerCase()
+    const comboPersonGroups = new Map<string, { ids: string[]; allPaid: boolean }>()
+    for (const a of allComboAttendees) {
+      const key = `${a.combo_id}::${normalize(a.full_name)}`
+      const group = comboPersonGroups.get(key) || { ids: [], allPaid: true }
+      group.ids.push(a.id)
+      if (a.payment_status !== "paid") group.allPaid = false
+      comboPersonGroups.set(key, group)
+    }
+
+    // Marcar como "pagó vía combo" solo si TODOS los registros del combo están pagados
+    Array.from(comboPersonGroups.values()).forEach(group => {
+      if (group.allPaid) {
+        group.ids.forEach(id => paidViaCombo.add(id))
+      }
+    })
+  }
   const amount = Number(event.payment_amount) || 0
   const getPrice = (a: typeof confirmed[0]) => Number(a.price_paid) || amount
   const totalCollected = paid.reduce((sum, a) => sum + getPrice(a), 0)
@@ -343,7 +379,7 @@ export default async function EventDetailPage({ params }: { params: { id: string
                 <div className="min-w-0">
                   <p className="font-medium text-gray-900 truncate">{attendee.full_name}</p>
                   <p className="text-xs text-gray-400 mt-0.5">
-                    {formatCurrency(getPrice(attendee))} · {new Intl.DateTimeFormat("es-AR", {
+                    {formatCurrency(getPrice(attendee))}{paidViaCombo.has(attendee.id) && <span className="text-purple-500"> (vía combo)</span>} · {new Intl.DateTimeFormat("es-AR", {
                       day: "numeric",
                       month: "short",
                       hour: "2-digit",
@@ -362,6 +398,13 @@ export default async function EventDetailPage({ params }: { params: { id: string
                   </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
+                  {paidViaCombo.has(attendee.id) && attendee.combo_id && (
+                    <Link href={`/admin/combos/${attendee.combo_id}`}>
+                      <Badge className="bg-purple-100 text-purple-700 hover:bg-purple-200 cursor-pointer text-[10px]">
+                        Combo
+                      </Badge>
+                    </Link>
+                  )}
                   {attendee.payment_proof_url && (
                     <a href={attendee.payment_proof_url} target="_blank" rel="noopener noreferrer">
                       <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 cursor-pointer">

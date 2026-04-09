@@ -68,6 +68,25 @@ export default async function ComboDetailPage({ params }: { params: { id: string
       proofUrl,
       proofUploadedAt,
     }
+  }).sort((a, b) => a.name.localeCompare(b.name, "es"))
+
+  // Detectar personas que pagaron solo ALGUNOS eventos del combo (pago individual parcial).
+  // Si alguien tiene algunos eventos pagados y otros pendientes, pagó individualmente.
+  const eventTitleMap = new Map(linkedEvents.map(e => [e.id, e.title]))
+  const partialPaidMap = new Map<string, { paidEvents: { eventTitle: string; pricePaid: number }[]; unpaidEvents: string[] }>()
+  Array.from(personMap.entries()).forEach(([key, attendeeGroup]) => {
+    const paidEvents = attendeeGroup.filter((a: typeof comboAttendees[0]) => a.payment_status === "paid")
+    const unpaidEvents = attendeeGroup.filter((a: typeof comboAttendees[0]) => a.payment_status !== "paid")
+    // Solo mostrar si tiene ALGUNOS pagados y ALGUNOS pendientes (pago parcial/individual)
+    if (paidEvents.length > 0 && unpaidEvents.length > 0) {
+      partialPaidMap.set(key, {
+        paidEvents: paidEvents.map((a: typeof comboAttendees[0]) => ({
+          eventTitle: eventTitleMap.get(a.event_id) || "Evento",
+          pricePaid: Number(a.price_paid || 0),
+        })),
+        unpaidEvents: unpaidEvents.map((a: typeof comboAttendees[0]) => eventTitleMap.get(a.event_id) || "Evento"),
+      })
+    }
   })
 
   const totalPersons = persons.length
@@ -210,6 +229,22 @@ export default async function ComboDetailPage({ params }: { params: { id: string
                         }).format(new Date(person.proofUploadedAt))}</span></>
                       )}
                     </p>
+                    {(() => {
+                      const partial = partialPaidMap.get(person.name.trim().toLowerCase())
+                      if (!partial) return null
+                      return (
+                        <div className="mt-1 space-y-0.5">
+                          {partial.paidEvents.map((p, i) => (
+                            <p key={i} className="text-xs text-amber-600">
+                              ⚠ Pagó {p.eventTitle} individual ({formatCurrency(p.pricePaid)})
+                            </p>
+                          ))}
+                          <p className="text-xs text-amber-500">
+                            Resta: {partial.unpaidEvents.join(", ")}
+                          </p>
+                        </div>
+                      )
+                    })()}
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     {person.proofUrl && (

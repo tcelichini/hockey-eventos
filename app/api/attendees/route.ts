@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/db"
-import { attendees, events } from "@/db/schema"
-import { eq, and } from "drizzle-orm"
+import { attendees, events, combos } from "@/db/schema"
+import { eq, and, inArray } from "drizzle-orm"
 import { notifyAdminWhatsApp } from "@/lib/whatsapp-notify"
 import { calculatePrice, calculateDatePrice } from "@/lib/pricing"
 
@@ -98,6 +98,44 @@ export async function POST(request: NextRequest) {
     await notifyAdminWhatsApp(
       `Nueva confirmacion! ${full_name.trim()} se anoto para "${event.title}"`
     )
+
+    // Auto-vincular al combo: si este evento pertenece a un combo y la persona
+    // ya está inscripta en TODOS los otros eventos del combo, setear combo_id en todos sus registros.
+    const normalize = (s: string) =>
+      s.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    const allCombos = await db.select().from(combos)
+    const relevantCombos = allCombos.filter(c => c.event_ids.includes(event_id))
+
+    for (const combo of relevantCombos) {
+      const otherEventIds = combo.event_ids.filter(eid => eid !== event_id)
+      if (otherEventIds.length === 0) continue
+
+      // Buscar registros de esta persona en los otros eventos del combo
+      const otherAttendees = await db
+        .select()
+        .from(attendees)
+        .where(and(
+          inArray(attendees.event_id, otherEventIds),
+          eq(attendees.status, "confirmed"),
+        ))
+
+      const personOtherRecords = otherAttendees.filter(
+        a => normalize(a.full_name) === normalize(full_name)
+      )
+
+      // Verificar que tenga un registro en CADA otro evento del combo
+      const coveredEventIds = new Set(personOtherRecords.map(a => a.event_id))
+      const allCovered = otherEventIds.every(eid => coveredEventIds.has(eid))
+
+      if (allCovered) {
+        // Setear combo_id en todos los registros de esta persona (el nuevo + los existentes)
+        const idsToUpdate = [attendee.id, ...personOtherRecords.map(a => a.id)]
+        await db
+          .update(attendees)
+          .set({ combo_id: combo.id })
+          .where(inArray(attendees.id, idsToUpdate))
+      }
+    }
   }
 
   return NextResponse.json({
