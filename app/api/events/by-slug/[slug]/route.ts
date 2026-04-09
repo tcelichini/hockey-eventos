@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/db"
 import { events, attendees } from "@/db/schema"
-import { eq, and, count } from "drizzle-orm"
+import { eq, and } from "drizzle-orm"
 
 export async function GET(_request: NextRequest, { params }: { params: { slug: string } }) {
   const [event] = await db
