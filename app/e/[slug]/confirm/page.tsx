@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useParams } from "next/navigation"
+import { useParams, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -22,6 +22,7 @@ type EventData = {
   confirmedCount: number
   is_3t: boolean
   attendeeNames: string[]
+  unpaidAttendeeNames: string[]
 }
 
 type PaymentData = {
@@ -42,7 +43,9 @@ function WhatsAppIcon() {
 
 export default function ConfirmPage() {
   const params = useParams()
+  const searchParams = useSearchParams()
   const slug = params.slug as string
+  const isUploadMode = searchParams.get("upload") === "1"
 
   const [event, setEvent] = useState<EventData | null>(null)
   const [step, setStep] = useState<"form" | "payment">("form")
@@ -141,16 +144,18 @@ export default function ConfirmPage() {
           <Card>
             <CardContent className="pt-6">
               <div className="text-center mb-6">
-                <div className="text-4xl mb-2">{is3t ? "🧾" : "✅"}</div>
+                <div className="text-4xl mb-2">{is3t || isUploadMode ? "🧾" : "✅"}</div>
                 <h2 className="text-xl font-bold text-gray-900">
-                  {is3t ? "Subir comprobante de pago" : "Confirmar asistencia"}
+                  {is3t || isUploadMode ? "Subir comprobante de pago" : "Confirmar asistencia"}
                 </h2>
                 <p className="text-gray-500 text-sm mt-1">
                   {is3t
                     ? "Seleccioná tu nombre de la lista y subí el comprobante."
-                    : "¡Qué bueno que venís!"}
+                    : isUploadMode
+                      ? "Seleccioná tu nombre y subí el comprobante."
+                      : "¡Qué bueno que venís!"}
                 </p>
-                {!is3t && (
+                {!is3t && !isUploadMode && (
                   <p className="text-gray-400 text-xs mt-2">Si ya te anotaste, poné tu nombre para ver los datos de pago.</p>
                 )}
               </div>
@@ -158,7 +163,7 @@ export default function ConfirmPage() {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">
-                    {is3t ? "Tu nombre" : "Tu nombre completo"}
+                    {is3t || isUploadMode ? "Tu nombre" : "Tu nombre completo"}
                   </Label>
                   {is3t ? (
                     <select
@@ -179,6 +184,21 @@ export default function ConfirmPage() {
                         ))
                       })()}
                     </select>
+                  ) : isUploadMode && (event.unpaidAttendeeNames || []).length > 0 ? (
+                    <select
+                      id="name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      required
+                      className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
+                      <option value="">— Seleccioná tu nombre —</option>
+                      {event.unpaidAttendeeNames.map((attendeeName) => (
+                        <option key={attendeeName} value={attendeeName}>
+                          {attendeeName}
+                        </option>
+                      ))}
+                    </select>
                   ) : (
                     <Input
                       id="name"
@@ -197,7 +217,7 @@ export default function ConfirmPage() {
                 <Button
                   type="submit"
                   className={`w-full h-12 ${is3t ? "bg-[#002060] hover:bg-[#001840]" : "bg-green-600 hover:bg-green-700"}`}
-                  disabled={loading || (is3t && !name)}
+                  disabled={loading || ((is3t || (isUploadMode && (event.unpaidAttendeeNames || []).length > 0)) && !name)}
                 >
                   {loading ? "Cargando..." : is3t ? "Continuar" : "Confirmar"}
                 </Button>

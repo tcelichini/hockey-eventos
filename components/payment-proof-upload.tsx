@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef } from "react"
-import { CameraIcon, CheckCircleIcon } from "lucide-react"
+import { CameraIcon, CheckCircleIcon, ClipboardPasteIcon } from "lucide-react"
 
 export default function PaymentProofUpload({ attendeeId, extraAttendeeIds, onUploaded }: { attendeeId: string; extraAttendeeIds?: string[]; onUploaded?: (url: string) => void }) {
   const [uploading, setUploading] = useState(false)
@@ -43,6 +43,37 @@ export default function PaymentProofUpload({ attendeeId, extraAttendeeIds, onUpl
     setUploading(false)
   }
 
+  function handlePaste(e: React.ClipboardEvent) {
+    const items = e.clipboardData?.items
+    if (!items) return
+    for (const item of Array.from(items)) {
+      if (item.type.startsWith("image/")) {
+        e.preventDefault()
+        const file = item.getAsFile()
+        if (file) handleFile(file)
+        return
+      }
+    }
+  }
+
+  async function handlePasteButton() {
+    try {
+      const items = await navigator.clipboard.read()
+      for (const item of items) {
+        const imageType = item.types.find((t) => t.startsWith("image/"))
+        if (imageType) {
+          const blob = await item.getType(imageType)
+          const file = new File([blob], "comprobante.png", { type: imageType })
+          handleFile(file)
+          return
+        }
+      }
+      setError("No hay imagen en el portapapeles")
+    } catch {
+      setError("No se pudo acceder al portapapeles. Intentá con Ctrl+V o adjuntá el archivo.")
+    }
+  }
+
   if (uploaded) {
     return (
       <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center space-y-1">
@@ -54,27 +85,39 @@ export default function PaymentProofUpload({ attendeeId, extraAttendeeIds, onUpl
   }
 
   return (
-    <div>
-      <button
-        type="button"
-        onClick={() => inputRef.current?.click()}
-        disabled={uploading}
-        className="w-full border-2 border-dashed border-gray-200 hover:border-green-400 rounded-xl p-4 flex flex-col items-center gap-2 transition-colors"
-      >
-        {uploading ? (
-          <>
-            <div className="w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
-            <p className="text-sm text-gray-500">Subiendo...</p>
-          </>
-        ) : (
-          <>
-            <CameraIcon className="w-8 h-8 text-gray-400" />
-            <p className="text-sm font-medium text-gray-600">Subir comprobante de pago</p>
-            <p className="text-xs text-gray-400">Foto, captura de pantalla o PDF</p>
-          </>
-        )}
-      </button>
-      {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
+    <div onPaste={handlePaste}>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={uploading}
+          className="flex-1 border-2 border-dashed border-gray-200 hover:border-green-400 rounded-xl p-4 flex flex-col items-center gap-2 transition-colors"
+        >
+          {uploading ? (
+            <>
+              <div className="w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
+              <p className="text-sm text-gray-500">Subiendo...</p>
+            </>
+          ) : (
+            <>
+              <CameraIcon className="w-8 h-8 text-gray-400" />
+              <p className="text-sm font-medium text-gray-600">Adjuntar</p>
+              <p className="text-xs text-gray-400">Foto o PDF</p>
+            </>
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={handlePasteButton}
+          disabled={uploading}
+          className="flex-1 border-2 border-dashed border-gray-200 hover:border-blue-400 rounded-xl p-4 flex flex-col items-center gap-2 transition-colors"
+        >
+          <ClipboardPasteIcon className="w-8 h-8 text-gray-400" />
+          <p className="text-sm font-medium text-gray-600">Pegar imagen</p>
+          <p className="text-xs text-gray-400">Del portapapeles</p>
+        </button>
+      </div>
+      {error && <p className="text-red-500 text-xs mt-2 text-center">{error}</p>}
       <input
         ref={inputRef}
         type="file"

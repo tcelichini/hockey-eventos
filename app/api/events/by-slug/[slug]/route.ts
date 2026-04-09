@@ -25,12 +25,16 @@ export async function GET(_request: NextRequest, { params }: { params: { slug: s
   }
 
   const confirmedAttendeeRows = await db
-    .select({ full_name: attendees.full_name })
+    .select({ full_name: attendees.full_name, payment_status: attendees.payment_status })
     .from(attendees)
     .where(and(eq(attendees.event_id, event.id), eq(attendees.status, "confirmed")))
 
   const confirmedCount = confirmedAttendeeRows.length
   const attendeeNames = confirmedAttendeeRows.map((a) => a.full_name)
+  const unpaidAttendeeNames = confirmedAttendeeRows
+    .filter((a) => a.payment_status !== "paid")
+    .map((a) => a.full_name)
+    .sort((a, b) => a.localeCompare(b, "es"))
 
-  return NextResponse.json({ ...event, confirmedCount, attendeeNames })
+  return NextResponse.json({ ...event, confirmedCount, attendeeNames, unpaidAttendeeNames })
 }

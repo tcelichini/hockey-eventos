@@ -259,7 +259,7 @@ export default async function EventPage({ params }: { params: { slug: string } }
                     No puedo ir esta vez
                   </button>
                 </Link>
-                <Link href={`/e/${event.slug}/confirm`} className="block text-center pt-1">
+                <Link href={`/e/${event.slug}/confirm?upload=1`} className="block text-center pt-1">
                   <span className="text-xs text-gray-400 underline">
                     Ya me anoté, quiero subir el comprobante
                   </span>

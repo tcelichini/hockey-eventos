@@ -257,6 +257,19 @@ ALTER TABLE "events" ADD COLUMN IF NOT EXISTS "is_3t" boolean NOT NULL DEFAULT f
   - En eventos no-3T, el formulario sigue igual: input de texto libre con el mensaje "Usá el mismo nombre con el que te anotaste".
   - Archivos: `components/expense-form.tsx`, `app/e/[slug]/page.tsx`
 
+### Sesión 10
+- **Dropdown de asistentes sin pagar en "Ya me anoté, quiero subir el comprobante":**
+  - En eventos no-3T, al hacer click en "Ya me anoté, quiero subir el comprobante", la página de confirmación ahora muestra un **menú desplegable** con los asistentes que aún no pagaron (en vez del campo de texto libre).
+  - Se agrega `?upload=1` al link para distinguir el flujo de carga de comprobante del de nueva inscripción.
+  - La API `events/by-slug/[slug]` ahora devuelve `unpaidAttendeeNames` (asistentes confirmados sin pagar, orden alfabético).
+  - Si no hay asistentes sin pagar, se muestra el input de texto como fallback.
+  - Archivos: `app/api/events/by-slug/[slug]/route.ts`, `app/e/[slug]/page.tsx`, `app/e/[slug]/confirm/page.tsx`
+- **Opción de pegar imagen en carga de comprobante:**
+  - El componente de subida de comprobante ahora muestra dos botones: **"Adjuntar"** (foto o PDF) y **"Pegar imagen"** (del portapapeles).
+  - En desktop también se puede pegar con Ctrl+V / Cmd+V en la zona de upload.
+  - En mobile el usuario puede copiar la captura y tocar "Pegar imagen".
+  - Archivos: `components/payment-proof-upload.tsx`
+
 ---
 
 ## Pendientes / ideas futuras
