@@ -250,6 +250,13 @@ ALTER TABLE "events" ADD COLUMN IF NOT EXISTS "is_3t" boolean NOT NULL DEFAULT f
   - La lista de asistentes confirmados en la página pública del evento ahora se muestra ordenada alfabéticamente.
   - Archivos: `app/e/[slug]/page.tsx`
 
+### Sesión 9
+- **Dropdown de jugadores en "Cargar gasto" para eventos 3T:**
+  - En eventos de tipo 3T, el formulario de carga de gastos ahora muestra un **menú desplegable** con los nombres de todos los asistentes confirmados (orden alfabético) en lugar del campo de texto libre "Tu nombre".
+  - El dropdown incluye asistentes agregados manualmente por el admin (no solo la lista estática de PLAYERS).
+  - En eventos no-3T, el formulario sigue igual: input de texto libre con el mensaje "Usá el mismo nombre con el que te anotaste".
+  - Archivos: `components/expense-form.tsx`, `app/e/[slug]/page.tsx`
+
 ---
 
 ## Pendientes / ideas futuras

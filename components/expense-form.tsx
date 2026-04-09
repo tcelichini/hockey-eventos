@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { PlusIcon } from "lucide-react"
 
-export default function ExpenseForm({ eventId }: { eventId: string }) {
+export default function ExpenseForm({ eventId, attendeeNames }: { eventId: string; attendeeNames?: string[] }) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -57,7 +57,7 @@ export default function ExpenseForm({ eventId }: { eventId: string }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3 bg-gray-50 rounded-xl p-4">
-      <p className="text-xs text-gray-400">Usá el mismo nombre con el que te anotaste</p>
+      {!attendeeNames && <p className="text-xs text-gray-400">Usá el mismo nombre con el que te anotaste</p>}
       <div className="grid grid-cols-2 gap-2">
         <Input
           name="description"
@@ -65,12 +65,26 @@ export default function ExpenseForm({ eventId }: { eventId: string }) {
           required
           className="text-sm"
         />
-        <Input
-          name="responsible"
-          placeholder="Tu nombre"
-          required
-          className="text-sm"
-        />
+        {attendeeNames ? (
+          <select
+            name="responsible"
+            required
+            className="text-sm rounded-md border border-input bg-background px-3 py-2"
+            defaultValue=""
+          >
+            <option value="" disabled>Seleccioná quién</option>
+            {attendeeNames.map((name) => (
+              <option key={name} value={name}>{name}</option>
+            ))}
+          </select>
+        ) : (
+          <Input
+            name="responsible"
+            placeholder="Tu nombre"
+            required
+            className="text-sm"
+          />
+        )}
       </div>
       <div className="grid grid-cols-2 gap-2">
         <Input

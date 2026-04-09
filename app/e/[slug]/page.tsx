@@ -299,7 +299,7 @@ export default async function EventPage({ params }: { params: { slug: string } }
           icon={<ReceiptIcon className="w-4 h-4 text-[#002060]" />}
           title="Cargar gasto"
         >
-          <ExpenseForm eventId={event.id} />
+          <ExpenseForm eventId={event.id} attendeeNames={event.is_3t ? [...confirmedAttendees].sort((a, b) => a.full_name.localeCompare(b.full_name)).map(a => a.full_name) : undefined} />
         </CollapsibleSection>
 
         {/* Footer branding */}
