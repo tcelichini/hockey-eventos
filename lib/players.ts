@@ -22,7 +22,7 @@ export const PLAYERS: string[] = [
   "Encina, Tobias",
   "Fernández, Santiago",
   "Iarusso, Mateo",
-  "Lajmanovich, Lauraro",
+  "Lajmanovich, Lautaro",
   "Lascano, Manuel",
   "Lascano, Martín",
   "López Lado, Rodrigo",

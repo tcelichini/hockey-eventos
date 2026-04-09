@@ -213,7 +213,7 @@ export default function ConfirmPage() {
                   <div className="text-center mb-4">
                     <CheckCircleIcon className="w-12 h-12 text-green-500 mx-auto mb-2" />
                     <h2 className="text-xl font-bold text-gray-900">
-                      ¡Ya pagaste, {paymentData.attendee_name.split(",")[0].trim()}!
+                      ¡Ya pagaste, {paymentData.attendee_name.includes(",") ? paymentData.attendee_name.split(",")[1].trim() : paymentData.attendee_name.split(" ")[0]}!
                     </h2>
                     <p className="text-gray-500 text-sm mt-1">Tu pago ya fue registrado. No necesitás hacer nada más.</p>
                     {existingProofUrl && (
@@ -234,7 +234,7 @@ export default function ConfirmPage() {
                       <CheckCircleIcon className="w-12 h-12 text-green-500 mx-auto mb-2" />
                       <h2 className="text-xl font-bold text-gray-900">
                         {is3t
-                          ? `¡Hola, ${paymentData.attendee_name.split(",")[0].trim()}!`
+                          ? `¡Hola, ${paymentData.attendee_name.split(",")[1].trim()}!`
                           : isExisting
                             ? `¡Ya estás anotado, ${paymentData.attendee_name.split(" ")[0]}!`
                             : `¡Anotado, ${paymentData.attendee_name.split(" ")[0]}!`}
