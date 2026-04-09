@@ -24,10 +24,13 @@ export async function GET(_request: NextRequest, { params }: { params: { slug: s
     return NextResponse.json({ error: "Not found" }, { status: 404 })
   }
 
-  const [{ value: confirmedCount }] = await db
-    .select({ value: count() })
+  const confirmedAttendeeRows = await db
+    .select({ full_name: attendees.full_name })
     .from(attendees)
     .where(and(eq(attendees.event_id, event.id), eq(attendees.status, "confirmed")))
 
-  return NextResponse.json({ ...event, confirmedCount: Number(confirmedCount) })
+  const confirmedCount = confirmedAttendeeRows.length
+  const attendeeNames = confirmedAttendeeRows.map((a) => a.full_name)
+
+  return NextResponse.json({ ...event, confirmedCount, attendeeNames })
 }

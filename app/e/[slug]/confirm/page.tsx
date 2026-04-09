@@ -21,6 +21,7 @@ type EventData = {
   pricing_tiers: { upTo: number | null; price: number }[] | null
   confirmedCount: number
   is_3t: boolean
+  attendeeNames: string[]
 }
 
 type PaymentData = {
@@ -168,11 +169,15 @@ export default function ConfirmPage() {
                       className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     >
                       <option value="">— Seleccioná tu nombre —</option>
-                      {PLAYERS.map((player) => (
-                        <option key={player} value={player}>
-                          {player}
-                        </option>
-                      ))}
+                      {(() => {
+                        const extra = (event.attendeeNames || []).filter((n) => !PLAYERS.includes(n))
+                        const allNames = [...PLAYERS, ...extra].sort((a, b) => a.localeCompare(b, "es"))
+                        return allNames.map((player) => (
+                          <option key={player} value={player}>
+                            {player}
+                          </option>
+                        ))
+                      })()}
                     </select>
                   ) : (
                     <Input

@@ -277,7 +277,7 @@ export default async function EventPage({ params }: { params: { slug: string } }
             badge={<span className="text-sm font-bold text-[#00A651]">{confirmedAttendees.length}</span>}
           >
             <div className="flex flex-wrap gap-2">
-              {confirmedAttendees.map((a, i) => (
+              {[...confirmedAttendees].sort((a, b) => a.full_name.localeCompare(b.full_name, "es")).map((a, i) => (
                 <span
                   key={i}
                   className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-sm ${

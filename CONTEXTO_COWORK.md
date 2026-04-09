@@ -241,6 +241,15 @@ ALTER TABLE "events" ADD COLUMN IF NOT EXISTS "is_3t" boolean NOT NULL DEFAULT f
   - Archivos: `api/attendees/route.ts`
 - **Documentación worktrees:** se agregó nota en CONTEXTO_COWORK sobre el problema de `.env.local` faltante en worktrees de git (causa que la contraseña admin no funcione)
 
+### Sesión 8
+- **Fix asistentes manuales no visibles en link público de eventos individuales:**
+  - Problema: en eventos 3T, el dropdown del confirm page solo mostraba nombres de la lista estática `PLAYERS`. Los asistentes agregados manualmente por el admin (ej: Erriquenz, Juan Pablo) no aparecían y no podían subir su comprobante de pago.
+  - Fix: la API `events/by-slug/[slug]` ahora devuelve `attendeeNames` (nombres de asistentes confirmados). El dropdown combina `PLAYERS` + asistentes de la DB que no estén en la lista, ordenados alfabéticamente.
+  - Archivos: `api/events/by-slug/[slug]/route.ts`, `app/e/[slug]/confirm/page.tsx`
+- **Orden alfabético en "¿Quiénes van?" del link público:**
+  - La lista de asistentes confirmados en la página pública del evento ahora se muestra ordenada alfabéticamente.
+  - Archivos: `app/e/[slug]/page.tsx`
+
 ---
 
 ## Pendientes / ideas futuras
