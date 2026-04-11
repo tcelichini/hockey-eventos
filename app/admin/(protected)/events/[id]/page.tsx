@@ -375,9 +375,9 @@ export default async function EventDetailPage({ params }: { params: { id: string
         ) : (
           <div className="divide-y">
             {confirmed.map((attendee) => (
-              <div key={attendee.id} className="py-3 flex items-center justify-between gap-3">
+              <div key={attendee.id} className="py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-3">
                 <div className="min-w-0">
-                  <p className="font-medium text-gray-900 truncate">{attendee.full_name}</p>
+                  <p className="font-medium text-gray-900">{attendee.full_name}</p>
                   <p className="text-xs text-gray-400 mt-0.5">
                     {formatCurrency(getPrice(attendee))}{paidViaCombo.has(attendee.id) && <span className="text-purple-500"> (vía combo)</span>} · {new Intl.DateTimeFormat("es-AR", {
                       day: "numeric",

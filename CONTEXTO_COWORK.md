@@ -270,6 +270,13 @@ ALTER TABLE "events" ADD COLUMN IF NOT EXISTS "is_3t" boolean NOT NULL DEFAULT f
   - En mobile el usuario puede copiar la captura y tocar "Pegar imagen".
   - Archivos: `components/payment-proof-upload.tsx`
 
+### Sesión 11
+- **Layout responsive de asistentes en admin de evento (mobile vertical):**
+  - En pantallas angostas (< 640px), cada fila de asistente ahora se apila verticalmente: nombre completo y detalles de pago arriba, badges (Combo, Comprobante, Pagó/Pendiente) y botones abajo.
+  - Se eliminó la clase `truncate` del nombre del asistente para que nunca se corte con "...".
+  - En pantallas más anchas (>= 640px, incluido mobile horizontal) el layout vuelve al formato horizontal original.
+  - Archivos: `app/admin/(protected)/events/[id]/page.tsx`
+
 ---
 
 ## Pendientes / ideas futuras
