@@ -34,8 +34,18 @@ type EventData = {
 
 function toDatetimeLocal(isoString: string) {
   const d = new Date(isoString)
-  const pad = (n: number) => String(n).padStart(2, "0")
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+  const fmt = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Argentina/Buenos_Aires",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  })
+  const parts = fmt.formatToParts(d)
+  const get = (type: string) => parts.find(p => p.type === type)?.value ?? ""
+  return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}`
 }
 
 function detectMode(data: EventData): PricingMode {

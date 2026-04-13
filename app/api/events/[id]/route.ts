@@ -26,7 +26,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     .set({
       title,
       description: description || null,
-      date: new Date(date),
+      date: new Date(date + ":00-03:00"),
       flyer_url: flyer_url !== undefined ? (flyer_url || null) : undefined,
       payment_account,
       payment_amount: String(payment_amount),

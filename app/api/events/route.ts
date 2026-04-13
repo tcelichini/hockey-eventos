@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
       slug,
       title,
       description: description || null,
-      date: new Date(date),
+      date: new Date(date + ":00-03:00"),
       flyer_url: flyer_url || null,
       payment_account,
       payment_amount: String(payment_amount),

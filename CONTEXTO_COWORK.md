@@ -277,6 +277,13 @@ ALTER TABLE "events" ADD COLUMN IF NOT EXISTS "is_3t" boolean NOT NULL DEFAULT f
   - En pantallas más anchas (>= 640px, incluido mobile horizontal) el layout vuelve al formato horizontal original.
   - Archivos: `app/admin/(protected)/events/[id]/page.tsx`
 
+### Sesión 12
+- **Fix desfase horario al crear/editar eventos (drift de -3h por guardado):**
+  - Causa: el input `datetime-local` envía `"2026-04-17T23:00"` sin timezone. En Vercel (servidor UTC), `new Date("2026-04-17T23:00")` lo interpreta como 23:00 UTC en vez de 23:00 Argentina (UTC-3). Cada vez que se editaba y guardaba, la hora se corría 3 horas hacia atrás.
+  - Fix API (POST y PATCH): se agrega offset explícito `-03:00` al parsear la fecha → `new Date(date + ":00-03:00")`
+  - Fix edit page (`toDatetimeLocal`): se reemplazó `d.getHours()`/`d.getMinutes()` (dependiente del timezone del browser) por `Intl.DateTimeFormat` con `timeZone: "America/Argentina/Buenos_Aires"` explícito
+  - Archivos: `api/events/route.ts`, `api/events/[id]/route.ts`, `admin/(protected)/events/[id]/edit/page.tsx`
+
 ---
 
 ## Pendientes / ideas futuras
