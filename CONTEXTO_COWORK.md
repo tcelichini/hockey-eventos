@@ -284,6 +284,19 @@ ALTER TABLE "events" ADD COLUMN IF NOT EXISTS "is_3t" boolean NOT NULL DEFAULT f
   - Fix edit page (`toDatetimeLocal`): se reemplazó `d.getHours()`/`d.getMinutes()` (dependiente del timezone del browser) por `Intl.DateTimeFormat` con `timeZone: "America/Argentina/Buenos_Aires"` explícito
   - Archivos: `api/events/route.ts`, `api/events/[id]/route.ts`, `admin/(protected)/events/[id]/edit/page.tsx`
 
+### Sesión 13
+- **Layout responsive del dashboard admin para mobile:**
+  - Botones del header ("Actualizar", "Nuevo combo", "Nuevo evento") ahora se apilan debajo del título en mobile. Texto abreviado ("combo" / "evento") en pantallas angostas.
+  - Tarjetas de eventos y combos: removido `truncate` de los títulos para que se muestren completos. Layout vertical en mobile (título arriba, stats abajo), horizontal en desktop.
+  - Archivos: `app/admin/(protected)/page.tsx`
+- **Layout responsive del editor de tramos por fecha:**
+  - Los campos "Paga hasta el" y "Precio (ARS)" se apilan con `flex-wrap` en pantallas angostas en vez de superponerse.
+  - Archivos: `components/date-tiers-editor.tsx`
+- **Ocultar "Monto base / fallback" en modo "Por fecha":**
+  - El campo era redundante: el tramo "Resto (después de todas las fechas)" ya cumple la misma función de catch-all.
+  - En modo "Por fecha", el campo se reemplaza por un `<input type="hidden" value="0">`. En modo "Precio fijo" y "Por cantidad" sigue visible.
+  - Archivos: `app/admin/(protected)/events/new/page.tsx`, `app/admin/(protected)/events/[id]/edit/page.tsx`
+
 ---
 
 ## Pendientes / ideas futuras

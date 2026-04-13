@@ -136,20 +136,20 @@ export default async function AdminPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h2 className="text-xl font-semibold text-gray-900">Dashboard</h2>
         <div className="flex items-center gap-2">
           <RefreshButton />
           <Link href="/admin/combos/new">
             <Button size="sm" variant="outline">
-              <PackageIcon className="w-4 h-4 mr-2" />
-              Nuevo combo
+              <PackageIcon className="w-4 h-4 mr-1" />
+              <span className="hidden sm:inline">Nuevo </span>combo
             </Button>
           </Link>
           <Link href="/admin/events/new">
             <Button size="sm">
-              <PlusIcon className="w-4 h-4 mr-2" />
-              Nuevo evento
+              <PlusIcon className="w-4 h-4 mr-1" />
+              <span className="hidden sm:inline">Nuevo </span>evento
             </Button>
           </Link>
         </div>
@@ -226,10 +226,10 @@ export default async function AdminPage() {
             return (
               <Link key={combo.id} href={`/admin/combos/${combo.id}`}>
                 <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border border-blue-200 p-4 hover:border-blue-300 hover:shadow-sm transition-all cursor-pointer mb-2">
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-3">
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-gray-900 truncate">{combo.title}</h3>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-semibold text-gray-900">{combo.title}</h3>
                         <Badge className="bg-blue-100 text-blue-700 text-xs shrink-0">Combo</Badge>
                       </div>
                       <p className="text-xs text-gray-500 mt-0.5">{combo.event_ids.length} eventos</p>
@@ -303,10 +303,10 @@ function EventCard({
       <div
         className={`bg-white rounded-xl border border-gray-200 p-4 hover:border-gray-300 hover:shadow-sm transition-all cursor-pointer ${isPast ? "opacity-60" : ""}`}
       >
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-3">
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <h3 className="font-semibold text-gray-900 truncate">{event.title}</h3>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="font-semibold text-gray-900">{event.title}</h3>
               {isPast ? (
                 <Badge variant="secondary" className="text-xs shrink-0">
                   Pasado
@@ -338,7 +338,7 @@ function EventCard({
           </div>
 
           {/* Right side stats */}
-          <div className="flex flex-col items-end gap-1 shrink-0">
+          <div className="flex items-center sm:items-end sm:flex-col gap-2 sm:gap-1 shrink-0 flex-wrap">
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1 text-sm text-gray-600">
                 <UsersIcon className="w-4 h-4" />

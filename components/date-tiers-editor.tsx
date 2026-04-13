@@ -64,8 +64,8 @@ export default function DateTiersEditor({ value, onChange }: Props) {
         {tiers.map((tier, i) => {
           const isCatchAll = tier.until === null
           return (
-            <div key={i} className="flex items-center gap-2">
-              <div className="flex-1">
+            <div key={i} className="flex flex-wrap items-end gap-2">
+              <div className="flex-1 min-w-[140px]">
                 {isCatchAll ? (
                   <div className="h-9 flex items-center px-3 rounded-md border border-gray-200 bg-white text-sm text-gray-400">
                     Resto (después de todas las fechas)
@@ -83,29 +83,31 @@ export default function DateTiersEditor({ value, onChange }: Props) {
                 )}
               </div>
 
-              <div className="w-28">
-                <p className="text-xs text-gray-400">Precio (ARS)</p>
-                <Input
-                  type="number"
-                  min="0"
-                  step="100"
-                  value={tier.price || ""}
-                  onChange={(e) => updateTier(i, "price", e.target.value)}
-                  placeholder="0"
-                  className="h-9"
-                />
-              </div>
+              <div className="flex items-end gap-2">
+                <div className="w-28">
+                  <p className="text-xs text-gray-400">Precio (ARS)</p>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="100"
+                    value={tier.price || ""}
+                    onChange={(e) => updateTier(i, "price", e.target.value)}
+                    placeholder="0"
+                    className="h-9"
+                  />
+                </div>
 
-              {!isCatchAll && (
-                <button
-                  type="button"
-                  onClick={() => removeTier(i)}
-                  className="mt-4 p-1.5 text-gray-300 hover:text-red-400 transition-colors"
-                >
-                  <TrashIcon className="w-4 h-4" />
-                </button>
-              )}
-              {isCatchAll && <div className="w-7" />}
+                {!isCatchAll && (
+                  <button
+                    type="button"
+                    onClick={() => removeTier(i)}
+                    className="p-1.5 mb-0.5 text-gray-300 hover:text-red-400 transition-colors"
+                  >
+                    <TrashIcon className="w-4 h-4" />
+                  </button>
+                )}
+                {isCatchAll && <div className="w-7" />}
+              </div>
             </div>
           )
         })}

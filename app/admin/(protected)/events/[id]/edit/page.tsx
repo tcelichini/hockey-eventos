@@ -236,23 +236,27 @@ export default function EditEventPage() {
                 </p>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="payment_amount">
-                  {pricingMode === "fixed" ? "Monto a pagar (ARS) *" : "Monto base / fallback (ARS) *"}
-                </Label>
-                <Input
-                  id="payment_amount"
-                  name="payment_amount"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  defaultValue={event.payment_amount}
-                  required
-                />
-                {pricingMode !== "fixed" && (
-                  <p className="text-xs text-gray-400">Se usa si no aplica ningún tramo.</p>
-                )}
-              </div>
+              {pricingMode === "date" ? (
+                <input type="hidden" name="payment_amount" value="0" />
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="payment_amount">
+                    {pricingMode === "fixed" ? "Monto a pagar (ARS) *" : "Monto base / fallback (ARS) *"}
+                  </Label>
+                  <Input
+                    id="payment_amount"
+                    name="payment_amount"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    defaultValue={event.payment_amount}
+                    required
+                  />
+                  {pricingMode === "tiers" && (
+                    <p className="text-xs text-gray-400">Se usa si no aplica ningún tramo.</p>
+                  )}
+                </div>
+              )}
 
               {pricingMode === "tiers" && (
                 <PricingTiersEditor value={pricingTiers} onChange={setPricingTiers} />
