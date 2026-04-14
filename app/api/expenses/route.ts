@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm"
 
 export async function POST(request: NextRequest) {
   const body = await request.json()
-  const { event_id, description, responsible, amount, notes } = body
+  const { event_id, description, responsible, amount, notes, payment_alias, receipt_url } = body
 
   if (!event_id || !description?.trim() || !responsible?.trim() || !amount) {
     return NextResponse.json({ error: "Faltan campos requeridos" }, { status: 400 })
@@ -24,6 +24,8 @@ export async function POST(request: NextRequest) {
       responsible: responsible.trim(),
       amount: String(amount),
       notes: notes?.trim() || null,
+      payment_alias: payment_alias?.trim() || null,
+      receipt_url: receipt_url || null,
     })
     .returning()
 

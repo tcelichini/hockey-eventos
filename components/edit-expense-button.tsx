@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { PencilIcon, CheckIcon, XIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import ExpenseReceiptUpload from "@/components/expense-receipt-upload"
 
 type ExpenseData = {
   id: string
@@ -12,6 +13,8 @@ type ExpenseData = {
   responsible: string
   amount: string
   notes: string | null
+  payment_alias: string | null
+  receipt_url: string | null
 }
 
 export default function EditExpenseButton({ expense }: { expense: ExpenseData }) {
@@ -21,6 +24,8 @@ export default function EditExpenseButton({ expense }: { expense: ExpenseData })
   const [responsible, setResponsible] = useState(expense.responsible)
   const [amount, setAmount] = useState(expense.amount)
   const [notes, setNotes] = useState(expense.notes || "")
+  const [paymentAlias, setPaymentAlias] = useState(expense.payment_alias || "")
+  const [receiptUrl, setReceiptUrl] = useState<string | null>(expense.receipt_url)
   const router = useRouter()
 
   async function handleSave() {
@@ -28,7 +33,14 @@ export default function EditExpenseButton({ expense }: { expense: ExpenseData })
     const res = await fetch(`/api/expenses/${expense.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ description, responsible, amount: parseFloat(amount), notes: notes || null }),
+      body: JSON.stringify({
+        description,
+        responsible,
+        amount: parseFloat(amount),
+        notes: notes || null,
+        payment_alias: paymentAlias || null,
+        receipt_url: receiptUrl,
+      }),
     })
     if (res.ok) {
       setEditing(false)
@@ -42,6 +54,8 @@ export default function EditExpenseButton({ expense }: { expense: ExpenseData })
     setResponsible(expense.responsible)
     setAmount(expense.amount)
     setNotes(expense.notes || "")
+    setPaymentAlias(expense.payment_alias || "")
+    setReceiptUrl(expense.receipt_url)
     setEditing(false)
   }
 
@@ -56,6 +70,8 @@ export default function EditExpenseButton({ expense }: { expense: ExpenseData })
           <Input value={amount} onChange={(e) => setAmount(e.target.value)} type="number" step="0.01" placeholder="Monto" className="text-sm h-8" />
           <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notas" className="text-sm h-8" />
         </div>
+        <Input value={paymentAlias} onChange={(e) => setPaymentAlias(e.target.value)} placeholder="Alias / CBU" className="text-sm h-8" />
+        <ExpenseReceiptUpload url={receiptUrl} onChange={setReceiptUrl} />
         <div className="flex gap-1">
           <Button size="sm" className="h-7 text-xs px-2" onClick={handleSave} disabled={loading}>
             <CheckIcon className="w-3 h-3 mr-1" />

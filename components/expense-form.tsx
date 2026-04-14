@@ -5,11 +5,21 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { PlusIcon } from "lucide-react"
+import ExpenseReceiptUpload from "@/components/expense-receipt-upload"
 
-export default function ExpenseForm({ eventId, attendeeNames }: { eventId: string; attendeeNames?: string[] }) {
+export default function ExpenseForm({
+  eventId,
+  attendeeNames,
+  compact = false,
+}: {
+  eventId: string
+  attendeeNames?: string[]
+  compact?: boolean
+}) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const [receiptUrl, setReceiptUrl] = useState<string | null>(null)
   const router = useRouter()
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -24,6 +34,8 @@ export default function ExpenseForm({ eventId, attendeeNames }: { eventId: strin
       responsible: (form.elements.namedItem("responsible") as HTMLInputElement).value,
       amount: parseFloat((form.elements.namedItem("amount") as HTMLInputElement).value),
       notes: (form.elements.namedItem("notes") as HTMLInputElement).value || null,
+      payment_alias: (form.elements.namedItem("payment_alias") as HTMLInputElement).value || null,
+      receipt_url: receiptUrl,
     }
 
     const res = await fetch("/api/expenses", {
@@ -34,6 +46,7 @@ export default function ExpenseForm({ eventId, attendeeNames }: { eventId: strin
 
     if (res.ok) {
       form.reset()
+      setReceiptUrl(null)
       setOpen(false)
       router.refresh()
     } else {
@@ -43,7 +56,25 @@ export default function ExpenseForm({ eventId, attendeeNames }: { eventId: strin
     setLoading(false)
   }
 
+  function handleCancel() {
+    setReceiptUrl(null)
+    setOpen(false)
+  }
+
   if (!open) {
+    if (compact) {
+      return (
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 text-xs gap-1 text-gray-500"
+          onClick={() => setOpen(true)}
+        >
+          <PlusIcon className="w-3.5 h-3.5" />
+          Agregar gasto
+        </Button>
+      )
+    }
     return (
       <button
         onClick={() => setOpen(true)}
@@ -102,12 +133,18 @@ export default function ExpenseForm({ eventId, attendeeNames }: { eventId: strin
           className="text-sm"
         />
       </div>
+      <Input
+        name="payment_alias"
+        placeholder="Alias / CBU para que te transfieran"
+        className="text-sm"
+      />
+      <ExpenseReceiptUpload url={receiptUrl} onChange={setReceiptUrl} />
       {error && <p className="text-red-500 text-xs">{error}</p>}
       <div className="flex gap-2">
         <Button type="submit" size="sm" className="flex-1" disabled={loading}>
           {loading ? "Guardando..." : "Agregar"}
         </Button>
-        <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)} disabled={loading}>
+        <Button type="button" variant="ghost" size="sm" onClick={handleCancel} disabled={loading}>
           Cancelar
         </Button>
       </div>

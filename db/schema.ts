@@ -67,6 +67,8 @@ export const expenses = pgTable("expenses", {
   responsible: text("responsible").notNull(),
   amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
   notes: text("notes"),
+  payment_alias: text("payment_alias"),
+  receipt_url: text("receipt_url"),
   created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
 })
 

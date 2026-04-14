@@ -160,6 +160,13 @@ ALTER TABLE "attendees" ADD COLUMN IF NOT EXISTS "proof_uploaded_at" timestamp w
 
 -- Migración 3: campo is_3t para eventos de Tercer Tiempo
 ALTER TABLE "events" ADD COLUMN IF NOT EXISTS "is_3t" boolean NOT NULL DEFAULT false;
+
+-- Migración 4: alias/CBU en gastos (para que el admin sepa a dónde transferir al que adelantó el gasto)
+ALTER TABLE "expenses" ADD COLUMN IF NOT EXISTS "payment_alias" text;
+
+-- Migración 5: comprobante (recibo/ticket) del gasto
+ALTER TABLE "expenses" ADD COLUMN IF NOT EXISTS "receipt_url" text;
+-- + crear bucket público "expense-receipts" en Supabase Storage
 ```
 
 ---
@@ -296,6 +303,24 @@ ALTER TABLE "events" ADD COLUMN IF NOT EXISTS "is_3t" boolean NOT NULL DEFAULT f
   - El campo era redundante: el tramo "Resto (después de todas las fechas)" ya cumple la misma función de catch-all.
   - En modo "Por fecha", el campo se reemplaza por un `<input type="hidden" value="0">`. En modo "Precio fijo" y "Por cantidad" sigue visible.
   - Archivos: `app/admin/(protected)/events/new/page.tsx`, `app/admin/(protected)/events/[id]/edit/page.tsx`
+
+### Sesión 14
+- **Gestión de gastos desde el admin:** el admin ahora puede agregar/editar gastos directamente desde el panel del evento (antes solo se podían cargar desde la página pública).
+  - Se reutiliza `ExpenseForm` con nueva prop `compact` que renderiza el botón outline chico (mismo estilo que "Agregar asistente") en lugar del bloque dashed grande. En la página pública sigue con el estilo grande original.
+  - En admin, el `responsible` se muestra como dropdown con los asistentes confirmados (orden alfabético) para garantizar que el nombre matchee con los usados en el cálculo de balance.
+  - Archivos: `app/admin/(protected)/events/[id]/page.tsx`, `components/expense-form.tsx`
+- **Alias/CBU opcional en gastos:** quien carga un gasto puede incluir su alias o CBU para que el admin sepa a dónde transferirle, sin tener que pedírselo por WhatsApp.
+  - Nueva columna `payment_alias text` en `expenses` (migración: `drizzle/0004_add_payment_alias.sql`)
+  - Input disponible tanto al crear como al editar el gasto (sin sufijo "(opcional)" para incentivar la carga).
+  - En la lista del admin se muestra debajo del responsable como `Transferir a: <alias>` en azul con font monospace.
+  - Archivos: `db/schema.ts`, `app/api/expenses/route.ts`, `app/api/expenses/[id]/route.ts`, `components/expense-form.tsx`, `components/edit-expense-button.tsx`, `app/admin/(protected)/events/[id]/page.tsx`
+- **Comprobante (recibo/ticket) del gasto:** el que adelanta un gasto puede subir la foto/PDF del comprobante al cargarlo.
+  - Nueva columna `receipt_url text` en `expenses` (migración: `drizzle/0005_add_expense_receipt_url.sql`)
+  - Nuevo bucket de Storage `expense-receipts` (público) — **separado** del bucket `event-banners` donde viven los comprobantes de pago, para distinguir conceptualmente entre ingresos (pagos de asistentes) y egresos (gastos del evento).
+  - Nuevo endpoint `app/api/upload-expense-receipt/route.ts` (sin auth, análogo a `upload-proof`: validación de tipo/tamaño, sube al bucket, devuelve URL pública).
+  - Nuevo componente `components/expense-receipt-upload.tsx`: dos botones dashed "Adjuntar comprobante" y "Pegar imagen" (también soporta paste con Ctrl+V en la zona). Al subir, se reemplaza por un chip verde "Comprobante cargado (ver)" con X para quitarlo.
+  - El comprobante se ve solo en la vista admin como badge azul **Comprobante** clickeable (mismo estilo que el badge de comprobantes de pago de asistentes). NO se muestra en la página pública.
+  - Archivos: `db/schema.ts`, `lib/supabase-storage.ts` (constante `EXPENSE_RECEIPTS_BUCKET`), `app/api/upload-expense-receipt/route.ts`, `app/api/expenses/route.ts`, `app/api/expenses/[id]/route.ts`, `components/expense-receipt-upload.tsx`, `components/expense-form.tsx`, `components/edit-expense-button.tsx`, `app/admin/(protected)/events/[id]/page.tsx`
 
 ---
 

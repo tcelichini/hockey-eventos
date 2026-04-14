@@ -7,6 +7,7 @@ export function getStorageClient() {
 }
 
 export const BUCKET = "event-banners"
+export const EXPENSE_RECEIPTS_BUCKET = "expense-receipts"
 
 export function getPublicUrl(path: string): string {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!

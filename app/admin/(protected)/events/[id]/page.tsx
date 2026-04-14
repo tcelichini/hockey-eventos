@@ -20,6 +20,7 @@ import PaymentReminderButton from "@/components/payment-reminder-button"
 import WhatsAppInviteButton from "@/components/whatsapp-invite-button"
 import RefreshButton from "@/components/refresh-button"
 import AddAttendeeButton from "@/components/add-attendee-button"
+import ExpenseForm from "@/components/expense-form"
 import { getTierLabel, getDateTierLabel } from "@/lib/pricing"
 
 function formatCurrency(value: number) {
@@ -329,6 +330,13 @@ export default async function EventDetailPage({ params }: { params: { id: string
           </div>
         ) : undefined}
       >
+        <div className="pb-3">
+          <ExpenseForm
+            eventId={params.id}
+            attendeeNames={confirmed.length > 0 ? confirmed.map((a) => a.full_name) : undefined}
+            compact
+          />
+        </div>
         {expenseList.length === 0 ? (
           <p className="text-gray-400 text-sm text-center py-4">No hay gastos cargados</p>
         ) : (
@@ -342,10 +350,22 @@ export default async function EventDetailPage({ params }: { params: { id: string
                       {expense.responsible}
                       {expense.notes && ` · ${expense.notes}`}
                     </p>
+                    {expense.payment_alias && (
+                      <p className="text-xs text-blue-600 mt-0.5">
+                        Transferir a: <span className="font-mono">{expense.payment_alias}</span>
+                      </p>
+                    )}
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="font-medium text-gray-700 text-sm">{formatCurrency(Number(expense.amount))}</span>
-                    <EditExpenseButton expense={{ id: expense.id, description: expense.description, responsible: expense.responsible, amount: expense.amount!, notes: expense.notes }} />
+                    {expense.receipt_url && (
+                      <a href={expense.receipt_url} target="_blank" rel="noopener noreferrer">
+                        <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 cursor-pointer">
+                          Comprobante
+                        </Badge>
+                      </a>
+                    )}
+                    <EditExpenseButton expense={{ id: expense.id, description: expense.description, responsible: expense.responsible, amount: expense.amount!, notes: expense.notes, payment_alias: expense.payment_alias, receipt_url: expense.receipt_url }} />
                     <DeleteExpenseButton expenseId={expense.id} />
                   </div>
                 </div>
