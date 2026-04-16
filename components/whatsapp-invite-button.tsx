@@ -64,6 +64,10 @@ export default function WhatsAppInviteButton({
       lines.push(`💰 ${formatCurrency(paymentAmount)}`)
     }
 
+    if (confirmedCount > 0) {
+      lines.push("", `✅ Confirmados: ${confirmedCount}`)
+    }
+
     if (maxCapacity) {
       const remaining = maxCapacity - confirmedCount
       if (remaining > 0) {
