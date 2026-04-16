@@ -120,10 +120,10 @@ export default async function EventDetailPage({ params }: { params: { id: string
     if (e.payment_alias && !aliasByPerson.has(key)) aliasByPerson.set(key, e.payment_alias)
     expenseIdsByPerson.set(key, [...(expenseIdsByPerson.get(key) || []), e.id])
   }
-  for (const [key, ids] of expenseIdsByPerson) {
-    const allSettled = ids.every(id => expenseList.find(e => e.id === id)?.settled === true)
+  Array.from(expenseIdsByPerson.entries()).forEach(([key, ids]) => {
+    const allSettled = ids.every((id: string) => expenseList.find(e => e.id === id)?.settled === true)
     settledByPerson.set(key, allSettled)
-  }
+  })
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").trim()
   const publicLink = `${appUrl}/e/${event.slug}`
 

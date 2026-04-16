@@ -294,7 +294,7 @@ function EventCard({
   isPast,
 }: {
   event: typeof events.$inferSelect
-  stats: { confirmed: number; paid: number; revenue: number }
+  stats: { confirmed: number; paid: number; revenue: number; expenses: number }
   isPast: boolean
 }) {
   const paidPct = stats.confirmed > 0 ? Math.round((stats.paid / stats.confirmed) * 100) : 0
