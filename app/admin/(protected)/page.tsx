@@ -44,11 +44,6 @@ export default async function AdminPage() {
   const eventList = await db.select().from(events).orderBy(sql`${events.date} DESC`)
 
   // Global stats
-  const [globalConfirmed] = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(attendees)
-    .where(eq(attendees.status, "confirmed"))
-
   const [globalRevenue] = await db
     .select({ sum: sql<number>`coalesce(sum(coalesce(${attendees.price_paid}, ${events.payment_amount})), 0)` })
     .from(attendees)
@@ -59,6 +54,11 @@ export default async function AdminPage() {
     .select({ sum: sql<number>`coalesce(sum(coalesce(${attendees.price_paid}, ${events.payment_amount})), 0)` })
     .from(attendees)
     .innerJoin(events, eq(attendees.event_id, events.id))
+    .where(and(eq(attendees.status, "confirmed"), eq(attendees.payment_status, "pending")))
+
+  const [globalPendingCount] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(attendees)
     .where(and(eq(attendees.status, "confirmed"), eq(attendees.payment_status, "pending")))
 
   const [globalExpenses] = await db
@@ -87,18 +87,23 @@ export default async function AdminPage() {
             eq(attendees.payment_status, "paid")
           )
         )
+      const [eventExpenses] = await db
+        .select({ sum: sql<number>`coalesce(sum(${expenses.amount}), 0)` })
+        .from(expenses)
+        .where(eq(expenses.event_id, event.id))
       return {
         confirmed: Number(confirmed.count),
         paid: Number(paid.count),
         revenue: Number(revenue.sum),
+        expenses: Number(eventExpenses.sum),
       }
     })
   )
 
   const activeEvents = eventList.filter((e) => e.is_open).length
-  const totalConfirmed = Number(globalConfirmed.count)
   const totalRevenue = Number(globalRevenue.sum)
   const totalPending = Number(globalPending.sum)
+  const totalPendingCount = Number(globalPendingCount.count)
   const totalExpenses = Number(globalExpenses.sum)
   const netRevenue = totalRevenue - totalExpenses
 
@@ -171,9 +176,10 @@ export default async function AdminPage() {
             <CardContent className="p-4">
               <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
                 <UsersIcon className="w-4 h-4" />
-                Total inscriptos
+                Sin pagar
               </div>
-              <p className="text-2xl font-bold text-gray-900">{totalConfirmed}</p>
+              <p className="text-2xl font-bold text-orange-500">{totalPendingCount}</p>
+              <p className="text-xs text-gray-400 mt-0.5">confirmados pendientes</p>
             </CardContent>
           </Card>
           <Card>
@@ -348,11 +354,14 @@ function EventCard({
                 {stats.paid} pagaron{stats.confirmed > 0 ? ` (${paidPct}%)` : ""}
               </Badge>
             </div>
-            {stats.revenue > 0 && (
-              <span className="text-xs text-green-600 font-medium">
-                {formatCurrency(stats.revenue)} recaudado
-              </span>
-            )}
+            {stats.revenue > 0 && (() => {
+              const balance = stats.revenue - stats.expenses
+              return (
+                <span className={`text-xs font-medium ${balance >= 0 ? "text-green-600" : "text-red-500"}`}>
+                  {formatCurrency(balance)} balance
+                </span>
+              )
+            })()}
           </div>
         </div>
 

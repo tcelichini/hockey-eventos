@@ -15,7 +15,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   }
 
   const body = await request.json()
-  const { description, responsible, amount, notes, payment_alias, receipt_url } = body
+  const { description, responsible, amount, notes, payment_alias, receipt_url, settled } = body
 
   const [updated] = await db
     .update(expenses)
@@ -26,6 +26,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       ...(notes !== undefined && { notes: notes?.trim() || null }),
       ...(payment_alias !== undefined && { payment_alias: payment_alias?.trim() || null }),
       ...(receipt_url !== undefined && { receipt_url: receipt_url || null }),
+      ...(settled !== undefined && { settled }),
     })
     .where(eq(expenses.id, params.id))
     .returning()

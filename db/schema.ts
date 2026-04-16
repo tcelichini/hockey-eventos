@@ -69,6 +69,7 @@ export const expenses = pgTable("expenses", {
   notes: text("notes"),
   payment_alias: text("payment_alias"),
   receipt_url: text("receipt_url"),
+  settled: boolean("settled").notNull().default(false),
   created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
 })
 

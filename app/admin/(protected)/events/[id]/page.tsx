@@ -21,6 +21,7 @@ import WhatsAppInviteButton from "@/components/whatsapp-invite-button"
 import RefreshButton from "@/components/refresh-button"
 import AddAttendeeButton from "@/components/add-attendee-button"
 import ExpenseForm from "@/components/expense-form"
+import SettleCreditorButton from "@/components/settle-creditor-button"
 import { getTierLabel, getDateTierLabel } from "@/lib/pricing"
 
 function formatCurrency(value: number) {
@@ -107,23 +108,35 @@ export default async function EventDetailPage({ params }: { params: { id: string
 
   // Mapa de gastos adelantados por persona (nombre normalizado -> total)
   const expenseByPerson = new Map<string, number>()
+  // Alias/CBU por persona (primer alias no nulo encontrado)
+  const aliasByPerson = new Map<string, string>()
+  // IDs de gastos por persona (para marcar como saldados)
+  const expenseIdsByPerson = new Map<string, string[]>()
+  // Si todos los gastos de una persona están saldados
+  const settledByPerson = new Map<string, boolean>()
   for (const e of expenseList) {
     const key = e.responsible.trim().toLowerCase()
     expenseByPerson.set(key, (expenseByPerson.get(key) || 0) + Number(e.amount))
+    if (e.payment_alias && !aliasByPerson.has(key)) aliasByPerson.set(key, e.payment_alias)
+    expenseIdsByPerson.set(key, [...(expenseIdsByPerson.get(key) || []), e.id])
+  }
+  for (const [key, ids] of expenseIdsByPerson) {
+    const allSettled = ids.every(id => expenseList.find(e => e.id === id)?.settled === true)
+    settledByPerson.set(key, allSettled)
   }
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").trim()
   const publicLink = `${appUrl}/e/${event.slug}`
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <Link href="/admin">
           <Button variant="ghost" size="sm">
             <ArrowLeftIcon className="w-4 h-4 mr-1" />
             Volver
           </Button>
         </Link>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <RefreshButton />
           <ExportCsvButton eventId={params.id} />
           <ToggleEventButton eventId={params.id} isOpen={event.is_open} />
@@ -211,7 +224,7 @@ export default async function EventDetailPage({ params }: { params: { id: string
       </Card>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <Card>
           <CardContent className="pt-4 pb-4 text-center">
             <div className="text-3xl font-bold text-green-600">{confirmed.length}</div>
@@ -222,12 +235,6 @@ export default async function EventDetailPage({ params }: { params: { id: string
           <CardContent className="pt-4 pb-4 text-center">
             <div className="text-3xl font-bold text-blue-600">{paid.length}</div>
             <div className="text-xs text-gray-500 mt-1">Pagaron</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-4 text-center">
-            <div className="text-3xl font-bold text-gray-400">{declined.length}</div>
-            <div className="text-xs text-gray-500 mt-1">No van</div>
           </CardContent>
         </Card>
       </div>
@@ -290,25 +297,60 @@ export default async function EventDetailPage({ params }: { params: { id: string
                 </div>
               )}
 
-              {creditors.length > 0 && (
-                <div className={`space-y-1.5 ${debtors.length > 0 ? "pt-3 border-t border-gray-100" : ""}`}>
-                  <p className="text-xs text-gray-400 uppercase tracking-wide">Se les debe devolver</p>
-                  {creditors.map(({ a, net, expPaid }) => (
-                    <div key={a.id} className="flex items-center justify-between text-sm">
-                      <span className="text-gray-700">{a.full_name}</span>
-                      <div className="text-right">
-                        <span className="font-medium text-green-600">Le deben {formatCurrency(Math.abs(net))}</span>
-                        {expPaid > 0 && a.payment_status === "paid" && (
-                          <p className="text-xs text-gray-400">pagó evento + {formatCurrency(expPaid)} en gastos</p>
-                        )}
-                        {expPaid > 0 && a.payment_status !== "paid" && (
-                          <p className="text-xs text-gray-400">{formatCurrency(getPrice(a))} − {formatCurrency(expPaid)} gastos</p>
-                        )}
+              {creditors.length > 0 && (() => {
+                const personKey = (name: string) => name.trim().toLowerCase()
+                const unsettled = creditors.filter(({ a }) => !settledByPerson.get(personKey(a.full_name)))
+                const settled = creditors.filter(({ a }) => settledByPerson.get(personKey(a.full_name)))
+                return (
+                  <div className={`space-y-2 ${debtors.length > 0 ? "pt-3 border-t border-gray-100" : ""}`}>
+                    <p className="text-xs text-gray-400 uppercase tracking-wide">
+                      Se les debe devolver{unsettled.length < creditors.length ? ` (${unsettled.length} pendiente${unsettled.length !== 1 ? "s" : ""})` : ""}
+                    </p>
+                    {unsettled.map(({ a, net, expPaid }) => {
+                      const key = personKey(a.full_name)
+                      const alias = aliasByPerson.get(key)
+                      const ids = expenseIdsByPerson.get(key) || []
+                      return (
+                        <div key={a.id} className="flex items-start justify-between gap-2 text-sm">
+                          <div>
+                            <span className="text-gray-700">{a.full_name}</span>
+                            {alias && (
+                              <p className="text-xs text-blue-500 font-mono mt-0.5">Transferir a: {alias}</p>
+                            )}
+                          </div>
+                          <div className="text-right shrink-0">
+                            <div className="flex items-center gap-1.5 justify-end">
+                              <span className="font-medium text-green-600">Le deben {formatCurrency(Math.abs(net))}</span>
+                              <SettleCreditorButton expenseIds={ids} />
+                            </div>
+                            {expPaid > 0 && a.payment_status === "paid" && (
+                              <p className="text-xs text-gray-400">pagó evento + {formatCurrency(expPaid)} en gastos</p>
+                            )}
+                            {expPaid > 0 && a.payment_status !== "paid" && (
+                              <p className="text-xs text-gray-400">{formatCurrency(getPrice(a))} − {formatCurrency(expPaid)} gastos</p>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                    {settled.length > 0 && (
+                      <div className={`space-y-1 ${unsettled.length > 0 ? "pt-2 border-t border-gray-100" : ""}`}>
+                        <p className="text-xs text-gray-400 uppercase tracking-wide">Ya saldados</p>
+                        {settled.map(({ a }) => {
+                          const key = personKey(a.full_name)
+                          const ids = expenseIdsByPerson.get(key) || []
+                          return (
+                            <div key={a.id} className="flex items-center justify-between text-sm">
+                              <span className="text-gray-400 line-through">{a.full_name}</span>
+                              <SettleCreditorButton expenseIds={ids} settled={true} />
+                            </div>
+                          )
+                        })}
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    )}
+                  </div>
+                )
+              })()}
 
               {debtors.length === 0 && creditors.length === 0 && (
                 <p className="text-sm text-green-600 font-medium">✅ Todos al día</p>

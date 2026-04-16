@@ -322,6 +322,30 @@ ALTER TABLE "expenses" ADD COLUMN IF NOT EXISTS "receipt_url" text;
   - El comprobante se ve solo en la vista admin como badge azul **Comprobante** clickeable (mismo estilo que el badge de comprobantes de pago de asistentes). NO se muestra en la página pública.
   - Archivos: `db/schema.ts`, `lib/supabase-storage.ts` (constante `EXPENSE_RECEIPTS_BUCKET`), `app/api/upload-expense-receipt/route.ts`, `app/api/expenses/route.ts`, `app/api/expenses/[id]/route.ts`, `components/expense-receipt-upload.tsx`, `components/expense-form.tsx`, `components/edit-expense-button.tsx`, `app/admin/(protected)/events/[id]/page.tsx`
 
+### Sesión 15
+- **Fix overflow de botones en mobile (panel admin de evento):**
+  - El header con botones ("Actualizar", "Exportar CSV", "Cerrar inscripciones", "Editar", "Eliminar") desbordaba la pantalla en mobile vertical.
+  - Fix: div exterior `flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3`, div interior `flex flex-wrap items-center gap-2`.
+  - Archivos: `app/admin/(protected)/events/[id]/page.tsx`
+- **Quitar card "No van" del panel de evento:**
+  - Se eliminó la tercera card de stats (era poco útil porque nadie se anota para no ir).
+  - Grid cambiado de `grid-cols-3` a `grid-cols-2` (solo "Confirmaron" y "Pagaron").
+  - Archivos: `app/admin/(protected)/events/[id]/page.tsx`
+- **Dashboard: reemplazar "Total inscriptos" por "Sin pagar":**
+  - Nueva card "Sin pagar" muestra el conteo global de confirmados con pago pendiente (en naranja). Más accionable que el total de inscriptos.
+  - Nueva query `globalPendingCount`. Se eliminó la query `globalConfirmed` que quedó sin uso.
+  - Archivos: `app/admin/(protected)/page.tsx`
+- **Dashboard: mostrar balance (recaudado − gastos) por evento:**
+  - Cada tarjeta de evento en el dashboard ahora muestra el balance neto en lugar del monto recaudado bruto.
+  - Se agrega query de gastos por evento en el `stats` per-event. Balance en verde (positivo) o rojo (negativo).
+  - Archivos: `app/admin/(protected)/page.tsx`
+- **"Se les debe devolver": alias/CBU + botón saldado + sección ya saldados:**
+  - En la sección "Se les debe devolver" del Resumen, cada acreedor muestra su alias/CBU (`Transferir a: …` en azul monospace) si lo cargó al crear el gasto.
+  - Botón ✓✓ (ícono solo, tooltip "Marcar como saldado") en la misma línea que el monto. Al hacer click, marca todos sus gastos del evento como `settled = true` y pasa a la sección "Ya saldados" (tachado + botón ↩ para deshacer).
+  - Nueva columna `settled boolean NOT NULL DEFAULT false` en tabla `expenses` (migración: `drizzle/0006_add_expense_settled.sql`).
+  - Nuevo componente `components/settle-creditor-button.tsx`: togglea `settled` vía PATCH `/api/expenses/[id]`; variante normal (✓✓ verde) y variante saldado (↩ gris).
+  - Archivos: `db/schema.ts`, `drizzle/0006_add_expense_settled.sql`, `app/api/expenses/[id]/route.ts`, `components/settle-creditor-button.tsx`, `app/admin/(protected)/events/[id]/page.tsx`
+
 ---
 
 ## Pendientes / ideas futuras
