@@ -17,7 +17,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   const body = await request.json()
   const { title, description, date, flyer_url, payment_account, payment_amount, whatsapp_number, max_capacity, is_open, pricing_tiers, date_tiers, whatsapp_confirmation, is_3t } = body
 
-  if (!title || !date || !payment_account || !payment_amount || !whatsapp_number) {
+  if (!title || !date || !payment_account || payment_amount == null || !whatsapp_number) {
     return NextResponse.json({ error: "Faltan campos requeridos" }, { status: 400 })
   }
 
