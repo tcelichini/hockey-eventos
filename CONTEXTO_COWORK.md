@@ -346,6 +346,13 @@ ALTER TABLE "expenses" ADD COLUMN IF NOT EXISTS "receipt_url" text;
   - Nuevo componente `components/settle-creditor-button.tsx`: togglea `settled` vía PATCH `/api/expenses/[id]`; variante normal (✓✓ verde) y variante saldado (↩ gris).
   - Archivos: `db/schema.ts`, `drizzle/0006_add_expense_settled.sql`, `app/api/expenses/[id]/route.ts`, `components/settle-creditor-button.tsx`, `app/admin/(protected)/events/[id]/page.tsx`
 
+### Sesión 16
+- **Fix "Faltan campos requeridos" al editar evento en modo "Por fecha":**
+  - Problema: al editar un evento con `date_tiers` (modo "Por fecha") y cambiar la fecha del evento o un tramo, el PATCH devolvía `"Faltan campos requeridos"` aunque todos los campos obligatorios tuvieran datos.
+  - Causa: la validación de la API usaba `!payment_amount`, y en modo "Por fecha" el formulario envía `payment_amount: 0` (desde el `<input type="hidden" value="0">` agregado en la sesión 13). `!0 === true` → rechazaba el request.
+  - Fix: cambiar la condición a `payment_amount == null` para aceptar `0` como valor válido y solo rechazar `undefined`/`null`.
+  - Archivos: `app/api/events/[id]/route.ts`
+
 ---
 
 ## Pendientes / ideas futuras
