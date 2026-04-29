@@ -353,6 +353,45 @@ ALTER TABLE "expenses" ADD COLUMN IF NOT EXISTS "receipt_url" text;
   - Fix: cambiar la condición a `payment_amount == null` para aceptar `0` como valor válido y solo rechazar `undefined`/`null`.
   - Archivos: `app/api/events/[id]/route.ts`
 
+### Sesión 17
+- **Combos cerrados visibles en el dashboard admin:**
+  - Antes el dashboard solo mostraba combos con `is_open: true` (en `activeCombos`). Los combos cerrados desaparecían y no había forma de revisarlos sin recordar la URL directa.
+  - Fix: nueva sección "Combos cerrados" con opacidad reducida (mismo patrón que "Eventos pasados"), basada en `closedCombos = comboList.filter(c => !c.is_open)`.
+  - Archivos: `app/admin/(protected)/page.tsx`
+- **Cards "Recaudado/Falta cobrar" y "Balance" visibles en eventos modo "Por fecha":**
+  - Problema: en el panel de un evento con `date_tiers` no se mostraban las cards de Recaudado/Falta cobrar ni el Balance del card de Gastos. Sí se mostraban en eventos con precio fijo.
+  - Causa: las dos condiciones eran `amount > 0`, y en modo "Por fecha" `payment_amount` es 0 (campo oculto seteado en sesión 13).
+  - Fix: cambiar la condición a `(totalCollected + totalPending) > 0` — refleja si hay datos reales sin importar el modo de precio.
+  - Archivos: `app/admin/(protected)/events/[id]/page.tsx`
+- **"Deben pagar" y "Falta cobrar" recalculan según el tramo vigente:**
+  - Antes los montos pendientes mostraban el `price_paid` original (capturado al momento de inscribirse). Si el evento ya pasó la última fecha del tramo, el monto adeudado se quedaba desactualizado.
+  - Fix: nuevo helper `getOwedPrice()` que para asistentes con pago pendiente usa `calculateDatePrice(event.date_tiers, payment_amount)` (precio del tramo de hoy). Aplica a `totalPending` (card "Falta cobrar") y al cálculo de `eventDebt` en el Resumen ("Deben pagar"). El `totalCollected` sigue usando `price_paid` real (lo que efectivamente se cobró).
+  - Archivos: `app/admin/(protected)/events/[id]/page.tsx`
+- **Layout responsive de inscriptos al combo (mobile vertical):**
+  - En el panel admin del combo, en pantallas angostas (< 640px) cada inscripto quedaba con el detalle de pago (`Combo: $X · Pagó ...` y avisos de pago parcial) apretado a la derecha y se rompía verticalmente carácter por carácter.
+  - Fix: contenedor de fila pasa de `flex items-center justify-between gap-3` a `flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-3`. Removido `truncate` del nombre. Mismo patrón usado en `events/[id]/page.tsx` en sesión 11.
+  - Archivos: `app/admin/(protected)/combos/[id]/page.tsx`
+
+---
+
+## Convención general: layout responsive en listados admin
+
+Para listados verticales en panel admin (asistentes de evento, inscriptos de combo, etc.), usar siempre el mismo patrón para que se vean bien en mobile:
+
+```tsx
+<div className="py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-3">
+  <div className="min-w-0">
+    <p className="font-medium text-gray-900">{name}</p>  {/* sin truncate */}
+    <p className="text-xs text-gray-400 mt-0.5">{detalles}</p>
+  </div>
+  <div className="flex items-center gap-2 shrink-0">
+    {/* badges + botones */}
+  </div>
+</div>
+```
+
+Razón: en mobile vertical el texto largo se rompe carácter por carácter si los hijos de un `flex` row compiten por espacio. Apilarlos en `flex-col` y volver a `flex-row` desde `sm:` (640px) deja todo legible sin cortar nombres.
+
 ---
 
 ## Pendientes / ideas futuras
