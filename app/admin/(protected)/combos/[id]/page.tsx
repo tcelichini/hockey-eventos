@@ -214,9 +214,9 @@ export default async function ComboDetailPage({ params }: { params: { id: string
           ) : (
             <div className="divide-y">
               {persons.map((person) => (
-                <div key={person.name} className="py-3 flex items-center justify-between gap-3">
+                <div key={person.name} className="py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-3">
                   <div className="min-w-0">
-                    <p className="font-medium text-gray-900 truncate">{person.name}</p>
+                    <p className="font-medium text-gray-900">{person.name}</p>
                     <p className="text-xs text-gray-400 mt-0.5">
                       Combo: {formatCurrency(person.totalPaid)}
                       {person.proofUploadedAt && (

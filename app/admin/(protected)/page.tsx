@@ -110,6 +110,7 @@ export default async function AdminPage() {
   // Fetch combos
   const comboList = await db.select().from(combos).orderBy(sql`${combos.created_at} DESC`)
   const activeCombos = comboList.filter((c) => c.is_open)
+  const closedCombos = comboList.filter((c) => !c.is_open)
 
   // Combo attendee stats
   const comboStats = await Promise.all(
@@ -237,6 +238,48 @@ export default async function AdminPage() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="font-semibold text-gray-900">{combo.title}</h3>
                         <Badge className="bg-blue-100 text-blue-700 text-xs shrink-0">Combo</Badge>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-0.5">{combo.event_ids.length} eventos</p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex items-center gap-1 text-sm text-gray-600">
+                        <UsersIcon className="w-4 h-4" />
+                        <span>{stats.total}</span>
+                      </div>
+                      <Badge variant={stats.paid > 0 ? "default" : "secondary"}>
+                        {stats.paid} pagaron
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 mt-2">
+                    <span className="text-xs text-gray-400 truncate">/combo/{combo.slug}</span>
+                    <CopyLinkButton link={publicUrl} />
+                  </div>
+                </div>
+              </Link>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Closed Combos */}
+      {closedCombos.length > 0 && (
+        <div className="space-y-3">
+          <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wide flex items-center gap-2">
+            <PackageIcon className="w-4 h-4" />
+            Combos cerrados
+          </h3>
+          {closedCombos.map((combo) => {
+            const stats = comboStats[comboList.indexOf(combo)]
+            const publicUrl = `${(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").trim()}/combo/${combo.slug}`
+            return (
+              <Link key={combo.id} href={`/admin/combos/${combo.id}`}>
+                <div className="bg-white rounded-xl border border-gray-200 p-4 hover:border-gray-300 hover:shadow-sm transition-all cursor-pointer mb-2 opacity-60">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-semibold text-gray-900">{combo.title}</h3>
+                        <Badge variant="secondary" className="text-xs shrink-0">Cerrado</Badge>
                       </div>
                       <p className="text-xs text-gray-500 mt-0.5">{combo.event_ids.length} eventos</p>
                     </div>

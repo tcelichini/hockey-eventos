@@ -22,7 +22,7 @@ import RefreshButton from "@/components/refresh-button"
 import AddAttendeeButton from "@/components/add-attendee-button"
 import ExpenseForm from "@/components/expense-form"
 import SettleCreditorButton from "@/components/settle-creditor-button"
-import { getTierLabel, getDateTierLabel } from "@/lib/pricing"
+import { getTierLabel, getDateTierLabel, calculateDatePrice } from "@/lib/pricing"
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 0 }).format(value)
@@ -93,9 +93,17 @@ export default async function EventDetailPage({ params }: { params: { id: string
     })
   }
   const amount = Number(event.payment_amount) || 0
+  // Precio del tramo vigente hoy (para eventos con date_tiers)
+  const currentTierPrice = event.date_tiers && event.date_tiers.length > 0
+    ? calculateDatePrice(event.date_tiers, String(event.payment_amount))
+    : null
   const getPrice = (a: typeof confirmed[0]) => Number(a.price_paid) || amount
+  // Para los pendientes: si el evento tiene date_tiers, usar el precio del tramo actual
+  // (no el original, que pudo cambiar si pasaron las fechas)
+  const getOwedPrice = (a: typeof confirmed[0]) =>
+    currentTierPrice !== null ? currentTierPrice : getPrice(a)
   const totalCollected = paid.reduce((sum, a) => sum + getPrice(a), 0)
-  const totalPending = unpaid.reduce((sum, a) => sum + getPrice(a), 0)
+  const totalPending = unpaid.reduce((sum, a) => sum + getOwedPrice(a), 0)
 
   const expenseList = await db
     .select()
@@ -240,7 +248,7 @@ export default async function EventDetailPage({ params }: { params: { id: string
       </div>
 
       {/* Money Stats */}
-      {amount > 0 && (
+      {(totalCollected + totalPending) > 0 && (
         <div className="grid grid-cols-2 gap-3">
           <Card>
             <CardContent className="pt-4 pb-4">
@@ -267,7 +275,7 @@ export default async function EventDetailPage({ params }: { params: { id: string
           // Calcular balance neto de cada asistente confirmado:
           // net = (precio del evento si no pagó, 0 si ya pagó) - gastos adelantados
           const balances = confirmed.map(a => {
-            const eventDebt = a.payment_status === "paid" ? 0 : getPrice(a)
+            const eventDebt = a.payment_status === "paid" ? 0 : getOwedPrice(a)
             const expPaid = expenseByPerson.get(a.full_name.trim().toLowerCase()) || 0
             return { a, net: eventDebt - expPaid, expPaid }
           })
@@ -285,7 +293,7 @@ export default async function EventDetailPage({ params }: { params: { id: string
                       <div className="text-right">
                         <span className="font-medium text-orange-500">{formatCurrency(net)}</span>
                         {expPaid > 0 && (
-                          <p className="text-xs text-gray-400">{formatCurrency(getPrice(a))} − {formatCurrency(expPaid)} gastos</p>
+                          <p className="text-xs text-gray-400">{formatCurrency(getOwedPrice(a))} − {formatCurrency(expPaid)} gastos</p>
                         )}
                       </div>
                     </div>
@@ -366,7 +374,7 @@ export default async function EventDetailPage({ params }: { params: { id: string
         headerRight={totalExpenses > 0 ? (
           <div className="flex items-center gap-3 text-sm">
             <span className="text-gray-500">Total: <span className="font-bold text-red-500">{formatCurrency(totalExpenses)}</span></span>
-            {amount > 0 && (
+            {(totalCollected + totalPending) > 0 && (
               <span className="text-gray-500">Balance: <span className={`font-bold ${balance >= 0 ? "text-green-600" : "text-red-500"}`}>{formatCurrency(balance)}</span></span>
             )}
           </div>
