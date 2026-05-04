@@ -228,3 +228,12 @@ Registro de todas las sesiones de trabajo. Cada entrada documenta cambios concre
   - Nueva carpeta `docs/` con archivos especializados: `ARQUITECTURA.md`, `MIGRACIONES.md`, `CONVENCIONES.md`, `HISTORIAL.md`, `PENDIENTES.md`.
   - `CONTEXTO_COWORK.md` queda como tombstone con punteros a la nueva estructura.
   - Convención: documentar cada sesión nueva al final de `docs/HISTORIAL.md`. Promover patrones reusables a `CONVENCIONES.md` y arquitectura nueva a `ARQUITECTURA.md`.
+
+## Sesión 19 (2026-05-04)
+
+- **Fix "Faltan campos requeridos" al CREAR evento en modo "Por fecha":**
+  - Problema: al crear un nuevo evento con `date_tiers` (modo "Por fecha"), el POST devolvía `"Faltan campos requeridos"` aunque todos los campos visibles estuvieran completos.
+  - Causa: misma raíz que el bug de la sesión 16, pero en el endpoint de creación. La validación usaba `!payment_amount` y en modo "Por fecha" el formulario envía `payment_amount: 0` (por el `<input type="hidden" value="0">` agregado en sesión 13). `!0 === true` → rechazaba el request.
+  - Fix: cambiar la condición a `payment_amount == null` para aceptar `0` como valor válido y solo rechazar `undefined`/`null`. Mismo patrón ya aplicado al PATCH en sesión 16.
+  - Nota: el fix de la sesión 16 quedó **incompleto** — solo cubrió el PATCH (`app/api/events/[id]/route.ts`). El POST (`app/api/events/route.ts`) siguió con el bug original hasta esta sesión. Lección: cuando una validación se repita en POST y PATCH, revisar ambas a la vez.
+  - Archivos: `app/api/events/route.ts`
