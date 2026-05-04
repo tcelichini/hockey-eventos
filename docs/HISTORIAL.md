@@ -1,0 +1,230 @@
+# Historial de cambios — hockey-eventos
+
+Registro de todas las sesiones de trabajo. Cada entrada documenta cambios concretos hechos en el código. Las convenciones reutilizables y la arquitectura estable se promueven a `CONVENCIONES.md` y `ARQUITECTURA.md`.
+
+---
+
+## Sesión 1
+
+- **Pricing tiers por cantidad:** fix bug "Resto" duplicado al limpiar campo "Hasta"
+- **Etiquetas de tramo:** "Primeros N" → rangos "Del X al Y / Resto"
+- **Página pública:** tramos llenos con tachado
+- **Imagen del evento:** selector de posición (Arriba/Centro/Abajo), guardado como `#top`/`#bottom` en la URL
+- **WhatsApp invite:** descripción del evento, emoji, indicador
+- **Admin Resumen:** balance neto por asistente (Deben pagar / Se les debe devolver) para todos los confirmados
+- **Admin Gastos:** resumen `Total / personas = c/u` movido al card de Gastos (fuera del Resumen)
+- **Botón Actualizar:** `components/refresh-button.tsx` con `router.refresh()`
+
+## Sesión 2
+
+- **Precios por fecha de pago:** nuevo modo de precio en eventos
+  - Nuevo tipo `DateTier` en `db/schema.ts`
+  - Columna `date_tiers jsonb` en la tabla `events` (migración: `drizzle/0001_add_date_tiers.sql`)
+  - Helpers `calculateDatePrice` y `getDateTierLabel` en `lib/pricing.ts`
+  - Componente `DateTiersEditor` para el formulario admin
+  - Selector "Precio fijo / Por cantidad / Por fecha" en formularios de creación y edición
+  - Página pública muestra tramos por fecha con tachado para fechas vencidas
+  - API recalcula precio al momento del pago (no del registro)
+  - Fix: al volver a cargar comprobante, recalcula precio según fecha actual
+
+## Cambios de Tomás
+
+- **Combos:** sistema completo de combos (descuento por pago conjunto de múltiples eventos)
+  - Nueva tabla `combos` en `db/schema.ts`
+  - Campo `combo_id` en tabla `attendees`
+  - CRUD completo: admin/combos/new, admin/combos/[id], API combos
+  - Página pública `/combo/[slug]`
+  - Dashboard admin muestra combos activos
+  - Fix: errores de lint en date-tiers-editor que rompían el build
+
+## Sesión 3
+
+- **Fix archivos truncados:** 4 archivos (edit/page, new/page, refresh-button, date-tiers-editor) estaban cortados desde la sesión anterior, causando que el build de Vercel fallara silenciosamente
+- **Fecha de carga de comprobante:** nueva columna `proof_uploaded_at` en attendees
+  - Migración: `drizzle/0002_add_proof_uploaded_at.sql`
+  - API `upload-proof` guarda el timestamp al subir comprobante
+  - Lista de Asistentes en admin muestra "Pagó [fecha]" en verde junto a la fecha de confirmación
+- **Botón Actualizar en dashboard:** agregado al panel general de admin (junto a "Nuevo combo" y "Nuevo evento")
+
+## Sesión 4
+
+- **Eventos 3T (Tercer Tiempo):** nuevo tipo de evento con asistencia obligatoria para todo el plantel
+  - Campo `is_3t boolean` en tabla `events` (migración: `drizzle/0003_add_is_3t.sql`)
+  - `lib/players.ts`: lista estática de 37 jugadores en formato "Apellido, Nombre"
+  - Al crear un evento 3T, la API inserta automáticamente todos los jugadores como asistentes confirmados con `payment_status: pending`
+  - Checkbox "🍖 Tercer Tiempo (3T)" en formularios de creación y edición, posicionado arriba de imagen/fecha
+  - Página pública: banner "Asistencia obligatoria para todo el plantel" + botón "🧾 Subir comprobante de pago" (sin botón "No puedo ir")
+  - Página `/confirm`: dropdown con los jugadores (Apellido, Nombre) en lugar de campo de texto libre
+  - Panel admin: orden alfabético en secciones Asistentes y Resumen (`.orderBy(attendees.full_name)`)
+  - Nuevo componente `add-attendee-button.tsx`: permite al admin agregar un asistente manualmente (inline) desde el panel del evento
+
+## Sesión 5
+
+- **Actualización de plantel:** `lib/players.ts` actualizado de 37 a 36 jugadores
+  - Salen: Battipede Octavio, Crovetto Jorge, Erriquenz Juan Pablo, Ponce Julian, Salas Pedro, Solari Matias
+  - Entran: Aguiar Franco Nicolás, Díaz Santiago, Salerno Picasso Lorenzo, Santoro Franco, Ugarte Joaquín
+
+## Sesión 6
+
+- **Fix desfase horario de 3 horas:** todas las fechas se mostraban con hora UTC en producción (Vercel)
+  - Causa: `Intl.DateTimeFormat("es-AR", ...)` sin `timeZone` explícito
+  - Fix: se agregó `timeZone: "America/Argentina/Buenos_Aires"` en 10 instancias de `DateTimeFormat` en 8 archivos
+  - Archivos afectados: `whatsapp-invite-button.tsx`, `e/[slug]/page.tsx`, `combo/[slug]/page.tsx`, `admin/page.tsx`, `admin/events/[id]/page.tsx`, `admin/combos/[id]/page.tsx`, `api/events/[id]/export/route.ts`, `event-selector.tsx`
+- **Fecha de comprobante en combos:** la vista admin del combo ahora muestra "Pagó [fecha]" en verde (usa `proof_uploaded_at`), igual que en eventos individuales
+
+## Sesión 7
+
+- **Indicadores visuales combo vs individual en eventos:**
+  - En la vista admin de un evento, si un asistente pagó **vía combo** (todos los eventos del combo pagados), se muestra `(vía combo)` en violeta junto al monto + badge **Combo** violeta clickeable que lleva al combo
+  - Si pagó individualmente, no se muestra ningún indicador extra (evita confusión con montos menores)
+  - Archivos: `admin/events/[id]/page.tsx`
+- **Indicadores de pago parcial en combos:**
+  - En la vista admin del combo, si un inscripto pagó solo algunos eventos individualmente, se muestra en ámbar: `⚠ Pagó [evento] individual ($X)` + `Resta: [eventos pendientes]`
+  - Inscriptos del combo ahora ordenados alfabéticamente
+  - Archivos: `admin/combos/[id]/page.tsx`
+- **Auto-vinculación al combo al agregar asistente manualmente:**
+  - Cuando un admin agrega un asistente a un evento que pertenece a un combo, y esa persona ya está inscripta en todos los demás eventos del combo, se le asigna automáticamente `combo_id` a todos sus registros → aparece en el listado de inscriptos del combo
+  - Archivos: `api/attendees/route.ts`
+- **Documentación worktrees:** se agregó nota en CONTEXTO_COWORK sobre el problema de `.env.local` faltante en worktrees de git (causa que la contraseña admin no funcione)
+
+## Sesión 8
+
+- **Fix asistentes manuales no visibles en link público de eventos individuales:**
+  - Problema: en eventos 3T, el dropdown del confirm page solo mostraba nombres de la lista estática `PLAYERS`. Los asistentes agregados manualmente por el admin (ej: Erriquenz, Juan Pablo) no aparecían y no podían subir su comprobante de pago.
+  - Fix: la API `events/by-slug/[slug]` ahora devuelve `attendeeNames` (nombres de asistentes confirmados). El dropdown combina `PLAYERS` + asistentes de la DB que no estén en la lista, ordenados alfabéticamente.
+  - Archivos: `api/events/by-slug/[slug]/route.ts`, `app/e/[slug]/confirm/page.tsx`
+- **Orden alfabético en "¿Quiénes van?" del link público:**
+  - La lista de asistentes confirmados en la página pública del evento ahora se muestra ordenada alfabéticamente.
+  - Archivos: `app/e/[slug]/page.tsx`
+
+## Sesión 9
+
+- **Dropdown de jugadores en "Cargar gasto" para eventos 3T:**
+  - En eventos de tipo 3T, el formulario de carga de gastos ahora muestra un **menú desplegable** con los nombres de todos los asistentes confirmados (orden alfabético) en lugar del campo de texto libre "Tu nombre".
+  - El dropdown incluye asistentes agregados manualmente por el admin (no solo la lista estática de PLAYERS).
+  - En eventos no-3T, el formulario sigue igual: input de texto libre con el mensaje "Usá el mismo nombre con el que te anotaste".
+  - Archivos: `components/expense-form.tsx`, `app/e/[slug]/page.tsx`
+
+## Sesión 10
+
+- **Dropdown de asistentes sin pagar en "Ya me anoté, quiero subir el comprobante":**
+  - En eventos no-3T, al hacer click en "Ya me anoté, quiero subir el comprobante", la página de confirmación ahora muestra un **menú desplegable** con los asistentes que aún no pagaron (en vez del campo de texto libre).
+  - Se agrega `?upload=1` al link para distinguir el flujo de carga de comprobante del de nueva inscripción.
+  - La API `events/by-slug/[slug]` ahora devuelve `unpaidAttendeeNames` (asistentes confirmados sin pagar, orden alfabético).
+  - Si no hay asistentes sin pagar, se muestra el input de texto como fallback.
+  - Archivos: `app/api/events/by-slug/[slug]/route.ts`, `app/e/[slug]/page.tsx`, `app/e/[slug]/confirm/page.tsx`
+- **Opción de pegar imagen en carga de comprobante:**
+  - El componente de subida de comprobante ahora muestra dos botones: **"Adjuntar"** (foto o PDF) y **"Pegar imagen"** (del portapapeles).
+  - En desktop también se puede pegar con Ctrl+V / Cmd+V en la zona de upload.
+  - En mobile el usuario puede copiar la captura y tocar "Pegar imagen".
+  - Archivos: `components/payment-proof-upload.tsx`
+
+## Sesión 11
+
+- **Layout responsive de asistentes en admin de evento (mobile vertical):**
+  - En pantallas angostas (< 640px), cada fila de asistente ahora se apila verticalmente: nombre completo y detalles de pago arriba, badges (Combo, Comprobante, Pagó/Pendiente) y botones abajo.
+  - Se eliminó la clase `truncate` del nombre del asistente para que nunca se corte con "...".
+  - En pantallas más anchas (>= 640px, incluido mobile horizontal) el layout vuelve al formato horizontal original.
+  - Archivos: `app/admin/(protected)/events/[id]/page.tsx`
+
+## Sesión 12
+
+- **Fix desfase horario al crear/editar eventos (drift de -3h por guardado):**
+  - Causa: el input `datetime-local` envía `"2026-04-17T23:00"` sin timezone. En Vercel (servidor UTC), `new Date("2026-04-17T23:00")` lo interpreta como 23:00 UTC en vez de 23:00 Argentina (UTC-3). Cada vez que se editaba y guardaba, la hora se corría 3 horas hacia atrás.
+  - Fix API (POST y PATCH): se agrega offset explícito `-03:00` al parsear la fecha → `new Date(date + ":00-03:00")`
+  - Fix edit page (`toDatetimeLocal`): se reemplazó `d.getHours()`/`d.getMinutes()` (dependiente del timezone del browser) por `Intl.DateTimeFormat` con `timeZone: "America/Argentina/Buenos_Aires"` explícito
+  - Archivos: `api/events/route.ts`, `api/events/[id]/route.ts`, `admin/(protected)/events/[id]/edit/page.tsx`
+
+## Sesión 13
+
+- **Layout responsive del dashboard admin para mobile:**
+  - Botones del header ("Actualizar", "Nuevo combo", "Nuevo evento") ahora se apilan debajo del título en mobile. Texto abreviado ("combo" / "evento") en pantallas angostas.
+  - Tarjetas de eventos y combos: removido `truncate` de los títulos para que se muestren completos. Layout vertical en mobile (título arriba, stats abajo), horizontal en desktop.
+  - Archivos: `app/admin/(protected)/page.tsx`
+- **Layout responsive del editor de tramos por fecha:**
+  - Los campos "Paga hasta el" y "Precio (ARS)" se apilan con `flex-wrap` en pantallas angostas en vez de superponerse.
+  - Archivos: `components/date-tiers-editor.tsx`
+- **Ocultar "Monto base / fallback" en modo "Por fecha":**
+  - El campo era redundante: el tramo "Resto (después de todas las fechas)" ya cumple la misma función de catch-all.
+  - En modo "Por fecha", el campo se reemplaza por un `<input type="hidden" value="0">`. En modo "Precio fijo" y "Por cantidad" sigue visible.
+  - Archivos: `app/admin/(protected)/events/new/page.tsx`, `app/admin/(protected)/events/[id]/edit/page.tsx`
+
+## Sesión 14
+
+- **Gestión de gastos desde el admin:** el admin ahora puede agregar/editar gastos directamente desde el panel del evento (antes solo se podían cargar desde la página pública).
+  - Se reutiliza `ExpenseForm` con nueva prop `compact` que renderiza el botón outline chico (mismo estilo que "Agregar asistente") en lugar del bloque dashed grande. En la página pública sigue con el estilo grande original.
+  - En admin, el `responsible` se muestra como dropdown con los asistentes confirmados (orden alfabético) para garantizar que el nombre matchee con los usados en el cálculo de balance.
+  - Archivos: `app/admin/(protected)/events/[id]/page.tsx`, `components/expense-form.tsx`
+- **Alias/CBU opcional en gastos:** quien carga un gasto puede incluir su alias o CBU para que el admin sepa a dónde transferirle, sin tener que pedírselo por WhatsApp.
+  - Nueva columna `payment_alias text` en `expenses` (migración: `drizzle/0004_add_payment_alias.sql`)
+  - Input disponible tanto al crear como al editar el gasto (sin sufijo "(opcional)" para incentivar la carga).
+  - En la lista del admin se muestra debajo del responsable como `Transferir a: <alias>` en azul con font monospace.
+  - Archivos: `db/schema.ts`, `app/api/expenses/route.ts`, `app/api/expenses/[id]/route.ts`, `components/expense-form.tsx`, `components/edit-expense-button.tsx`, `app/admin/(protected)/events/[id]/page.tsx`
+- **Comprobante (recibo/ticket) del gasto:** el que adelanta un gasto puede subir la foto/PDF del comprobante al cargarlo.
+  - Nueva columna `receipt_url text` en `expenses` (migración: `drizzle/0005_add_expense_receipt_url.sql`)
+  - Nuevo bucket de Storage `expense-receipts` (público) — **separado** del bucket `event-banners` donde viven los comprobantes de pago, para distinguir conceptualmente entre ingresos (pagos de asistentes) y egresos (gastos del evento).
+  - Nuevo endpoint `app/api/upload-expense-receipt/route.ts` (sin auth, análogo a `upload-proof`: validación de tipo/tamaño, sube al bucket, devuelve URL pública).
+  - Nuevo componente `components/expense-receipt-upload.tsx`: dos botones dashed "Adjuntar comprobante" y "Pegar imagen" (también soporta paste con Ctrl+V en la zona). Al subir, se reemplaza por un chip verde "Comprobante cargado (ver)" con X para quitarlo.
+  - El comprobante se ve solo en la vista admin como badge azul **Comprobante** clickeable (mismo estilo que el badge de comprobantes de pago de asistentes). NO se muestra en la página pública.
+  - Archivos: `db/schema.ts`, `lib/supabase-storage.ts` (constante `EXPENSE_RECEIPTS_BUCKET`), `app/api/upload-expense-receipt/route.ts`, `app/api/expenses/route.ts`, `app/api/expenses/[id]/route.ts`, `components/expense-receipt-upload.tsx`, `components/expense-form.tsx`, `components/edit-expense-button.tsx`, `app/admin/(protected)/events/[id]/page.tsx`
+
+## Sesión 15
+
+- **Fix overflow de botones en mobile (panel admin de evento):**
+  - El header con botones ("Actualizar", "Exportar CSV", "Cerrar inscripciones", "Editar", "Eliminar") desbordaba la pantalla en mobile vertical.
+  - Fix: div exterior `flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3`, div interior `flex flex-wrap items-center gap-2`.
+  - Archivos: `app/admin/(protected)/events/[id]/page.tsx`
+- **Quitar card "No van" del panel de evento:**
+  - Se eliminó la tercera card de stats (era poco útil porque nadie se anota para no ir).
+  - Grid cambiado de `grid-cols-3` a `grid-cols-2` (solo "Confirmaron" y "Pagaron").
+  - Archivos: `app/admin/(protected)/events/[id]/page.tsx`
+- **Dashboard: reemplazar "Total inscriptos" por "Sin pagar":**
+  - Nueva card "Sin pagar" muestra el conteo global de confirmados con pago pendiente (en naranja). Más accionable que el total de inscriptos.
+  - Nueva query `globalPendingCount`. Se eliminó la query `globalConfirmed` que quedó sin uso.
+  - Archivos: `app/admin/(protected)/page.tsx`
+- **Dashboard: mostrar balance (recaudado − gastos) por evento:**
+  - Cada tarjeta de evento en el dashboard ahora muestra el balance neto en lugar del monto recaudado bruto.
+  - Se agrega query de gastos por evento en el `stats` per-event. Balance en verde (positivo) o rojo (negativo).
+  - Archivos: `app/admin/(protected)/page.tsx`
+- **"Se les debe devolver": alias/CBU + botón saldado + sección ya saldados:**
+  - En la sección "Se les debe devolver" del Resumen, cada acreedor muestra su alias/CBU (`Transferir a: …` en azul monospace) si lo cargó al crear el gasto.
+  - Botón ✓✓ (ícono solo, tooltip "Marcar como saldado") en la misma línea que el monto. Al hacer click, marca todos sus gastos del evento como `settled = true` y pasa a la sección "Ya saldados" (tachado + botón ↩ para deshacer).
+  - Nueva columna `settled boolean NOT NULL DEFAULT false` en tabla `expenses` (migración: `drizzle/0006_add_expense_settled.sql`).
+  - Nuevo componente `components/settle-creditor-button.tsx`: togglea `settled` vía PATCH `/api/expenses/[id]`; variante normal (✓✓ verde) y variante saldado (↩ gris).
+  - Archivos: `db/schema.ts`, `drizzle/0006_add_expense_settled.sql`, `app/api/expenses/[id]/route.ts`, `components/settle-creditor-button.tsx`, `app/admin/(protected)/events/[id]/page.tsx`
+
+## Sesión 16
+
+- **Fix "Faltan campos requeridos" al editar evento en modo "Por fecha":**
+  - Problema: al editar un evento con `date_tiers` (modo "Por fecha") y cambiar la fecha del evento o un tramo, el PATCH devolvía `"Faltan campos requeridos"` aunque todos los campos obligatorios tuvieran datos.
+  - Causa: la validación de la API usaba `!payment_amount`, y en modo "Por fecha" el formulario envía `payment_amount: 0` (desde el `<input type="hidden" value="0">` agregado en la sesión 13). `!0 === true` → rechazaba el request.
+  - Fix: cambiar la condición a `payment_amount == null` para aceptar `0` como valor válido y solo rechazar `undefined`/`null`.
+  - Archivos: `app/api/events/[id]/route.ts`
+
+## Sesión 17
+
+- **Combos cerrados visibles en el dashboard admin:**
+  - Antes el dashboard solo mostraba combos con `is_open: true` (en `activeCombos`). Los combos cerrados desaparecían y no había forma de revisarlos sin recordar la URL directa.
+  - Fix: nueva sección "Combos cerrados" con opacidad reducida (mismo patrón que "Eventos pasados"), basada en `closedCombos = comboList.filter(c => !c.is_open)`.
+  - Archivos: `app/admin/(protected)/page.tsx`
+- **Cards "Recaudado/Falta cobrar" y "Balance" visibles en eventos modo "Por fecha":**
+  - Problema: en el panel de un evento con `date_tiers` no se mostraban las cards de Recaudado/Falta cobrar ni el Balance del card de Gastos. Sí se mostraban en eventos con precio fijo.
+  - Causa: las dos condiciones eran `amount > 0`, y en modo "Por fecha" `payment_amount` es 0 (campo oculto seteado en sesión 13).
+  - Fix: cambiar la condición a `(totalCollected + totalPending) > 0` — refleja si hay datos reales sin importar el modo de precio.
+  - Archivos: `app/admin/(protected)/events/[id]/page.tsx`
+- **"Deben pagar" y "Falta cobrar" recalculan según el tramo vigente:**
+  - Antes los montos pendientes mostraban el `price_paid` original (capturado al momento de inscribirse). Si el evento ya pasó la última fecha del tramo, el monto adeudado se quedaba desactualizado.
+  - Fix: nuevo helper `getOwedPrice()` que para asistentes con pago pendiente usa `calculateDatePrice(event.date_tiers, payment_amount)` (precio del tramo de hoy). Aplica a `totalPending` (card "Falta cobrar") y al cálculo de `eventDebt` en el Resumen ("Deben pagar"). El `totalCollected` sigue usando `price_paid` real (lo que efectivamente se cobró).
+  - Archivos: `app/admin/(protected)/events/[id]/page.tsx`
+- **Layout responsive de inscriptos al combo (mobile vertical):**
+  - En el panel admin del combo, en pantallas angostas (< 640px) cada inscripto quedaba con el detalle de pago (`Combo: $X · Pagó ...` y avisos de pago parcial) apretado a la derecha y se rompía verticalmente carácter por carácter.
+  - Fix: contenedor de fila pasa de `flex items-center justify-between gap-3` a `flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-3`. Removido `truncate` del nombre. Mismo patrón usado en `events/[id]/page.tsx` en sesión 11.
+  - Archivos: `app/admin/(protected)/combos/[id]/page.tsx`
+
+## Sesión 18 (2026-05-04)
+
+- **Reestructuración de la documentación:** el archivo único `CONTEXTO_COWORK.md` se reemplazó por una estructura modular para que `CLAUDE.md` se cargue automáticamente y solo lo crítico se incluya en cada sesión.
+  - Nuevo `CLAUDE.md` lean en la raíz (auto-cargado por Claude Code): proyecto, stack, operativa, gotchas e índice.
+  - Nueva carpeta `docs/` con archivos especializados: `ARQUITECTURA.md`, `MIGRACIONES.md`, `CONVENCIONES.md`, `HISTORIAL.md`, `PENDIENTES.md`.
+  - `CONTEXTO_COWORK.md` queda como tombstone con punteros a la nueva estructura.
+  - Convención: documentar cada sesión nueva al final de `docs/HISTORIAL.md`. Promover patrones reusables a `CONVENCIONES.md` y arquitectura nueva a `ARQUITECTURA.md`.
