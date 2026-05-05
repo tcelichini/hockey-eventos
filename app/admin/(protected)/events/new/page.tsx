@@ -26,6 +26,7 @@ export default function NewEventPage() {
   const [dateTiers, setDateTiers] = useState<DateTier[] | null>(null)
   const [whatsappConfirmation, setWhatsappConfirmation] = useState(false)
   const [is3t, setIs3t] = useState(false)
+  const [teams, setTeams] = useState<string[]>(["A"])
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -47,6 +48,7 @@ export default function NewEventPage() {
       date_tiers: pricingMode === "date" ? dateTiers : null,
       whatsapp_confirmation: whatsappConfirmation,
       is_3t: is3t,
+      teams: is3t ? teams : null,
     }
 
     const res = await fetch("/api/events", {
@@ -119,6 +121,43 @@ export default function NewEventPage() {
                 </p>
               </div>
             </div>
+
+            {is3t && (
+              <div className="space-y-2 pl-7">
+                <Label>Equipo *</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    { value: ["A"], label: "Equipo A" },
+                    { value: ["B"], label: "Equipo B" },
+                    { value: ["A", "B"], label: "A + B" },
+                  ] as { value: string[]; label: string }[]).map(({ value, label }) => {
+                    const isSelected =
+                      teams.length === value.length && value.every((t) => teams.includes(t))
+                    return (
+                      <button
+                        key={label}
+                        type="button"
+                        onClick={() => setTeams(value)}
+                        className={`text-sm py-2 px-3 rounded-lg border transition-colors ${
+                          isSelected
+                            ? "border-blue-500 bg-blue-50 text-blue-700 font-medium"
+                            : "border-gray-200 text-gray-500 hover:border-gray-300"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    )
+                  })}
+                </div>
+                <p className="text-xs text-gray-400">
+                  Plantel que se carga automáticamente:{" "}
+                  {teams.includes("A") && teams.includes("B")
+                    ? "ambos equipos"
+                    : `Equipo ${teams[0]}`}
+                  .
+                </p>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label>Imagen del evento (opcional)</Label>

@@ -15,6 +15,7 @@ export async function GET(_request: NextRequest, { params }: { params: { slug: s
       pricing_tiers: events.pricing_tiers,
       date_tiers: events.date_tiers,
       is_3t: events.is_3t,
+      teams: events.teams,
     })
     .from(events)
     .where(eq(events.slug, params.slug))

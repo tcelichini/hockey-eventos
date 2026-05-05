@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { CheckCircleIcon, ArrowLeftIcon, CopyIcon, CheckIcon } from "lucide-react"
 import Link from "next/link"
 import PaymentProofUpload from "@/components/payment-proof-upload"
-import { PLAYERS } from "@/lib/players"
+import { getPlayersForTeams } from "@/lib/players"
 
 type EventData = {
   id: string
@@ -21,6 +21,7 @@ type EventData = {
   pricing_tiers: { upTo: number | null; price: number }[] | null
   confirmedCount: number
   is_3t: boolean
+  teams: string[] | null
   attendeeNames: string[]
   unpaidAttendeeNames: string[]
 }
@@ -175,8 +176,9 @@ export default function ConfirmPage() {
                     >
                       <option value="">— Seleccioná tu nombre —</option>
                       {(() => {
-                        const extra = (event.attendeeNames || []).filter((n) => !PLAYERS.includes(n))
-                        const allNames = [...PLAYERS, ...extra].sort((a, b) => a.localeCompare(b, "es"))
+                        const teamPlayers = getPlayersForTeams(event.teams)
+                        const extra = (event.attendeeNames || []).filter((n) => !teamPlayers.includes(n))
+                        const allNames = [...teamPlayers, ...extra].sort((a, b) => a.localeCompare(b, "es"))
                         return allNames.map((player) => (
                           <option key={player} value={player}>
                             {player}
@@ -326,3 +328,4 @@ export default function ConfirmPage() {
     </div>
   )
 }
+                                                                                                                                                                                                                                                                                                                                        

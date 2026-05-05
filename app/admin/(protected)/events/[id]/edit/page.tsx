@@ -30,6 +30,7 @@ type EventData = {
   pricing_tiers: PricingTier[] | null
   date_tiers: DateTier[] | null
   is_3t: boolean
+  teams: string[] | null
 }
 
 function toDatetimeLocal(isoString: string) {
@@ -66,6 +67,7 @@ export default function EditEventPage() {
   const [dateTiers, setDateTiers] = useState<DateTier[] | null>(null)
   const [whatsappConfirmation, setWhatsappConfirmation] = useState(false)
   const [is3t, setIs3t] = useState(false)
+  const [teams, setTeams] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
@@ -80,6 +82,7 @@ export default function EditEventPage() {
         setPricingMode(detectMode(data))
         setWhatsappConfirmation(data.whatsapp_confirmation ?? false)
         setIs3t(data.is_3t ?? false)
+        setTeams(data.teams ?? [])
       })
   }, [id])
 
@@ -103,6 +106,7 @@ export default function EditEventPage() {
       date_tiers: pricingMode === "date" ? dateTiers : null,
       whatsapp_confirmation: whatsappConfirmation,
       is_3t: is3t,
+      teams: is3t ? teams : null,
     }
 
     const res = await fetch(`/api/events/${id}`, {
@@ -176,6 +180,56 @@ export default function EditEventPage() {
                 </p>
               </div>
             </div>
+
+            {is3t && (() => {
+              const originalTeams: string[] = event.teams ?? []
+              const options: { value: string[]; label: string }[] = [
+                { value: ["A"], label: "Equipo A" },
+                { value: ["B"], label: "Equipo B" },
+                { value: ["A", "B"], label: "A + B" },
+              ]
+              // Una opción se permite si es superset de los teams originales (o si no había teams cargados).
+              const canSelect = (option: string[]): boolean => {
+                if (originalTeams.length === 0) return true
+                const newSet = new Set(option)
+                return originalTeams.every((t) => newSet.has(t))
+              }
+              return (
+                <div className="space-y-2 pl-7">
+                  <Label>Equipo *</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {options.map(({ value, label }) => {
+                      const isSelected =
+                        teams.length === value.length && value.every((t) => teams.includes(t))
+                      const allowed = canSelect(value)
+                      return (
+                        <button
+                          key={label}
+                          type="button"
+                          onClick={() => allowed && setTeams(value)}
+                          disabled={!allowed}
+                          title={!allowed ? "Para cambiar de equipo creá un evento nuevo" : undefined}
+                          className={`text-sm py-2 px-3 rounded-lg border transition-colors ${
+                            isSelected
+                              ? "border-blue-500 bg-blue-50 text-blue-700 font-medium"
+                              : allowed
+                              ? "border-gray-200 text-gray-500 hover:border-gray-300"
+                              : "border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed"
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <p className="text-xs text-gray-400">
+                    {originalTeams.length > 0
+                      ? "Solo podés agregar equipos. Para cambiar de equipo creá un evento nuevo."
+                      : "Elegí qué planteles se cargarán automáticamente como asistentes."}
+                  </p>
+                </div>
+              )
+            })()}
 
             <div className="space-y-2">
               <Label>Imagen del evento (opcional)</Label>
