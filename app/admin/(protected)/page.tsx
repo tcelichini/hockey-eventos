@@ -220,6 +220,18 @@ export default async function AdminPage() {
         </div>
       )}
 
+      {/* Upcoming Events */}
+      {upcoming.length > 0 && (
+        <div className="space-y-3">
+          <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+            Próximos eventos
+          </h3>
+          {upcoming.map(({ event, stats: s }) => (
+            <EventCard key={event.id} event={event} stats={s} isPast={false} />
+          ))}
+        </div>
+      )}
+
       {/* Active Combos */}
       {activeCombos.length > 0 && (
         <div className="space-y-3">
@@ -262,6 +274,18 @@ export default async function AdminPage() {
         </div>
       )}
 
+      {/* Past Events */}
+      {past.length > 0 && (
+        <div className="space-y-3">
+          <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wide">
+            Eventos pasados
+          </h3>
+          {past.map(({ event, stats: s }) => (
+            <EventCard key={event.id} event={event} stats={s} isPast={true} />
+          ))}
+        </div>
+      )}
+
       {/* Closed Combos */}
       {closedCombos.length > 0 && (
         <div className="space-y-3">
@@ -301,30 +325,6 @@ export default async function AdminPage() {
               </Link>
             )
           })}
-        </div>
-      )}
-
-      {/* Upcoming Events */}
-      {upcoming.length > 0 && (
-        <div className="space-y-3">
-          <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide">
-            Próximos eventos
-          </h3>
-          {upcoming.map(({ event, stats: s }) => (
-            <EventCard key={event.id} event={event} stats={s} isPast={false} />
-          ))}
-        </div>
-      )}
-
-      {/* Past Events */}
-      {past.length > 0 && (
-        <div className="space-y-3">
-          <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wide">
-            Eventos pasados
-          </h3>
-          {past.map(({ event, stats: s }) => (
-            <EventCard key={event.id} event={event} stats={s} isPast={true} />
-          ))}
         </div>
       )}
     </div>
