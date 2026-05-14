@@ -173,16 +173,17 @@ export default async function AdminPage() {
               <p className="text-2xl font-bold text-gray-900">{activeEvents}</p>
             </CardContent>
           </Card>
-          <Link href="/admin/pendientes" className="group/card flex flex-col gap-4 overflow-hidden rounded-xl bg-card py-4 text-sm text-card-foreground ring-1 ring-foreground/10 hover:ring-foreground/20 hover:shadow-sm transition-all cursor-pointer">
-            <div className="px-4">
+          <Card className="relative hover:ring-foreground/20 hover:shadow-sm transition-all">
+            <Link href="/admin/pendientes" className="absolute inset-0 z-10" />
+            <CardContent className="p-4">
               <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
                 <UsersIcon className="w-4 h-4" />
                 Sin pagar
               </div>
               <p className="text-2xl font-bold text-orange-500">{totalPendingCount}</p>
               <p className="text-xs text-gray-400 mt-0.5">confirmados pendientes</p>
-            </div>
-          </Link>
+            </CardContent>
+          </Card>
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
