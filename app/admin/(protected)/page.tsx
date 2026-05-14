@@ -168,9 +168,10 @@ export default async function AdminPage() {
             <CardContent className="p-4">
               <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
                 <CalendarIcon className="w-4 h-4" />
-                Eventos activos
+                Eventos
               </div>
-              <p className="text-2xl font-bold text-gray-900">{activeEvents}</p>
+              <p className="text-2xl font-bold text-gray-900">{eventList.length}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{upcoming.length} próximos · {past.length} pasados</p>
             </CardContent>
           </Card>
           <Link href="/admin/pendientes" className="h-full">
