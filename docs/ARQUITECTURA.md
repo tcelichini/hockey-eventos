@@ -7,7 +7,7 @@ Mapa de archivos clave y lógica de negocio del proyecto.
 | Archivo | Qué hace |
 |---|---|
 | `db/schema.ts` | Tipos `PricingTier`, `DateTier` y tablas `events`, `attendees`, `expenses`, `combos` |
-| `lib/pricing.ts` | Helpers: `getTierLabel`, `calculatePrice`, `calculateDatePrice`, `getDateTierLabel`, `validateTiers` |
+| `lib/pricing.ts` | Helpers: `todayArg`, `getTierLabel`, `calculatePrice`, `calculateDatePrice`, `getDateTierLabel`, `validateTiers` |
 | `lib/players.ts` | Lista estática del plantel (36 jugadores, formato "Apellido, Nombre") |
 | `components/pricing-tiers-editor.tsx` | Editor de tramos por cantidad |
 | `components/date-tiers-editor.tsx` | Editor de tramos por fecha de pago |

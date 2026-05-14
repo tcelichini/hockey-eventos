@@ -41,6 +41,7 @@ El `flex-wrap` permite que en mobile los botones se acomoden en varias filas sin
 
 La app opera en `America/Argentina/Buenos_Aires` (UTC−3). Vercel corre en UTC, así que cualquier formateo o parseo de fechas tiene que ser explícito sobre el timezone:
 
+- **Para obtener la fecha de hoy (`YYYY-MM-DD`)**: usar `todayArg()` de `lib/pricing.ts`. **Nunca** usar `new Date().toISOString().slice(0, 10)` — devuelve UTC y a partir de las 21:00 ARG ya es "mañana".
 - **Para mostrar fechas**: usar `Intl.DateTimeFormat("es-AR", { timeZone: "America/Argentina/Buenos_Aires", ... })`. Sin el `timeZone` explícito, el server formatea en UTC.
 - **Para parsear `datetime-local`** (formato `"YYYY-MM-DDTHH:mm"`): agregar el offset explícito al construir el `Date` → `new Date(value + ":00-03:00")`. Sin el offset, el server lo interpreta como UTC y la hora se corre 3 horas.
 - **Para llenar un `datetime-local` desde un `Date`**: no usar `getHours()`/`getMinutes()` (dependen del timezone del runtime). Usar `Intl.DateTimeFormat` con `timeZone: "America/Argentina/Buenos_Aires"`.
