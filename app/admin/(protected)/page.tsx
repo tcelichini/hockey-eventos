@@ -100,7 +100,6 @@ export default async function AdminPage() {
     })
   )
 
-  const activeEvents = eventList.filter((e) => e.is_open).length
   const totalRevenue = Number(globalRevenue.sum)
   const totalPending = Number(globalPending.sum)
   const totalPendingCount = Number(globalPendingCount.count)
