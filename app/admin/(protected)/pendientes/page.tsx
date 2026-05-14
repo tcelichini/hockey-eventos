@@ -54,7 +54,7 @@ export default async function PendientesPage() {
     .from(attendees)
     .innerJoin(events, eq(attendees.event_id, events.id))
     .where(and(eq(attendees.status, "confirmed"), eq(attendees.payment_status, "pending")))
-    .orderBy(sql`${events.date} ASC, ${attendees.full_name} ASC`)
+    .orderBy(sql`${events.date} DESC, ${attendees.full_name} ASC`)
 
   // Group by event
   const eventMap = new Map<
