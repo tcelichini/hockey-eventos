@@ -1,5 +1,13 @@
 import type { PricingTier, DateTier } from "@/db/schema"
 
+export function todayArg(): string {
+  const d = new Date()
+  const year = d.toLocaleString("en-US", { timeZone: "America/Argentina/Buenos_Aires", year: "numeric" })
+  const month = d.toLocaleString("en-US", { timeZone: "America/Argentina/Buenos_Aires", month: "2-digit" })
+  const day = d.toLocaleString("en-US", { timeZone: "America/Argentina/Buenos_Aires", day: "2-digit" })
+  return `${year}-${month}-${day}`
+}
+
 /**
  * Calcula el precio que le corresponde al próximo inscripto.
  * confirmedCount = cantidad de confirmados ANTES de este nuevo inscripto.
@@ -41,7 +49,7 @@ export function calculateDatePrice(
 ): number {
   if (!tiers || tiers.length === 0) return Number(paymentAmount)
 
-  const today = now ?? new Date().toISOString().slice(0, 10)
+  const today = now ?? todayArg()
 
   const sorted = [...tiers].sort((a, b) => {
     if (a.until === null) return 1
@@ -84,7 +92,7 @@ export function getDateTierLabel(
   const prevUntil = sortedTiers[index - 1].until!
   const d = new Date(prevUntil + "T12:00:00")
   d.setDate(d.getDate() + 1)
-  const nextDay = d.toISOString().slice(0, 10)
+  const nextDay = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
   return `Del ${fmtDate(nextDay)} al ${fmtDate(tier.until)}`
 }
 

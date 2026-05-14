@@ -5,7 +5,7 @@ import { notFound } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
 import { CalendarIcon, ReceiptIcon, UsersIcon, CheckCircleIcon, PackageIcon } from "lucide-react"
-import { calculatePrice, getTierLabel, calculateDatePrice, getDateTierLabel } from "@/lib/pricing"
+import { calculatePrice, getTierLabel, calculateDatePrice, getDateTierLabel, todayArg } from "@/lib/pricing"
 import ExpenseForm from "@/components/expense-form"
 
 import CollapsibleSection from "@/components/collapsible-section"
@@ -131,7 +131,7 @@ export default async function EventPage({ params }: { params: { slug: string } }
             <div className="bg-[#002060]/5 border border-[#002060]/10 rounded-xl px-4 py-3 space-y-2">
               <p className="text-xs text-gray-400 uppercase tracking-wide">Costo por persona</p>
               {(() => {
-                const today = new Date().toISOString().slice(0, 10)
+                const today = todayArg()
                 const sorted = [...event.date_tiers!].sort((a, b) => {
                   if (a.until === null) return 1
                   if (b.until === null) return -1

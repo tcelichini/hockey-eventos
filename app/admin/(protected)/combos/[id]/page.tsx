@@ -12,7 +12,7 @@ import ToggleComboButton from "@/components/toggle-combo-button"
 import DeleteComboButton from "@/components/delete-combo-button"
 import MarkComboPaidButton from "@/components/mark-combo-paid-button"
 import RefreshButton from "@/components/refresh-button"
-import { getDateTierLabel } from "@/lib/pricing"
+import { getDateTierLabel, todayArg } from "@/lib/pricing"
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 0 }).format(value)
@@ -147,7 +147,7 @@ export default async function ComboDetailPage({ params }: { params: { id: string
             <div className="mt-3 space-y-1">
               <p className="text-xs text-gray-400 uppercase tracking-wide">Precios combo por fecha</p>
               {(() => {
-                const today = new Date().toISOString().slice(0, 10)
+                const today = todayArg()
                 const sorted = [...combo.date_tiers!].sort((a, b) => {
                   if (a.until === null) return 1
                   if (b.until === null) return -1

@@ -4,7 +4,7 @@ import { eq, and, inArray, count } from "drizzle-orm"
 import { notFound } from "next/navigation"
 import Link from "next/link"
 import { CalendarIcon, PackageIcon } from "lucide-react"
-import { calculateDatePrice, getDateTierLabel } from "@/lib/pricing"
+import { calculateDatePrice, getDateTierLabel, todayArg } from "@/lib/pricing"
 
 function formatDate(date: Date | null) {
   if (!date) return ""
@@ -96,7 +96,7 @@ export default async function ComboPage({ params }: { params: { slug: string } }
             <div className="bg-[#002060]/5 border border-[#002060]/10 rounded-xl px-4 py-3 space-y-2">
               <p className="text-xs text-gray-400 uppercase tracking-wide">Precio del combo</p>
               {(() => {
-                const today = new Date().toISOString().slice(0, 10)
+                const today = todayArg()
                 const sorted = [...combo.date_tiers!].sort((a, b) => {
                   if (a.until === null) return 1
                   if (b.until === null) return -1

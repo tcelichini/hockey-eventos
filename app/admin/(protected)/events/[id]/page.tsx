@@ -22,7 +22,7 @@ import RefreshButton from "@/components/refresh-button"
 import AddAttendeeButton from "@/components/add-attendee-button"
 import ExpenseForm from "@/components/expense-form"
 import SettleCreditorButton from "@/components/settle-creditor-button"
-import { getTierLabel, getDateTierLabel, calculateDatePrice } from "@/lib/pricing"
+import { getTierLabel, getDateTierLabel, calculateDatePrice, todayArg } from "@/lib/pricing"
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 0 }).format(value)
@@ -184,7 +184,7 @@ export default async function EventDetailPage({ params }: { params: { id: string
             <div className="mt-3 space-y-1">
               <p className="text-xs text-gray-400 uppercase tracking-wide">Precios por fecha</p>
               {(() => {
-                const today = new Date().toISOString().slice(0, 10)
+                const today = todayArg()
                 const sorted = [...event.date_tiers!].sort((a, b) => {
                   if (a.until === null) return 1
                   if (b.until === null) return -1
