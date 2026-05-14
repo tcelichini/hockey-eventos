@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { db } from "@/db"
 import { events, attendees } from "@/db/schema"
-import { eq, and, sql } from "drizzle-orm"
+import { eq, and, sql, inArray } from "drizzle-orm"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ArrowLeftIcon } from "lucide-react"
@@ -102,7 +102,7 @@ export default async function PendientesPage() {
         count: sql<number>`count(*)`,
       })
       .from(attendees)
-      .where(and(eq(attendees.status, "confirmed"), sql`${attendees.event_id} = ANY(${eventIds})`))
+      .where(and(eq(attendees.status, "confirmed"), inArray(attendees.event_id, eventIds)))
       .groupBy(attendees.event_id)
     for (const c of counts) {
       confirmedCounts.set(c.event_id, Number(c.count))
@@ -134,7 +134,7 @@ export default async function PendientesPage() {
         and(
           eq(attendees.status, "confirmed"),
           eq(attendees.payment_status, "paid"),
-          sql`${attendees.event_id} = ANY(${eventIds})`
+          inArray(attendees.event_id, eventIds)
         )
       )
     totalCollected = Number(result.sum)
