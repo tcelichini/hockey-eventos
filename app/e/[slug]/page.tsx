@@ -253,18 +253,11 @@ export default async function EventPage({ params }: { params: { slug: string } }
               </div>
             )}
             {!event.is_3t && (
-              <>
-                <Link href={`/e/${event.slug}/decline`} className="block">
-                  <button className="w-full h-11 bg-white border-2 border-gray-200 hover:border-gray-300 text-gray-400 font-medium text-sm rounded-xl transition-colors">
-                    No puedo ir esta vez
-                  </button>
-                </Link>
-                <Link href={`/e/${event.slug}/confirm?upload=1`} className="block text-center pt-1">
-                  <span className="text-xs text-gray-400 underline">
-                    Ya me anoté, quiero subir el comprobante
-                  </span>
-                </Link>
-              </>
+              <Link href={`/e/${event.slug}/confirm?upload=1`} className="block">
+                <button className="w-full h-11 bg-white border-2 border-gray-200 hover:border-gray-300 text-gray-500 font-medium text-sm rounded-xl transition-colors">
+                  Ya me anoté, quiero subir el comprobante
+                </button>
+              </Link>
             )}
           </div>
         </div>
