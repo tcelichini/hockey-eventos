@@ -261,3 +261,14 @@ Registro de todas las sesiones de trabajo. Cada entrada documenta cambios concre
   - Nueva función `todayArg()` en `lib/pricing.ts`: usa `toLocaleString` con `timeZone: "America/Argentina/Buenos_Aires"` para devolver `YYYY-MM-DD` en hora local argentina. Funciona tanto en Vercel (UTC) como en desarrollo local.
   - Se reemplazaron los 6 usos de `new Date().toISOString().slice(0, 10)` por `todayArg()` en: `lib/pricing.ts` (`calculateDatePrice` y `getDateTierLabel`), `app/e/[slug]/page.tsx`, `app/combo/[slug]/page.tsx`, `app/admin/(protected)/events/[id]/page.tsx`, `app/admin/(protected)/combos/[id]/page.tsx`.
   - Decisión: los tramos siempre vencen a medianoche hora Argentina, sin importar la ubicación del usuario.
+
+## Sesión 22 (2026-05-14)
+
+- **Nueva vista de pendientes de pago (`/admin/pendientes`):** página que muestra todos los confirmados con pago pendiente, agrupados por evento, con tarjetas resumen de monto pendiente y total cobrado (solo de los eventos con pendientes).
+  - Eventos ordenados por fecha descendente (más lejano primero).
+  - Eventos pasados con pendientes se muestran con opacidad reducida.
+  - Archivos: `app/admin/(protected)/pendientes/page.tsx`
+- **Tarjeta "Sin pagar" del dashboard ahora es clickeable:** linkea a `/admin/pendientes`. Usa `<Link>` de Next.js envolviendo un `<div>` con estilos manuales (no el componente `<Card>` de shadcn, que bloqueaba el click).
+  - Archivos: `app/admin/(protected)/page.tsx`
+- **Tarjeta "Eventos" del dashboard mejorada:** ahora muestra el total de eventos creados con desglose "X próximos · Y pasados" en vez de solo los activos.
+  - Archivos: `app/admin/(protected)/page.tsx`
