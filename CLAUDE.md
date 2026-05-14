@@ -52,6 +52,10 @@ Los git worktrees (usados por Claude Code para trabajar en ramas aisladas) **no 
 cp "ruta/repo/.env.local" "ruta/worktree/.env.local"
 ```
 
+### ESLint en Vercel rompe el build por variables no usadas
+
+Vercel corre `next build` que incluye ESLint con la regla `@typescript-eslint/no-unused-vars` como **error** (no warning). Si se elimina el uso de una variable pero no la declaración, el build falla en Vercel aunque `npx tsc --noEmit` pase localmente. **Siempre correr `npx next lint` antes de pushear a `main`** para detectar estos errores antes del deploy.
+
 ### Archivos truncados al editar desde Cowork
 
 Al editar archivos desde Cowork, pueden quedar truncados o con bytes nulos al final (problema de CRLF/LF en Windows). Antes de hacer commit, conviene correr `npx tsc --noEmit` para detectar archivos rotos. Si aparecen errores de "Invalid character" o "no corresponding closing tag", restaurar el archivo desde HEAD con `git show HEAD:ruta/archivo > ruta/archivo` y re-aplicar los cambios.
