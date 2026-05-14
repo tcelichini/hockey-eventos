@@ -90,7 +90,9 @@ export default async function PendientesPage() {
     })
   }
 
-  const grouped = Array.from(eventMap.values())
+  const grouped = Array.from(eventMap.values()).sort(
+    (a, b) => new Date(b.date!).getTime() - new Date(a.date!).getTime()
+  )
 
   // Confirmed counts per event (for "X pendientes de Y confirmados")
   const confirmedCounts = new Map<string, number>()
