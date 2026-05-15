@@ -279,3 +279,7 @@ Registro de todas las sesiones de trabajo. Cada entrada documenta cambios concre
   - Archivos: `components/expense-form.tsx`, `components/edit-expense-button.tsx`
 - **Fix dropdown "quién pagó" en edición de gastos:** al editar un gasto desde admin, el campo "Responsable" era siempre un input de texto libre, permitiendo ingresar nombres que no se linkeaban con asistentes. Ahora `EditExpenseButton` recibe `attendeeNames` y muestra un `<select>` con la lista de asistentes confirmados, igual que el formulario de nuevo gasto.
   - Archivos: `components/edit-expense-button.tsx`, `app/admin/(protected)/events/[id]/page.tsx`
+- **Dropdown "quién pagó" en vista pública:** antes solo se mostraba para eventos 3T. Ahora todos los eventos con asistentes confirmados muestran el `<select>` en vez de texto libre, evitando que se carguen gastos con nombres que no coinciden con los asistentes.
+  - Archivos: `app/e/[slug]/page.tsx`
+- **Mejor distribución de gastos en admin:** el monto ahora va junto al nombre del gasto en la misma línea, y los botones de acción (Comprobante, editar, borrar) quedan a la derecha. Aprovecha mejor el espacio en mobile.
+  - Archivos: `app/admin/(protected)/events/[id]/page.tsx`

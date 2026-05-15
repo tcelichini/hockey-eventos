@@ -393,30 +393,34 @@ export default async function EventDetailPage({ params }: { params: { id: string
           <>
             <div className="divide-y">
               {expenseList.map((expense) => (
-                <div key={expense.id} className="py-3 flex items-center justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium text-gray-900">{expense.description}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      {expense.responsible}
-                      {expense.notes && ` · ${expense.notes}`}
-                    </p>
-                    {expense.payment_alias && (
-                      <p className="text-xs text-blue-600 mt-0.5">
-                        Transferir a: <span className="font-mono">{expense.payment_alias}</span>
+                <div key={expense.id} className="py-3 space-y-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-baseline gap-2 flex-wrap">
+                        <span className="font-medium text-gray-900">{expense.description}</span>
+                        <span className="font-medium text-gray-700 text-sm">{formatCurrency(Number(expense.amount))}</span>
+                      </div>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {expense.responsible}
+                        {expense.notes && ` · ${expense.notes}`}
                       </p>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="font-medium text-gray-700 text-sm">{formatCurrency(Number(expense.amount))}</span>
-                    {expense.receipt_url && (
-                      <a href={expense.receipt_url} target="_blank" rel="noopener noreferrer">
-                        <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 cursor-pointer">
-                          Comprobante
-                        </Badge>
-                      </a>
-                    )}
-                    <EditExpenseButton expense={{ id: expense.id, description: expense.description, responsible: expense.responsible, amount: expense.amount!, notes: expense.notes, payment_alias: expense.payment_alias, receipt_url: expense.receipt_url }} attendeeNames={confirmed.length > 0 ? confirmed.map((a) => a.full_name) : undefined} />
-                    <DeleteExpenseButton expenseId={expense.id} />
+                      {expense.payment_alias && (
+                        <p className="text-xs text-blue-600 mt-0.5">
+                          Transferir a: <span className="font-mono">{expense.payment_alias}</span>
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {expense.receipt_url && (
+                        <a href={expense.receipt_url} target="_blank" rel="noopener noreferrer">
+                          <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 cursor-pointer text-xs">
+                            Comprobante
+                          </Badge>
+                        </a>
+                      )}
+                      <EditExpenseButton expense={{ id: expense.id, description: expense.description, responsible: expense.responsible, amount: expense.amount!, notes: expense.notes, payment_alias: expense.payment_alias, receipt_url: expense.receipt_url }} attendeeNames={confirmed.length > 0 ? confirmed.map((a) => a.full_name) : undefined} />
+                      <DeleteExpenseButton expenseId={expense.id} />
+                    </div>
                   </div>
                 </div>
               ))}
