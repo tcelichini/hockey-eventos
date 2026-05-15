@@ -89,7 +89,7 @@ export default function ExpenseForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-3 bg-gray-50 rounded-xl p-4">
       {!attendeeNames && <p className="text-xs text-gray-400">Usá el mismo nombre con el que te anotaste</p>}
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <Input
           name="description"
           placeholder="Descripción (ej: Carbón)"
@@ -100,10 +100,10 @@ export default function ExpenseForm({
           <select
             name="responsible"
             required
-            className="text-sm rounded-md border border-input bg-background px-3 py-2"
+            className="text-sm rounded-md border border-input bg-background px-3 py-2 w-full"
             defaultValue=""
           >
-            <option value="" disabled>Seleccioná quién</option>
+            <option value="" disabled>Seleccioná quién pagó</option>
             {attendeeNames.map((name) => (
               <option key={name} value={name}>{name}</option>
             ))}

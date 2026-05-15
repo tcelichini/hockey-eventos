@@ -415,7 +415,7 @@ export default async function EventDetailPage({ params }: { params: { id: string
                         </Badge>
                       </a>
                     )}
-                    <EditExpenseButton expense={{ id: expense.id, description: expense.description, responsible: expense.responsible, amount: expense.amount!, notes: expense.notes, payment_alias: expense.payment_alias, receipt_url: expense.receipt_url }} />
+                    <EditExpenseButton expense={{ id: expense.id, description: expense.description, responsible: expense.responsible, amount: expense.amount!, notes: expense.notes, payment_alias: expense.payment_alias, receipt_url: expense.receipt_url }} attendeeNames={confirmed.length > 0 ? confirmed.map((a) => a.full_name) : undefined} />
                     <DeleteExpenseButton expenseId={expense.id} />
                   </div>
                 </div>

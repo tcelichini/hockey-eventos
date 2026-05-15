@@ -272,3 +272,10 @@ Registro de todas las sesiones de trabajo. Cada entrada documenta cambios concre
   - Archivos: `app/admin/(protected)/page.tsx`
 - **Tarjeta "Eventos" del dashboard mejorada:** ahora muestra el total de eventos creados con desglose "X próximos · Y pasados" en vez de solo los activos.
   - Archivos: `app/admin/(protected)/page.tsx`
+
+## Sesión 23 (2026-05-15)
+
+- **Fix layout formulario de gastos en mobile:** los campos "Descripción" y "Quién pagó" estaban en `grid-cols-2` fijo, causando overflow horizontal en pantallas angostas. Ahora usan `grid-cols-1 sm:grid-cols-2` (apilados en mobile, side-by-side en desktop). Aplica tanto al formulario de agregar gasto como al de editar.
+  - Archivos: `components/expense-form.tsx`, `components/edit-expense-button.tsx`
+- **Fix dropdown "quién pagó" en edición de gastos:** al editar un gasto desde admin, el campo "Responsable" era siempre un input de texto libre, permitiendo ingresar nombres que no se linkeaban con asistentes. Ahora `EditExpenseButton` recibe `attendeeNames` y muestra un `<select>` con la lista de asistentes confirmados, igual que el formulario de nuevo gasto.
+  - Archivos: `components/edit-expense-button.tsx`, `app/admin/(protected)/events/[id]/page.tsx`

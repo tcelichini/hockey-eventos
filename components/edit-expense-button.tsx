@@ -17,7 +17,7 @@ type ExpenseData = {
   receipt_url: string | null
 }
 
-export default function EditExpenseButton({ expense }: { expense: ExpenseData }) {
+export default function EditExpenseButton({ expense, attendeeNames }: { expense: ExpenseData; attendeeNames?: string[] }) {
   const [editing, setEditing] = useState(false)
   const [loading, setLoading] = useState(false)
   const [description, setDescription] = useState(expense.description)
@@ -62,9 +62,22 @@ export default function EditExpenseButton({ expense }: { expense: ExpenseData })
   if (editing) {
     return (
       <div className="space-y-2 w-full">
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Descripción" className="text-sm h-8" />
-          <Input value={responsible} onChange={(e) => setResponsible(e.target.value)} placeholder="Responsable" className="text-sm h-8" />
+          {attendeeNames ? (
+            <select
+              value={responsible}
+              onChange={(e) => setResponsible(e.target.value)}
+              className="text-sm h-8 rounded-md border border-input bg-background px-3 w-full"
+            >
+              <option value="" disabled>Seleccioná quién pagó</option>
+              {attendeeNames.map((name) => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+          ) : (
+            <Input value={responsible} onChange={(e) => setResponsible(e.target.value)} placeholder="Responsable" className="text-sm h-8" />
+          )}
         </div>
         <div className="grid grid-cols-2 gap-2">
           <Input value={amount} onChange={(e) => setAmount(e.target.value)} type="number" step="0.01" placeholder="Monto" className="text-sm h-8" />
