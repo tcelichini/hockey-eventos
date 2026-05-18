@@ -283,3 +283,8 @@ Registro de todas las sesiones de trabajo. Cada entrada documenta cambios concre
   - Archivos: `app/e/[slug]/page.tsx`
 - **Mejor distribución de gastos en admin:** el monto ahora va junto al nombre del gasto en la misma línea, y los botones de acción (Comprobante, editar, borrar) quedan a la derecha. Aprovecha mejor el espacio en mobile.
   - Archivos: `app/admin/(protected)/events/[id]/page.tsx`
+
+## Sesión 24 (2026-05-18)
+
+- **Fix: permitir subir comprobante de combo cuando un evento individual ya pasó:** cuando un evento del combo estaba cerrado/completo, la página pública bloqueaba completamente el acceso al formulario de pago — incluso para usuarios ya registrados que solo necesitaban subir el comprobante. Se reordenó la validación en el backend para que usuarios existentes puedan acceder a sus datos de pago sin ser bloqueados por la validación de evento abierto/capacidad (que solo aplica a registros nuevos). En el frontend se agregó un botón secundario "Ya me anoté, quiero subir el comprobante" visible cuando algún evento está completo pero el combo sigue abierto.
+  - Archivos: `app/api/combo-attendees/route.ts`, `app/combo/[slug]/page.tsx`

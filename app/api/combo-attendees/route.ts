@@ -37,7 +37,50 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Algunos eventos del combo ya no existen" }, { status: 400 })
   }
 
-  // Check all events are open and have capacity
+  const normalize = (s: string) =>
+    s.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
+
+  // Check for existing combo registration FIRST — existing users can always
+  // access their payment data / upload proof even if an event closed
+  if (status === "confirmed") {
+    const existingAttendees = await db
+      .select()
+      .from(attendees)
+      .where(and(eq(attendees.combo_id, combo_id), eq(attendees.status, "confirmed")))
+
+    const existingForUser = existingAttendees.filter(
+      (a) => normalize(a.full_name) === normalize(full_name)
+    )
+
+    if (existingForUser.length > 0) {
+      const anyUnpaid = existingForUser.some((a) => a.payment_status !== "paid")
+      let currentComboPrice = existingForUser.reduce((sum, a) => sum + Number(a.price_paid || 0), 0)
+
+      if (anyUnpaid && combo.date_tiers && combo.date_tiers.length > 0) {
+        const recalculated = calculateDatePrice(combo.date_tiers, combo.payment_amount)
+        currentComboPrice = recalculated
+        const pricePerEvent = Math.round((recalculated / linkedEvents.length) * 100) / 100
+        for (const a of existingForUser) {
+          if (a.payment_status !== "paid") {
+            await db.update(attendees).set({ price_paid: String(pricePerEvent) }).where(eq(attendees.id, a.id))
+          }
+        }
+      }
+
+      return NextResponse.json({
+        attendees: existingForUser,
+        combo_price: currentComboPrice,
+        payment_account: combo.payment_account,
+        payment_amount: String(currentComboPrice),
+        whatsapp_number: combo.whatsapp_number,
+        combo_title: combo.title,
+        existing: true,
+        already_paid: existingForUser.every((a) => a.payment_status === "paid"),
+      })
+    }
+  }
+
+  // Check all events are open and have capacity (only for NEW registrations)
   if (status === "confirmed") {
     for (const event of linkedEvents) {
       if (!event.is_open) {
@@ -59,50 +102,6 @@ export async function POST(request: NextRequest) {
           )
         }
       }
-    }
-  }
-
-  const normalize = (s: string) =>
-    s.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-
-  // Check for existing combo registration (dedup)
-  if (status === "confirmed") {
-    const existingAttendees = await db
-      .select()
-      .from(attendees)
-      .where(and(eq(attendees.combo_id, combo_id), eq(attendees.status, "confirmed")))
-
-    const existingForUser = existingAttendees.filter(
-      (a) => normalize(a.full_name) === normalize(full_name)
-    )
-
-    if (existingForUser.length > 0) {
-      // Already registered via this combo — recalculate price if unpaid
-      const anyUnpaid = existingForUser.some((a) => a.payment_status !== "paid")
-      let currentComboPrice = existingForUser.reduce((sum, a) => sum + Number(a.price_paid || 0), 0)
-
-      if (anyUnpaid && combo.date_tiers && combo.date_tiers.length > 0) {
-        const recalculated = calculateDatePrice(combo.date_tiers, combo.payment_amount)
-        currentComboPrice = recalculated
-        const pricePerEvent = Math.round((recalculated / linkedEvents.length) * 100) / 100
-        // Update all attendee records with new price
-        for (const a of existingForUser) {
-          if (a.payment_status !== "paid") {
-            await db.update(attendees).set({ price_paid: String(pricePerEvent) }).where(eq(attendees.id, a.id))
-          }
-        }
-      }
-
-      return NextResponse.json({
-        attendees: existingForUser,
-        combo_price: currentComboPrice,
-        payment_account: combo.payment_account,
-        payment_amount: String(currentComboPrice),
-        whatsapp_number: combo.whatsapp_number,
-        combo_title: combo.title,
-        existing: true,
-        already_paid: existingForUser.every((a) => a.payment_status === "paid"),
-      })
     }
 
     // Check if already registered individually for any event

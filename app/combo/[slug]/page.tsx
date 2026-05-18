@@ -150,9 +150,18 @@ export default async function ComboPage({ params }: { params: { slug: string } }
                 </button>
               </Link>
             ) : (
-              <div className="w-full h-14 bg-gray-100 text-gray-400 font-bold text-base rounded-xl flex items-center justify-center uppercase tracking-wide cursor-not-allowed">
-                {!combo.is_open ? "Inscripciones cerradas" : "Algun evento esta completo"}
-              </div>
+              <>
+                <div className="w-full h-14 bg-gray-100 text-gray-400 font-bold text-base rounded-xl flex items-center justify-center uppercase tracking-wide cursor-not-allowed">
+                  {!combo.is_open ? "Inscripciones cerradas" : "Algun evento esta completo"}
+                </div>
+                {combo.is_open && (
+                  <Link href={`/combo/${combo.slug}/confirm`} className="block">
+                    <button className="w-full h-12 bg-[#002060] hover:bg-[#001a4d] text-white font-semibold text-sm rounded-xl transition-colors tracking-wide">
+                      Ya me anoté, quiero subir el comprobante
+                    </button>
+                  </Link>
+                )}
+              </>
             )}
             {/* Links to individual events */}
             <div className="text-center pt-1">
