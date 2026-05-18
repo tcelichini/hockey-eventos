@@ -7,7 +7,6 @@ import { Card, CardContent } from "@/components/ui/card"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ArrowLeftIcon, PencilIcon } from "lucide-react"
-import MarkPaidButton from "@/components/mark-paid-button"
 import CopyLinkButton from "@/components/copy-link-button"
 import DeleteEventButton from "@/components/delete-event-button"
 import ToggleEventButton from "@/components/toggle-event-button"
@@ -20,6 +19,7 @@ import PaymentReminderButton from "@/components/payment-reminder-button"
 import WhatsAppInviteButton from "@/components/whatsapp-invite-button"
 import RefreshButton from "@/components/refresh-button"
 import AddAttendeeButton from "@/components/add-attendee-button"
+import SortableAttendeeList from "@/components/sortable-attendee-list"
 import ExpenseForm from "@/components/expense-form"
 import SettleCreditorButton from "@/components/settle-creditor-button"
 import { getTierLabel, getDateTierLabel, calculateDatePrice, todayArg } from "@/lib/pricing"
@@ -447,61 +447,31 @@ export default async function EventDetailPage({ params }: { params: { id: string
         {confirmed.length === 0 ? (
           <p className="text-gray-400 text-sm text-center py-4">Nadie confirmó aún</p>
         ) : (
-          <div className="divide-y">
-            {confirmed.map((attendee) => (
-              <div key={attendee.id} className="py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-3">
-                <div className="min-w-0">
-                  <p className="font-medium text-gray-900">{attendee.full_name}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    {formatCurrency(getPrice(attendee))}{paidViaCombo.has(attendee.id) && <span className="text-purple-500"> (vía combo)</span>} · {new Intl.DateTimeFormat("es-AR", {
-                      day: "numeric",
-                      month: "short",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      timeZone: "America/Argentina/Buenos_Aires",
-                    }).format(new Date(attendee.created_at!))}
-                    {attendee.proof_uploaded_at && (
-                      <> · <span className="text-green-600">Pagó {new Intl.DateTimeFormat("es-AR", {
-                        day: "numeric",
-                        month: "short",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        timeZone: "America/Argentina/Buenos_Aires",
-                      }).format(new Date(attendee.proof_uploaded_at))}</span></>
-                    )}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {paidViaCombo.has(attendee.id) && attendee.combo_id && (
-                    <Link href={`/admin/combos/${attendee.combo_id}`}>
-                      <Badge className="bg-purple-100 text-purple-700 hover:bg-purple-200 cursor-pointer text-[10px]">
-                        Combo
-                      </Badge>
-                    </Link>
-                  )}
-                  {attendee.payment_proof_url && (
-                    <a href={attendee.payment_proof_url} target="_blank" rel="noopener noreferrer">
-                      <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 cursor-pointer">
-                        Comprobante
-                      </Badge>
-                    </a>
-                  )}
-                  {attendee.payment_status === "paid" ? (
-                    <>
-                      <Badge className="bg-green-100 text-green-700 hover:bg-green-100">Pagó</Badge>
-                      <MarkPaidButton attendeeId={attendee.id} isPaid={true} />
-                    </>
-                  ) : (
-                    <>
-                      <Badge variant="secondary">Pendiente</Badge>
-                      <MarkPaidButton attendeeId={attendee.id} isPaid={false} />
-                    </>
-                  )}
-                  <DeleteAttendeeButton attendeeId={attendee.id} />
-                </div>
-              </div>
-            ))}
-          </div>
+          <SortableAttendeeList
+            attendees={confirmed.map(a => {
+              const shortDateFmt = new Intl.DateTimeFormat("es-AR", {
+                day: "numeric",
+                month: "short",
+                hour: "2-digit",
+                minute: "2-digit",
+                timeZone: "America/Argentina/Buenos_Aires",
+              })
+              return {
+                id: a.id,
+                full_name: a.full_name,
+                payment_status: a.payment_status,
+                payment_proof_url: a.payment_proof_url,
+                combo_id: a.combo_id,
+                price: getPrice(a),
+                priceFormatted: formatCurrency(getPrice(a)),
+                paidViaCombo: paidViaCombo.has(a.id),
+                createdAtISO: a.created_at ? new Date(a.created_at).toISOString() : null,
+                createdAtFormatted: a.created_at ? shortDateFmt.format(new Date(a.created_at)) : null,
+                proofUploadedAtISO: a.proof_uploaded_at ? new Date(a.proof_uploaded_at).toISOString() : null,
+                proofUploadedAtFormatted: a.proof_uploaded_at ? shortDateFmt.format(new Date(a.proof_uploaded_at)) : null,
+              }
+            })}
+          />
         )}
       </CollapsibleCard>
 

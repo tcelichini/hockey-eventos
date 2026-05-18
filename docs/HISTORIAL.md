@@ -288,3 +288,8 @@ Registro de todas las sesiones de trabajo. Cada entrada documenta cambios concre
 
 - **Fix: permitir subir comprobante de combo cuando un evento individual ya pasó:** cuando un evento del combo estaba cerrado/completo, la página pública bloqueaba completamente el acceso al formulario de pago — incluso para usuarios ya registrados que solo necesitaban subir el comprobante. Se reordenó la validación en el backend para que usuarios existentes puedan acceder a sus datos de pago sin ser bloqueados por la validación de evento abierto/capacidad (que solo aplica a registros nuevos). En el frontend se agregó un botón secundario "Ya me anoté, quiero subir el comprobante" visible cuando algún evento está completo pero el combo sigue abierto.
   - Archivos: `app/api/combo-attendees/route.ts`, `app/combo/[slug]/page.tsx`
+
+## Sesión 25 (2026-05-18)
+
+- **Ordenamiento de asistentes en admin:** la lista de asistentes en la vista de detalle del evento ahora se puede ordenar por nombre (A-Z, default), fecha de confirmación o fecha de pago, con toggle ascendente/descendente. Se implementó como componente client `SortableAttendeeList` con pills de selección. Los que no subieron comprobante van al final cuando se ordena por pago. Las fechas se pre-formatean en el server para evitar hydration mismatch por diferencias de Intl entre Node y browser.
+  - Archivos: `components/sortable-attendee-list.tsx` (nuevo), `app/admin/(protected)/events/[id]/page.tsx`
