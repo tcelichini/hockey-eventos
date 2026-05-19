@@ -1,10 +1,12 @@
 import Link from "next/link"
 import { db } from "@/db"
-import { events, attendees } from "@/db/schema"
+import { events, attendees, combos } from "@/db/schema"
+import type { DateTier } from "@/db/schema"
 import { eq, and, sql, inArray } from "drizzle-orm"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ArrowLeftIcon } from "lucide-react"
+import { calculateDatePrice } from "@/lib/pricing"
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("es-AR", {
@@ -44,17 +46,41 @@ export default async function PendientesPage() {
       id: attendees.id,
       full_name: attendees.full_name,
       price_paid: attendees.price_paid,
+      combo_id: attendees.combo_id,
       event_id: attendees.event_id,
       event_title: events.title,
       event_date: events.date,
       event_is_open: events.is_open,
       event_slug: events.slug,
       event_payment_amount: events.payment_amount,
+      event_date_tiers: events.date_tiers,
     })
     .from(attendees)
     .innerJoin(events, eq(attendees.event_id, events.id))
     .where(and(eq(attendees.status, "confirmed"), eq(attendees.payment_status, "pending")))
     .orderBy(sql`${events.date} DESC, ${attendees.full_name} ASC`)
+
+  // Fetch combo data for attendees registered via combo
+  const comboIds = Array.from(new Set(unpaidAttendees.map((a) => a.combo_id).filter((id): id is string => id !== null)))
+  const comboMap = new Map<string, { date_tiers: DateTier[] | null; payment_amount: string; eventCount: number }>()
+  if (comboIds.length > 0) {
+    const comboRows = await db
+      .select({
+        id: combos.id,
+        date_tiers: combos.date_tiers,
+        payment_amount: combos.payment_amount,
+        event_ids: combos.event_ids,
+      })
+      .from(combos)
+      .where(inArray(combos.id, comboIds))
+    for (const c of comboRows) {
+      comboMap.set(c.id, {
+        date_tiers: c.date_tiers,
+        payment_amount: c.payment_amount,
+        eventCount: c.event_ids.length,
+      })
+    }
+  }
 
   // Group by event
   const eventMap = new Map<
@@ -66,6 +92,7 @@ export default async function PendientesPage() {
       is_open: boolean
       slug: string
       payment_amount: string
+      date_tiers: DateTier[] | null
       people: { id: string; name: string; amount: number }[]
     }
   >()
@@ -79,10 +106,25 @@ export default async function PendientesPage() {
         is_open: row.event_is_open,
         slug: row.event_slug,
         payment_amount: row.event_payment_amount,
+        date_tiers: row.event_date_tiers,
         people: [],
       })
     }
-    const amount = Number(row.price_paid) || Number(row.event_payment_amount) || 0
+
+    let amount: number
+    if (row.combo_id && comboMap.has(row.combo_id)) {
+      const combo = comboMap.get(row.combo_id)!
+      const comboPrice = combo.date_tiers && combo.date_tiers.length > 0
+        ? calculateDatePrice(combo.date_tiers, combo.payment_amount)
+        : Number(combo.payment_amount)
+      amount = Math.round((comboPrice / combo.eventCount) * 100) / 100
+    } else {
+      const currentTierPrice = row.event_date_tiers && row.event_date_tiers.length > 0
+        ? calculateDatePrice(row.event_date_tiers, row.event_payment_amount)
+        : null
+      amount = currentTierPrice ?? (Number(row.price_paid) || Number(row.event_payment_amount) || 0)
+    }
+
     eventMap.get(row.event_id)!.people.push({
       id: row.id,
       name: row.full_name,

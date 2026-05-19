@@ -298,3 +298,8 @@ Registro de todas las sesiones de trabajo. Cada entrada documenta cambios concre
 
 - **Fix: permitir subir comprobante en evento cerrado si ya estás inscripto:** el endpoint `POST /api/attendees` chequeaba `is_open` antes de buscar si el asistente ya existía, bloqueando a asistentes confirmados que solo querían subir su comprobante de pago. Se reordenó la validación: primero busca asistente existente (y devuelve sus datos de pago), y solo después bloquea inscripciones nuevas si el evento está cerrado.
   - Archivos: `app/api/attendees/route.ts`
+
+## Sesión 27 (2026-05-19)
+
+- **Fix: pendientes de pago muestra precio actualizado según tramo vigente:** la página de pendientes mostraba el `price_paid` guardado al momento de inscripción, que podía corresponder a un tramo anterior ya vencido. Ahora recalcula el monto usando `calculateDatePrice()` con la fecha actual, tanto para eventos con `date_tiers` propios como para asistentes registrados vía combo (usando los `date_tiers` del combo y dividiendo por la cantidad de eventos).
+  - Archivos: `app/admin/(protected)/pendientes/page.tsx`
