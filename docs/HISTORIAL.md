@@ -293,3 +293,8 @@ Registro de todas las sesiones de trabajo. Cada entrada documenta cambios concre
 
 - **Ordenamiento de asistentes en admin:** la lista de asistentes en la vista de detalle del evento ahora se puede ordenar por nombre (A-Z, default), fecha de confirmación o fecha de pago, con toggle ascendente/descendente. Se implementó como componente client `SortableAttendeeList` con pills de selección. Los que no subieron comprobante van al final cuando se ordena por pago. Las fechas se pre-formatean en el server para evitar hydration mismatch por diferencias de Intl entre Node y browser.
   - Archivos: `components/sortable-attendee-list.tsx` (nuevo), `app/admin/(protected)/events/[id]/page.tsx`
+
+## Sesión 26 (2026-05-19)
+
+- **Fix: permitir subir comprobante en evento cerrado si ya estás inscripto:** el endpoint `POST /api/attendees` chequeaba `is_open` antes de buscar si el asistente ya existía, bloqueando a asistentes confirmados que solo querían subir su comprobante de pago. Se reordenó la validación: primero busca asistente existente (y devuelve sus datos de pago), y solo después bloquea inscripciones nuevas si el evento está cerrado.
+  - Archivos: `app/api/attendees/route.ts`
