@@ -103,7 +103,6 @@ export default async function EventDetailPage({ params }: { params: { id: string
   const getOwedPrice = (a: typeof confirmed[0]) =>
     currentTierPrice !== null ? currentTierPrice : getPrice(a)
   const totalCollected = paid.reduce((sum, a) => sum + getPrice(a), 0)
-  const totalPending = unpaid.reduce((sum, a) => sum + getOwedPrice(a), 0)
 
   const expenseList = await db
     .select()
@@ -132,6 +131,11 @@ export default async function EventDetailPage({ params }: { params: { id: string
     const allSettled = ids.every((id: string) => expenseList.find(e => e.id === id)?.settled === true)
     settledByPerson.set(key, allSettled)
   })
+  const totalPending = unpaid.reduce((sum, a) => {
+    const owed = getOwedPrice(a)
+    const exp = expenseByPerson.get(a.full_name.trim().toLowerCase()) || 0
+    return sum + Math.max(owed - exp, 0)
+  }, 0)
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").trim()
   const publicLink = `${appUrl}/e/${event.slug}`
 

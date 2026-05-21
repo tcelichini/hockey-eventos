@@ -303,3 +303,8 @@ Registro de todas las sesiones de trabajo. Cada entrada documenta cambios concre
 
 - **Fix: pendientes de pago muestra precio actualizado según tramo vigente:** la página de pendientes mostraba el `price_paid` guardado al momento de inscripción, que podía corresponder a un tramo anterior ya vencido. Ahora recalcula el monto usando `calculateDatePrice()` con la fecha actual, tanto para eventos con `date_tiers` propios como para asistentes registrados vía combo (usando los `date_tiers` del combo y dividiendo por la cantidad de eventos).
   - Archivos: `app/admin/(protected)/pendientes/page.tsx`
+
+## Sesión 28 (2026-05-21)
+
+- **Fix: tarjeta "Falta cobrar" descuenta gastos de asistentes pendientes:** el total de "Falta cobrar" en el detalle de evento sumaba el precio bruto de cada asistente impago, sin descontar los gastos que adelantaron. Ahora resta los gastos de cada persona (usando `expenseByPerson`) antes de sumar, consistente con el neto que ya mostraba el Resumen.
+  - Archivos: `app/admin/(protected)/events/[id]/page.tsx`
