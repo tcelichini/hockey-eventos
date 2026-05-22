@@ -7,7 +7,7 @@ import { calculatePrice, calculateDatePrice } from "@/lib/pricing"
 
 export async function POST(request: NextRequest) {
   const body = await request.json()
-  const { event_id, full_name, status } = body
+  const { event_id, full_name, status, is_inferiores } = body
 
   if (!event_id || !status || !["confirmed", "declined"].includes(status)) {
     return NextResponse.json({ error: "Datos inválidos" }, { status: 400 })
@@ -43,7 +43,9 @@ export async function POST(request: NextRequest) {
 
     if (existing) {
       let currentPaymentAmount = existing.price_paid || event.payment_amount
-      if (event.date_tiers && event.date_tiers.length > 0 && existing.payment_status !== "paid") {
+      if (existing.is_inferiores && event.inferiores_price) {
+        currentPaymentAmount = event.inferiores_price
+      } else if (event.date_tiers && event.date_tiers.length > 0 && existing.payment_status !== "paid") {
         const recalculated = calculateDatePrice(event.date_tiers, event.payment_amount)
         currentPaymentAmount = String(recalculated)
         await db.update(attendees)
@@ -75,10 +77,14 @@ export async function POST(request: NextRequest) {
   }
 
   // Calculate price based on tiers (by quantity or by date)
+  // Inferiores always pay the flat inferiores_price (only for non-3T events)
+  const useInferioresPrice = is_inferiores && !event.is_3t && event.inferiores_price
   const price = status === "confirmed"
-    ? event.date_tiers && event.date_tiers.length > 0
-      ? calculateDatePrice(event.date_tiers, event.payment_amount)
-      : calculatePrice(event.pricing_tiers, event.payment_amount, confirmedCount)
+    ? useInferioresPrice
+      ? Number(event.inferiores_price)
+      : event.date_tiers && event.date_tiers.length > 0
+        ? calculateDatePrice(event.date_tiers, event.payment_amount)
+        : calculatePrice(event.pricing_tiers, event.payment_amount, confirmedCount)
     : 0
 
   const [attendee] = await db
@@ -89,6 +95,7 @@ export async function POST(request: NextRequest) {
       status,
       payment_status: "pending",
       price_paid: status === "confirmed" ? String(price) : null,
+      is_inferiores: !!is_inferiores,
     })
     .returning()
 

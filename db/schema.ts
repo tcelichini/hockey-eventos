@@ -30,6 +30,7 @@ export const events = pgTable("events", {
   date_tiers: jsonb("date_tiers").$type<DateTier[]>(),
   is_3t: boolean("is_3t").notNull().default(false),
   teams: jsonb("teams").$type<string[]>(),
+  inferiores_price: numeric("inferiores_price", { precision: 10, scale: 2 }),
   created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
 })
 
@@ -43,6 +44,7 @@ export const attendees = pgTable("attendees", {
   payment_proof_url: text("payment_proof_url"),
   proof_uploaded_at: timestamp("proof_uploaded_at", { withTimezone: true }),
   price_paid: numeric("price_paid", { precision: 10, scale: 2 }),
+  is_inferiores: boolean("is_inferiores").notNull().default(false),
   created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
 })
 

@@ -100,8 +100,10 @@ export default async function EventDetailPage({ params }: { params: { id: string
   const getPrice = (a: typeof confirmed[0]) => Number(a.price_paid) || amount
   // Para los pendientes: si el evento tiene date_tiers, usar el precio del tramo actual
   // (no el original, que pudo cambiar si pasaron las fechas)
+  const inferioresPrice = event.inferiores_price ? Number(event.inferiores_price) : null
   const getOwedPrice = (a: typeof confirmed[0]) =>
-    currentTierPrice !== null ? currentTierPrice : getPrice(a)
+    a.is_inferiores && inferioresPrice !== null ? inferioresPrice
+    : currentTierPrice !== null ? currentTierPrice : getPrice(a)
   const totalCollected = paid.reduce((sum, a) => sum + getPrice(a), 0)
 
   const expenseList = await db
@@ -217,6 +219,11 @@ export default async function EventDetailPage({ params }: { params: { id: string
                 ))
               })()}
             </div>
+          )}
+          {inferioresPrice !== null && (
+            <p className="text-sm text-amber-700 mt-2">
+              Precio inferiores: <span className="font-medium">{formatCurrency(inferioresPrice)}</span>
+            </p>
           )}
           <div className="mt-3 flex items-center gap-2">
             <code className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600 break-all">{publicLink}</code>
@@ -473,8 +480,10 @@ export default async function EventDetailPage({ params }: { params: { id: string
                 createdAtFormatted: a.created_at ? shortDateFmt.format(new Date(a.created_at)) : null,
                 proofUploadedAtISO: a.proof_uploaded_at ? new Date(a.proof_uploaded_at).toISOString() : null,
                 proofUploadedAtFormatted: a.proof_uploaded_at ? shortDateFmt.format(new Date(a.proof_uploaded_at)) : null,
+                isInferiores: a.is_inferiores,
               }
             })}
+            hasInferioresPrice={inferioresPrice !== null}
           />
         )}
       </CollapsibleCard>

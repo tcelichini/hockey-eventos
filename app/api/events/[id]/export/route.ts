@@ -23,11 +23,12 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
   const amount = Number(event.payment_amount) || 0
   const BOM = "\uFEFF"
-  const header = "Nombre,Monto,Estado de pago,Fecha de confirmación"
+  const header = "Nombre,Monto,Estado de pago,Inferiores,Fecha de confirmación"
   const rows = attendeeList.map((a) => {
     const name = `"${a.full_name.replace(/"/g, '""')}"`
     const price = Number(a.price_paid) || amount
     const payment = a.payment_status === "paid" ? "Pagó" : "Pendiente"
+    const inferiores = a.is_inferiores ? "Sí" : "No"
     const date = new Intl.DateTimeFormat("es-AR", {
       day: "numeric",
       month: "short",
@@ -36,7 +37,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       minute: "2-digit",
       timeZone: "America/Argentina/Buenos_Aires",
     }).format(new Date(a.created_at!))
-    return `${name},${price},${payment},${date}`
+    return `${name},${price},${payment},${inferiores},${date}`
   })
 
   const csv = BOM + [header, ...rows].join("\n")

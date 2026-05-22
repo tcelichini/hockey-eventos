@@ -308,3 +308,9 @@ Registro de todas las sesiones de trabajo. Cada entrada documenta cambios concre
 
 - **Fix: tarjeta "Falta cobrar" descuenta gastos de asistentes pendientes:** el total de "Falta cobrar" en el detalle de evento sumaba el precio bruto de cada asistente impago, sin descontar los gastos que adelantaron. Ahora resta los gastos de cada persona (usando `expenseByPerson`) antes de sumar, consistente con el neto que ya mostraba el Resumen.
   - Archivos: `app/admin/(protected)/events/[id]/page.tsx`
+
+## Sesión 29 (2026-05-22)
+
+- **Feat: precio reducido para jugadores de inferiores:** en eventos no-3T (asados), el admin puede habilitar un precio inferiores desde el formulario de crear/editar evento. Cuando está habilitado, los jugadores de categorías menores pueden marcarse como "inferiores" al inscribirse y pagan un monto fijo menor, independiente del modo de pricing del evento. El admin puede ver y editar el flag de inferiores desde la lista de asistentes, y el cálculo de "Falta cobrar" contempla el monto reducido.
+  - DB: nuevas columnas `events.inferiores_price` (numeric, nullable) y `attendees.is_inferiores` (boolean, default false). Migración 7.
+  - Archivos: `db/schema.ts`, `app/api/events/route.ts`, `app/api/events/[id]/route.ts`, `app/api/events/by-slug/[slug]/route.ts`, `app/api/attendees/route.ts`, `app/api/attendees/[id]/route.ts`, `app/api/events/[id]/export/route.ts`, `app/admin/(protected)/events/new/page.tsx`, `app/admin/(protected)/events/[id]/edit/page.tsx`, `app/admin/(protected)/events/[id]/page.tsx`, `app/e/[slug]/page.tsx`, `app/e/[slug]/confirm/page.tsx`, `components/toggle-inferiores-button.tsx` (nuevo), `components/sortable-attendee-list.tsx`, `docs/MIGRACIONES.md`

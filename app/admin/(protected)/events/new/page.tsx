@@ -27,6 +27,7 @@ export default function NewEventPage() {
   const [whatsappConfirmation, setWhatsappConfirmation] = useState(false)
   const [is3t, setIs3t] = useState(false)
   const [teams, setTeams] = useState<string[]>(["A"])
+  const [inferioresEnabled, setInferioresEnabled] = useState(false)
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -49,6 +50,10 @@ export default function NewEventPage() {
       whatsapp_confirmation: whatsappConfirmation,
       is_3t: is3t,
       teams: is3t ? teams : null,
+      inferiores_price: !is3t && inferioresEnabled ? (() => {
+        const val = (form.elements.namedItem("inferiores_price") as HTMLInputElement | null)?.value
+        return val ? parseFloat(val) : null
+      })() : null,
     }
 
     const res = await fetch("/api/events", {
@@ -283,6 +288,38 @@ export default function NewEventPage() {
                   <p className="text-xs text-gray-400">Si está activado, los asistentes verán la opción de enviar el comprobante por WhatsApp después de anotarse.</p>
                 </div>
               </div>
+
+              {!is3t && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3 pt-2">
+                    <input
+                      type="checkbox"
+                      id="inferiores_enabled"
+                      checked={inferioresEnabled}
+                      onChange={(e) => setInferioresEnabled(e.target.checked)}
+                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <div>
+                      <Label htmlFor="inferiores_enabled" className="cursor-pointer">Habilitar precio inferiores</Label>
+                      <p className="text-xs text-gray-400">Permite que jugadores de categorías menores se marquen como inferiores y paguen un monto reducido.</p>
+                    </div>
+                  </div>
+                  {inferioresEnabled && (
+                    <div className="space-y-2 pl-7">
+                      <Label htmlFor="inferiores_price">Monto inferiores (ARS) *</Label>
+                      <Input
+                        id="inferiores_price"
+                        name="inferiores_price"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="Ej: 20000"
+                        required
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
 
             </div>
 

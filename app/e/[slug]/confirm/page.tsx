@@ -24,6 +24,7 @@ type EventData = {
   teams: string[] | null
   attendeeNames: string[]
   unpaidAttendeeNames: string[]
+  inferiores_price: string | null
 }
 
 type PaymentData = {
@@ -60,6 +61,7 @@ export default function ConfirmPage() {
   const [alreadyPaid, setAlreadyPaid] = useState(false)
   const [existingProofUrl, setExistingProofUrl] = useState<string | null>(null)
   const [copiedAlias, setCopiedAlias] = useState(false)
+  const [isInferiores, setIsInferiores] = useState(false)
 
   function copyAlias(text: string) {
     navigator.clipboard.writeText(text)
@@ -82,7 +84,7 @@ export default function ConfirmPage() {
     const res = await fetch("/api/attendees", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ event_id: event.id, full_name: name, status: "confirmed" }),
+      body: JSON.stringify({ event_id: event.id, full_name: name, status: "confirmed", is_inferiores: isInferiores }),
     })
 
     if (res.ok) {
@@ -213,6 +215,21 @@ export default function ConfirmPage() {
                     />
                   )}
                 </div>
+
+                {!is3t && !isUploadMode && event.inferiores_price && (
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="is_inferiores"
+                      checked={isInferiores}
+                      onChange={(e) => setIsInferiores(e.target.checked)}
+                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <label htmlFor="is_inferiores" className="text-sm text-gray-700 cursor-pointer">
+                      Soy de inferiores
+                    </label>
+                  </div>
+                )}
 
                 {error && <p className="text-red-500 text-sm">{error}</p>}
 

@@ -23,6 +23,10 @@ ALTER TABLE "expenses" ADD COLUMN IF NOT EXISTS "receipt_url" text;
 
 -- Migración 6: marca de gasto saldado (devolución hecha al acreedor)
 ALTER TABLE "expenses" ADD COLUMN IF NOT EXISTS "settled" boolean NOT NULL DEFAULT false;
+
+-- Migración 7: precio reducido para jugadores de inferiores
+ALTER TABLE "events" ADD COLUMN IF NOT EXISTS "inferiores_price" numeric(10,2);
+ALTER TABLE "attendees" ADD COLUMN IF NOT EXISTS "is_inferiores" boolean NOT NULL DEFAULT false;
 ```
 
 ## Buckets de Storage

@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
 import MarkPaidButton from "@/components/mark-paid-button"
 import DeleteAttendeeButton from "@/components/delete-attendee-button"
+import ToggleInferioresButton from "@/components/toggle-inferiores-button"
 import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react"
 
 type SortField = "name" | "confirmed" | "paid"
@@ -23,6 +24,7 @@ export type AttendeeItem = {
   createdAtFormatted: string | null
   proofUploadedAtISO: string | null
   proofUploadedAtFormatted: string | null
+  isInferiores?: boolean
 }
 
 const SORT_OPTIONS: { value: SortField; label: string }[] = [
@@ -55,7 +57,7 @@ function sortAttendees(list: AttendeeItem[], field: SortField, dir: SortDirectio
   return sorted
 }
 
-export default function SortableAttendeeList({ attendees }: { attendees: AttendeeItem[] }) {
+export default function SortableAttendeeList({ attendees, hasInferioresPrice }: { attendees: AttendeeItem[]; hasInferioresPrice?: boolean }) {
   const [sortField, setSortField] = useState<SortField>("name")
   const [sortDir, setSortDir] = useState<SortDirection>("asc")
 
@@ -105,6 +107,9 @@ export default function SortableAttendeeList({ attendees }: { attendees: Attende
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
+              {hasInferioresPrice && (
+                <ToggleInferioresButton attendeeId={attendee.id} isInferiores={!!attendee.isInferiores} />
+              )}
               {attendee.paidViaCombo && attendee.combo_id && (
                 <Link href={`/admin/combos/${attendee.combo_id}`}>
                   <Badge className="bg-purple-100 text-purple-700 hover:bg-purple-200 cursor-pointer text-[10px]">

@@ -129,7 +129,7 @@ export default async function EventPage({ params }: { params: { slug: string } }
           {event.date_tiers && event.date_tiers.length > 0 ? (
             // Precio por fecha
             <div className="bg-[#002060]/5 border border-[#002060]/10 rounded-xl px-4 py-3 space-y-2">
-              <p className="text-xs text-gray-400 uppercase tracking-wide">Costo por persona</p>
+              <p className="text-xs text-gray-400 uppercase tracking-wide">Precio por persona</p>
               {(() => {
                 const today = todayArg()
                 const sorted = [...event.date_tiers!].sort((a, b) => {
@@ -160,7 +160,7 @@ export default async function EventPage({ params }: { params: { slug: string } }
           ) : event.pricing_tiers && event.pricing_tiers.length > 0 ? (
             // Precio por cantidad
             <div className="bg-[#002060]/5 border border-[#002060]/10 rounded-xl px-4 py-3 space-y-2">
-              <p className="text-xs text-gray-400 uppercase tracking-wide">Costo por persona</p>
+              <p className="text-xs text-gray-400 uppercase tracking-wide">Precio por persona</p>
               {(() => {
                 const sorted = [...event.pricing_tiers!].sort((a, b) => (a.upTo ?? Infinity) - (b.upTo ?? Infinity))
                 return sorted.map((tier, i) => {
@@ -190,8 +190,18 @@ export default async function EventPage({ params }: { params: { slug: string } }
                 <span className="text-white text-sm font-bold">$</span>
               </div>
               <div>
-                <p className="text-xs text-gray-400 uppercase tracking-wide">Costo por persona</p>
+                <p className="text-xs text-gray-400 uppercase tracking-wide">Precio por persona</p>
                 <p className="font-bold text-[#002060] text-lg">{formatCurrency(event.payment_amount)}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Inferiores price badge */}
+          {!event.is_3t && event.inferiores_price && (
+            <div className="bg-[#002060]/5 border border-[#002060]/10 rounded-xl px-4 py-3">
+              <div className="flex justify-between items-center">
+                <p className="text-xs text-gray-400 uppercase tracking-wide">Precio inferiores</p>
+                <p className="font-bold text-[#002060]">{formatCurrency(event.inferiores_price)}</p>
               </div>
             </div>
           )}
