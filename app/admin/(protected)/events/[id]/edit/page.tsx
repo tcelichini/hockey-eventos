@@ -66,7 +66,6 @@ export default function EditEventPage() {
   const [pricingMode, setPricingMode] = useState<PricingMode>("fixed")
   const [pricingTiers, setPricingTiers] = useState<PricingTier[] | null>(null)
   const [dateTiers, setDateTiers] = useState<DateTier[] | null>(null)
-  const [whatsappConfirmation, setWhatsappConfirmation] = useState(false)
   const [is3t, setIs3t] = useState(false)
   const [teams, setTeams] = useState<string[]>([])
   const [inferioresEnabled, setInferioresEnabled] = useState(false)
@@ -82,7 +81,6 @@ export default function EditEventPage() {
         setPricingTiers(data.pricing_tiers)
         setDateTiers(data.date_tiers)
         setPricingMode(detectMode(data))
-        setWhatsappConfirmation(data.whatsapp_confirmation ?? false)
         setIs3t(data.is_3t ?? false)
         setTeams(data.teams ?? [])
         setInferioresEnabled(!!data.inferiores_price)
@@ -103,11 +101,11 @@ export default function EditEventPage() {
       flyer_url: flyerUrl,
       payment_account: (form.elements.namedItem("payment_account") as HTMLInputElement).value,
       payment_amount: parseFloat((form.elements.namedItem("payment_amount") as HTMLInputElement).value),
-      whatsapp_number: (form.elements.namedItem("whatsapp_number") as HTMLInputElement).value,
+      whatsapp_number: event.whatsapp_number,
       max_capacity: maxCapacityVal ? parseInt(maxCapacityVal) : null,
       pricing_tiers: pricingMode === "tiers" ? pricingTiers : null,
       date_tiers: pricingMode === "date" ? dateTiers : null,
-      whatsapp_confirmation: whatsappConfirmation,
+      whatsapp_confirmation: false,
       is_3t: is3t,
       teams: is3t ? teams : null,
       inferiores_price: !is3t && inferioresEnabled ? (() => {
@@ -327,41 +325,6 @@ export default function EditEventPage() {
                 <DateTiersEditor value={dateTiers} onChange={setDateTiers} />
               )}
 
-              <div className="space-y-2">
-                <Label htmlFor="payment_account">CBU / Alias de destino *</Label>
-                <Input
-                  id="payment_account"
-                  name="payment_account"
-                  defaultValue={event.payment_account}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="whatsapp_number">WhatsApp para comprobantes *</Label>
-                <Input
-                  id="whatsapp_number"
-                  name="whatsapp_number"
-                  type="tel"
-                  defaultValue={event.whatsapp_number}
-                  required
-                />
-              </div>
-
-              <div className="flex items-center gap-3 pt-2">
-                <input
-                  type="checkbox"
-                  id="whatsapp_confirmation"
-                  checked={whatsappConfirmation}
-                  onChange={(e) => setWhatsappConfirmation(e.target.checked)}
-                  className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
-                />
-                <div>
-                  <Label htmlFor="whatsapp_confirmation" className="cursor-pointer">Habilitar envío de comprobante por WhatsApp</Label>
-                  <p className="text-xs text-gray-400">Si está activado, los asistentes verán la opción de enviar el comprobante por WhatsApp después de anotarse.</p>
-                </div>
-              </div>
-
               {!is3t && (
                 <div className="space-y-3">
                   <div className="flex items-center gap-3 pt-2">
@@ -394,6 +357,16 @@ export default function EditEventPage() {
                   )}
                 </div>
               )}
+
+              <div className="space-y-2">
+                <Label htmlFor="payment_account">CBU / Alias de destino *</Label>
+                <Input
+                  id="payment_account"
+                  name="payment_account"
+                  defaultValue={event.payment_account}
+                  required
+                />
+              </div>
 
             </div>
 

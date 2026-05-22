@@ -314,3 +314,10 @@ Registro de todas las sesiones de trabajo. Cada entrada documenta cambios concre
 - **Feat: precio reducido para jugadores de inferiores:** en eventos no-3T (asados), el admin puede habilitar un precio inferiores desde el formulario de crear/editar evento. Cuando está habilitado, los jugadores de categorías menores pueden marcarse como "inferiores" al inscribirse y pagan un monto fijo menor, independiente del modo de pricing del evento. El admin puede ver y editar el flag de inferiores desde la lista de asistentes, y el cálculo de "Falta cobrar" contempla el monto reducido.
   - DB: nuevas columnas `events.inferiores_price` (numeric, nullable) y `attendees.is_inferiores` (boolean, default false). Migración 7.
   - Archivos: `db/schema.ts`, `app/api/events/route.ts`, `app/api/events/[id]/route.ts`, `app/api/events/by-slug/[slug]/route.ts`, `app/api/attendees/route.ts`, `app/api/attendees/[id]/route.ts`, `app/api/events/[id]/export/route.ts`, `app/admin/(protected)/events/new/page.tsx`, `app/admin/(protected)/events/[id]/edit/page.tsx`, `app/admin/(protected)/events/[id]/page.tsx`, `app/e/[slug]/page.tsx`, `app/e/[slug]/confirm/page.tsx`, `components/toggle-inferiores-button.tsx` (nuevo), `components/sortable-attendee-list.tsx`, `docs/MIGRACIONES.md`
+
+## Sesión 30 (2026-05-22)
+
+- **Fix: eventos pasados se muestran con el más reciente arriba:** la API devuelve eventos ordenados por fecha ASC, y los próximos se revertían para mostrar el más cercano primero, pero los pasados quedaban sin revertir (el más antiguo arriba). Se agregó `.reverse()` a la lista de pasados.
+  - Archivos: `app/admin/(protected)/page.tsx`
+- **Limpieza formulario de eventos:** se removieron los campos "WhatsApp para comprobantes" y "Habilitar envío de comprobante por WhatsApp" de los formularios de crear y editar evento (ya no se usan). Se reubicó la opción de precio inferiores debajo de los tramos de precio y antes de CBU/Alias.
+  - Archivos: `app/admin/(protected)/events/new/page.tsx`, `app/admin/(protected)/events/[id]/edit/page.tsx`
