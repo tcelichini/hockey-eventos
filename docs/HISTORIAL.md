@@ -321,3 +321,10 @@ Registro de todas las sesiones de trabajo. Cada entrada documenta cambios concre
   - Archivos: `app/admin/(protected)/page.tsx`
 - **Limpieza formulario de eventos:** se removieron los campos "WhatsApp para comprobantes" y "Habilitar envío de comprobante por WhatsApp" de los formularios de crear y editar evento (ya no se usan). Se reubicó la opción de precio inferiores debajo de los tramos de precio y antes de CBU/Alias.
   - Archivos: `app/admin/(protected)/events/new/page.tsx`, `app/admin/(protected)/events/[id]/edit/page.tsx`
+
+## Sesión 31 (2026-05-26)
+
+- **Fix: año visible en fechas del dashboard y pendientes:** el formato de fecha no mostraba el año, lo que generaba confusión cuando había eventos de distintos años (ej: un evento de 2025 parecía reciente). Se agregó `year: "numeric"` al `Intl.DateTimeFormat` de ambas páginas.
+  - Archivos: `app/admin/(protected)/page.tsx`, `app/admin/(protected)/pendientes/page.tsx`
+- **Fix: pendientes de pago descuenta gastos adelantados por persona:** la página de pendientes mostraba el precio bruto del evento sin descontar los gastos que el asistente adelantó. Ahora consulta los `expenses` de cada evento, cruza por nombre del responsable, y muestra el saldo neto (precio − gastos). Si el neto es 0 o negativo, la persona no aparece en pendientes. Incluye desglose visible ("$35.000 − $18.000 gastos").
+  - Archivos: `app/admin/(protected)/pendientes/page.tsx`

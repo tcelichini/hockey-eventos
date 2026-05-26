@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { db } from "@/db"
-import { events, attendees, combos } from "@/db/schema"
+import { events, attendees, combos, expenses } from "@/db/schema"
 import type { DateTier } from "@/db/schema"
 import { eq, and, sql, inArray } from "drizzle-orm"
 import { Card, CardContent } from "@/components/ui/card"
@@ -23,6 +23,7 @@ function formatDate(date: Date | null) {
     weekday: "long",
     day: "numeric",
     month: "long",
+    year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
     timeZone: "America/Argentina/Buenos_Aires",
@@ -93,7 +94,7 @@ export default async function PendientesPage() {
       slug: string
       payment_amount: string
       date_tiers: DateTier[] | null
-      people: { id: string; name: string; amount: number }[]
+      people: { id: string; name: string; amount: number; grossAmount: number; expPaid: number }[]
     }
   >()
 
@@ -129,12 +130,41 @@ export default async function PendientesPage() {
       id: row.id,
       name: row.full_name,
       amount,
+      grossAmount: amount,
+      expPaid: 0,
     })
   }
 
-  const grouped = Array.from(eventMap.values()).sort(
-    (a, b) => new Date(b.date!).getTime() - new Date(a.date!).getTime()
-  )
+  // Fetch expenses for events with pending payments and discount from each person's amount
+  const eventIdsWithPending = Array.from(eventMap.keys())
+  if (eventIdsWithPending.length > 0) {
+    const expenseList = await db
+      .select()
+      .from(expenses)
+      .where(inArray(expenses.event_id, eventIdsWithPending))
+
+    const expenseByEventPerson = new Map<string, number>()
+    for (const e of expenseList) {
+      const key = `${e.event_id}::${e.responsible.trim().toLowerCase()}`
+      expenseByEventPerson.set(key, (expenseByEventPerson.get(key) || 0) + Number(e.amount))
+    }
+
+    for (const group of eventMap.values()) {
+      for (const person of group.people) {
+        const key = `${group.event_id}::${person.name.trim().toLowerCase()}`
+        const exp = expenseByEventPerson.get(key) || 0
+        if (exp > 0) {
+          person.expPaid = exp
+          person.amount = Math.max(0, person.grossAmount - exp)
+        }
+      }
+      group.people = group.people.filter((p) => p.amount > 0)
+    }
+  }
+
+  const grouped = Array.from(eventMap.values())
+    .filter((g) => g.people.length > 0)
+    .sort((a, b) => new Date(b.date!).getTime() - new Date(a.date!).getTime())
 
   // Confirmed counts per event (for "X pendientes de Y confirmados")
   const confirmedCounts = new Map<string, number>()
@@ -274,7 +304,7 @@ function EventPendingGroup({
     date: Date | null
     is_open: boolean
     slug: string
-    people: { id: string; name: string; amount: number }[]
+    people: { id: string; name: string; amount: number; grossAmount: number; expPaid: number }[]
   }
   confirmedCount: number
   isPast: boolean
@@ -318,9 +348,16 @@ function EventPendingGroup({
               </div>
               <span className="text-sm text-gray-700">{person.name}</span>
             </div>
-            <span className="text-sm font-medium text-orange-500 shrink-0 ml-2">
-              {formatCurrency(person.amount)}
-            </span>
+            <div className="text-right shrink-0 ml-2">
+              <span className="text-sm font-medium text-orange-500">
+                {formatCurrency(person.amount)}
+              </span>
+              {person.expPaid > 0 && (
+                <p className="text-xs text-gray-400">
+                  {formatCurrency(person.grossAmount)} − {formatCurrency(person.expPaid)} gastos
+                </p>
+              )}
+            </div>
           </div>
         ))}
 
