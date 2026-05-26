@@ -153,9 +153,13 @@ export default async function PendientesPage() {
     }
   }
 
-  // Split into upcoming vs past
-  const upcoming = grouped.filter((g) => g.date && new Date(g.date) >= now)
-  const past = grouped.filter((g) => g.date && new Date(g.date) < now)
+  // Split into upcoming vs past, with explicit sort to guarantee order
+  const upcoming = grouped
+    .filter((g) => g.date && new Date(g.date) >= now)
+    .sort((a, b) => new Date(a.date!).getTime() - new Date(b.date!).getTime())
+  const past = grouped
+    .filter((g) => g.date && new Date(g.date) < now)
+    .sort((a, b) => new Date(b.date!).getTime() - new Date(a.date!).getTime())
 
   // Summary stats (only events with pending payments)
   const totalPending = grouped.reduce(

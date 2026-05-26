@@ -137,7 +137,6 @@ export default async function AdminPage() {
   const past = eventList
     .map((e, i) => ({ event: e, stats: stats[i] }))
     .filter((item) => new Date(item.event.date!) < now)
-    .reverse()
 
   return (
     <div className="space-y-6">
