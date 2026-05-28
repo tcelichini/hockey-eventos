@@ -54,7 +54,7 @@ cp "ruta/repo/.env.local" "ruta/worktree/.env.local"
 
 ### ESLint en Vercel rompe el build por variables no usadas
 
-Vercel corre `next build` que incluye ESLint con la regla `@typescript-eslint/no-unused-vars` como **error** (no warning). Si se elimina el uso de una variable pero no la declaración, el build falla en Vercel aunque `npx tsc --noEmit` pase localmente. **Siempre correr `npx next lint` antes de pushear a `main`** para detectar estos errores antes del deploy.
+Vercel corre `next build` que incluye ESLint con la regla `@typescript-eslint/no-unused-vars` como **error** (no warning). Si se elimina el uso de una variable pero no la declaración, el build falla en Vercel aunque `npx tsc --noEmit` pase localmente. **Siempre correr `npx next build` antes de pushear a `main`** — `next lint` solo no alcanza, porque hay errores de tipos (ej: `'X' is possibly null`, `Map.values()` no iterable) que solo aparecen durante el build completo y rompen el deploy silenciosamente.
 
 ### Archivos truncados al editar desde Cowork
 
