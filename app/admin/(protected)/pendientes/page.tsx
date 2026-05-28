@@ -149,7 +149,7 @@ export default async function PendientesPage() {
       expenseByEventPerson.set(key, (expenseByEventPerson.get(key) || 0) + Number(e.amount))
     }
 
-    for (const group of eventMap.values()) {
+    for (const group of Array.from(eventMap.values())) {
       for (const person of group.people) {
         const key = `${group.event_id}::${person.name.trim().toLowerCase()}`
         const exp = expenseByEventPerson.get(key) || 0

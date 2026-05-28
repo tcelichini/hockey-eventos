@@ -101,7 +101,7 @@ export default function EditEventPage() {
       flyer_url: flyerUrl,
       payment_account: (form.elements.namedItem("payment_account") as HTMLInputElement).value,
       payment_amount: parseFloat((form.elements.namedItem("payment_amount") as HTMLInputElement).value),
-      whatsapp_number: event.whatsapp_number,
+      whatsapp_number: "0",
       max_capacity: maxCapacityVal ? parseInt(maxCapacityVal) : null,
       pricing_tiers: pricingMode === "tiers" ? pricingTiers : null,
       date_tiers: pricingMode === "date" ? dateTiers : null,
