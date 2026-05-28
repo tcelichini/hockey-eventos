@@ -28,7 +28,7 @@ export default function WhatsAppListButton({
 }) {
   function handleClick() {
     const lines: string[] = [
-      `⚽ *${eventTitle}*`,
+      `🏑🍖🥗 *${eventTitle}*`,
     ]
 
     if (eventDate) {
