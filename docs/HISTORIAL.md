@@ -336,3 +336,13 @@ Registro de todas las sesiones de trabajo. Cada entrada documenta cambios concre
   - Error 2: `pendientes/page.tsx:152` — `Map.values()` no es iterable con el target de TypeScript del proyecto. Fix: envolver en `Array.from()`.
   - Lección: **siempre correr `npx next build` antes de pushear**, no solo `npx next lint`. El lint no cubre errores de tipos que sí rompen el build en Vercel.
   - Archivos: `app/admin/(protected)/events/[id]/edit/page.tsx`, `app/admin/(protected)/pendientes/page.tsx`
+
+## Sesión 33 (2026-05-28)
+
+- **Botón "Enviar lista por WhatsApp" en página de confirmación:** al anotarse a un evento, el asistente ve un botón para compartir la lista numerada de confirmados por WhatsApp. Genera un mensaje formateado con título, fecha, lista numerada en orden de inscripción, y un llamado a anotarse desde el link (no por WhatsApp).
+  - Nuevo componente `components/whatsapp-list-button.tsx`: botón verde que abre `wa.me` con el mensaje pre-armado listo para enviar al grupo que el usuario elija.
+  - El botón aparece solo después de confirmar asistencia (en la pantalla de pago), no en la página pública del evento, para evitar que se comparta antes de anotarse.
+  - La API `events/by-slug/[slug]` ahora devuelve `date`, `slug`, y ordena `attendeeNames` por `created_at` ASC (orden de inscripción).
+  - La página de confirmación re-fetchea los datos del evento después de confirmar, para que la lista incluya al recién anotado.
+  - La sección "¿Quiénes van?" en la página pública ahora muestra los nombres numerados por orden de inscripción (antes era alfabético).
+  - Archivos: `components/whatsapp-list-button.tsx` (nuevo), `app/e/[slug]/confirm/page.tsx`, `app/e/[slug]/page.tsx`, `app/api/events/by-slug/[slug]/route.ts`

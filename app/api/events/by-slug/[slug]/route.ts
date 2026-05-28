@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/db"
 import { events, attendees } from "@/db/schema"
-import { eq, and } from "drizzle-orm"
+import { eq, and, asc } from "drizzle-orm"
 
 export async function GET(_request: NextRequest, { params }: { params: { slug: string } }) {
   const [event] = await db
     .select({
       id: events.id,
       title: events.title,
+      date: events.date,
+      slug: events.slug,
       payment_amount: events.payment_amount,
       payment_account: events.payment_account,
       whatsapp_number: events.whatsapp_number,
@@ -30,6 +32,7 @@ export async function GET(_request: NextRequest, { params }: { params: { slug: s
     .select({ full_name: attendees.full_name, payment_status: attendees.payment_status })
     .from(attendees)
     .where(and(eq(attendees.event_id, event.id), eq(attendees.status, "confirmed")))
+    .orderBy(asc(attendees.created_at))
 
   const confirmedCount = confirmedAttendeeRows.length
   const attendeeNames = confirmedAttendeeRows.map((a) => a.full_name)

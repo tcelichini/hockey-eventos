@@ -9,11 +9,14 @@ import { Card, CardContent } from "@/components/ui/card"
 import { CheckCircleIcon, ArrowLeftIcon, CopyIcon, CheckIcon } from "lucide-react"
 import Link from "next/link"
 import PaymentProofUpload from "@/components/payment-proof-upload"
+import WhatsAppListButton from "@/components/whatsapp-list-button"
 import { getPlayersForTeams } from "@/lib/players"
 
 type EventData = {
   id: string
   title: string
+  date: string | null
+  slug: string
   payment_amount: string
   payment_account: string
   whatsapp_number: string
@@ -100,6 +103,10 @@ export default function ConfirmPage() {
         event_title: data.event_title,
         attendee_name: name,
       })
+      // Re-fetch event to get updated attendee list
+      fetch(`/api/events/by-slug/${slug}`)
+        .then((r) => r.json())
+        .then(setEvent)
       setStep("payment")
     } else {
       const err = await res.json()
@@ -337,6 +344,23 @@ export default function ConfirmPage() {
                   <WhatsAppIcon />
                   Enviar comprobante por WhatsApp
                 </a>
+              </>
+            )}
+
+            {event.attendeeNames.length > 0 && (
+              <>
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-px bg-gray-200" />
+                  <span className="text-xs text-gray-400">compartí la lista de anotados</span>
+                  <div className="flex-1 h-px bg-gray-200" />
+                </div>
+
+                <WhatsAppListButton
+                  eventTitle={event.title}
+                  eventDate={event.date ? new Date(event.date) : null}
+                  attendees={event.attendeeNames.map((n) => ({ full_name: n }))}
+                  publicLink={`${typeof window !== "undefined" ? window.location.origin : ""}/e/${slug}`}
+                />
               </>
             )}
           </div>

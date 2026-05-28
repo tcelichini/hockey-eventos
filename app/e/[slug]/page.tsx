@@ -1,6 +1,6 @@
 import { db } from "@/db"
 import { events, attendees as attendeesTable, combos } from "@/db/schema"
-import { eq, and } from "drizzle-orm"
+import { eq, and, asc } from "drizzle-orm"
 import { notFound } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
@@ -9,6 +9,7 @@ import { calculatePrice, getTierLabel, calculateDatePrice, getDateTierLabel, tod
 import ExpenseForm from "@/components/expense-form"
 
 import CollapsibleSection from "@/components/collapsible-section"
+
 import type { Metadata } from "next"
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
@@ -60,9 +61,11 @@ export default async function EventPage({ params }: { params: { slug: string } }
       full_name: attendeesTable.full_name,
       payment_status: attendeesTable.payment_status,
       price_paid: attendeesTable.price_paid,
+      created_at: attendeesTable.created_at,
     })
     .from(attendeesTable)
     .where(and(eq(attendeesTable.event_id, event.id), eq(attendeesTable.status, "confirmed")))
+    .orderBy(asc(attendeesTable.created_at))
 
   const confirmedCount = confirmedAttendees.length
 
@@ -280,7 +283,7 @@ export default async function EventPage({ params }: { params: { slug: string } }
             badge={<span className="text-sm font-bold text-[#00A651]">{confirmedAttendees.length}</span>}
           >
             <div className="flex flex-wrap gap-2">
-              {[...confirmedAttendees].sort((a, b) => a.full_name.localeCompare(b.full_name, "es")).map((a, i) => (
+              {confirmedAttendees.map((a, i) => (
                 <span
                   key={i}
                   className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-sm ${
@@ -290,7 +293,7 @@ export default async function EventPage({ params }: { params: { slug: string } }
                   }`}
                 >
                   {a.payment_status === "paid" && <CheckCircleIcon className="w-3.5 h-3.5 text-green-500" />}
-                  {a.full_name}
+                  {i + 1}. {a.full_name}
                 </span>
               ))}
             </div>
