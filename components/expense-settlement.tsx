@@ -12,42 +12,27 @@ function normalize(name: string) {
 }
 
 function calculateSettlement(expenses: ExpenseData[], attendees: AttendeeData[]) {
-  // Build set of all participants (confirmed attendees + anyone who paid an expense)
-  const participantMap = new Map<string, string>() // normalized -> display name
+  const attendeeKeys = new Set(attendees.map(a => normalize(a.full_name)))
 
-  for (const a of attendees) {
-    participantMap.set(normalize(a.full_name), a.full_name)
-  }
-  for (const e of expenses) {
-    const key = normalize(e.responsible)
-    if (!participantMap.has(key)) {
-      participantMap.set(key, e.responsible)
-    }
-  }
-
-  const participantCount = participantMap.size
+  const participantCount = attendees.length
   if (participantCount === 0) return null
 
-  // Calculate total and per-person share
   const total = expenses.reduce((sum, e) => sum + Number(e.amount), 0)
   const perPerson = total / participantCount
 
   // Calculate how much each person paid
   const paid = new Map<string, number>()
-  participantMap.forEach((_, key) => {
-    paid.set(key, 0)
-  })
   for (const e of expenses) {
     const key = normalize(e.responsible)
     paid.set(key, (paid.get(key) || 0) + Number(e.amount))
   }
 
-  // Only show people who actually paid something (bought stuff)
-  const buyers: { name: string; paid: number }[] = []
-  participantMap.forEach((displayName, key) => {
-    const paidAmount = paid.get(key) || 0
+  const buyers: { name: string; paid: number; isExternal: boolean }[] = []
+  paid.forEach((paidAmount, key) => {
     if (paidAmount > 0) {
-      buyers.push({ name: displayName, paid: paidAmount })
+      const attendee = attendees.find(a => normalize(a.full_name) === key)
+      const displayName = attendee?.full_name || expenses.find(e => normalize(e.responsible) === key)?.responsible || key
+      buyers.push({ name: displayName, paid: paidAmount, isExternal: !attendeeKeys.has(key) })
     }
   })
 
@@ -91,7 +76,10 @@ export default function ExpenseSettlement({
             <p className="text-xs text-gray-400 uppercase tracking-wide">Compraron</p>
             {result.buyers.map((b) => (
               <div key={b.name} className="flex items-center justify-between text-sm">
-                <span className="font-medium text-gray-700">{b.name}</span>
+                <span className="font-medium text-gray-700">
+                  {b.name}
+                  {b.isExternal && <span className="text-xs text-gray-400 font-normal ml-1">(no asistente)</span>}
+                </span>
                 <span className="font-semibold text-[#00A651]">{formatCurrency(b.paid)}</span>
               </div>
             ))}

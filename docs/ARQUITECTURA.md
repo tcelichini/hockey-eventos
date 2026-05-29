@@ -104,4 +104,8 @@ net < 0 → se le debe plata (verde) — aparece en "Se les debe devolver"
 net = 0 → al día
 ```
 
+Además, se detectan gastos cuyo `responsible` no matchea ningún asistente confirmado y se muestran como **acreedores externos** en la sección "Pagaron sin ser asistentes", con alias de pago y botón de saldar.
+
+En el componente `expense-settlement.tsx` (resumen de saldos público), la cuota por persona se divide solo entre asistentes confirmados — los pagadores externos no inflan el divisor.
+
 Para eventos en modo "Por fecha", el `eventDebt` de asistentes pendientes se recalcula con `calculateDatePrice(event.date_tiers, payment_amount)` para reflejar el tramo vigente al día de hoy (no el original al momento de anotarse). El `totalCollected` sigue usando `price_paid` real (lo que efectivamente se cobró).

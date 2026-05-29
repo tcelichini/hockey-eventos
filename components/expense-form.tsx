@@ -20,6 +20,7 @@ export default function ExpenseForm({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null)
+  const [isExternal, setIsExternal] = useState(false)
   const router = useRouter()
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -47,6 +48,7 @@ export default function ExpenseForm({
     if (res.ok) {
       form.reset()
       setReceiptUrl(null)
+      setIsExternal(false)
       setOpen(false)
       router.refresh()
     } else {
@@ -58,6 +60,7 @@ export default function ExpenseForm({
 
   function handleCancel() {
     setReceiptUrl(null)
+    setIsExternal(false)
     setOpen(false)
   }
 
@@ -97,17 +100,43 @@ export default function ExpenseForm({
           className="text-sm"
         />
         {attendeeNames ? (
-          <select
-            name="responsible"
-            required
-            className="text-sm rounded-md border border-input bg-background px-3 py-2 w-full"
-            defaultValue=""
-          >
-            <option value="" disabled>Seleccioná quién pagó</option>
-            {attendeeNames.map((name) => (
-              <option key={name} value={name}>{name}</option>
-            ))}
-          </select>
+          isExternal ? (
+            <div className="flex gap-1">
+              <Input
+                name="responsible"
+                placeholder="Nombre de quien pagó"
+                required
+                className="text-sm flex-1"
+              />
+              <button
+                type="button"
+                onClick={() => setIsExternal(false)}
+                className="text-xs text-gray-400 hover:text-gray-600 px-2 shrink-0"
+                title="Volver a lista de asistentes"
+              >
+                ✕
+              </button>
+            </div>
+          ) : (
+            <select
+              name="responsible"
+              required
+              className="text-sm rounded-md border border-input bg-background px-3 py-2 w-full"
+              defaultValue=""
+              onChange={(e) => {
+                if (e.target.value === "__external__") {
+                  setIsExternal(true)
+                  e.target.value = ""
+                }
+              }}
+            >
+              <option value="" disabled>Seleccioná quién pagó</option>
+              {attendeeNames.map((name) => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+              <option value="__external__">Otra persona (no asistente)</option>
+            </select>
+          )
         ) : (
           <Input
             name="responsible"

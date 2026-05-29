@@ -285,6 +285,7 @@ export default async function EventDetailPage({ params }: { params: { id: string
         ) : (() => {
           // Calcular balance neto de cada asistente confirmado:
           // net = (precio del evento si no pagó, 0 si ya pagó) - gastos adelantados
+          const confirmedKeys = new Set(confirmed.map(a => a.full_name.trim().toLowerCase()))
           const balances = confirmed.map(a => {
             const eventDebt = a.payment_status === "paid" ? 0 : getOwedPrice(a)
             const expPaid = expenseByPerson.get(a.full_name.trim().toLowerCase()) || 0
@@ -292,6 +293,15 @@ export default async function EventDetailPage({ params }: { params: { id: string
           })
           const debtors = balances.filter(b => b.net > 0)   // deben plata
           const creditors = balances.filter(b => b.net < 0) // se les debe plata
+
+          // Personas externas que pagaron gastos pero no son asistentes
+          const externalCreditors: { name: string; expPaid: number; key: string }[] = []
+          expenseByPerson.forEach((total, key) => {
+            if (!confirmedKeys.has(key)) {
+              const displayName = expenseList.find(e => e.responsible.trim().toLowerCase() === key)?.responsible || key
+              externalCreditors.push({ name: displayName, expPaid: total, key })
+            }
+          })
 
           return (
             <div className="space-y-3">
@@ -371,7 +381,53 @@ export default async function EventDetailPage({ params }: { params: { id: string
                 )
               })()}
 
-              {debtors.length === 0 && creditors.length === 0 && (
+              {externalCreditors.length > 0 && (() => {
+                const unsettledExt = externalCreditors.filter(c => !settledByPerson.get(c.key))
+                const settledExt = externalCreditors.filter(c => settledByPerson.get(c.key))
+                return (
+                  <div className={`space-y-2 ${(debtors.length > 0 || creditors.length > 0) ? "pt-3 border-t border-gray-100" : ""}`}>
+                    <p className="text-xs text-gray-400 uppercase tracking-wide">
+                      Pagaron sin ser asistentes{unsettledExt.length < externalCreditors.length ? ` (${unsettledExt.length} pendiente${unsettledExt.length !== 1 ? "s" : ""})` : ""}
+                    </p>
+                    {unsettledExt.map(({ name, expPaid, key }) => {
+                      const alias = aliasByPerson.get(key)
+                      const ids = expenseIdsByPerson.get(key) || []
+                      return (
+                        <div key={key} className="flex items-start justify-between gap-2 text-sm">
+                          <div>
+                            <span className="text-gray-700">{name}</span>
+                            {alias && (
+                              <p className="text-xs text-blue-500 font-mono mt-0.5">Transferir a: {alias}</p>
+                            )}
+                          </div>
+                          <div className="text-right shrink-0">
+                            <div className="flex items-center gap-1.5 justify-end">
+                              <span className="font-medium text-green-600">Le deben {formatCurrency(expPaid)}</span>
+                              <SettleCreditorButton expenseIds={ids} />
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                    {settledExt.length > 0 && (
+                      <div className={`space-y-1 ${unsettledExt.length > 0 ? "pt-2 border-t border-gray-100" : ""}`}>
+                        <p className="text-xs text-gray-400 uppercase tracking-wide">Ya saldados</p>
+                        {settledExt.map(({ name, key }) => {
+                          const ids = expenseIdsByPerson.get(key) || []
+                          return (
+                            <div key={key} className="flex items-center justify-between text-sm">
+                              <span className="text-gray-400 line-through">{name}</span>
+                              <SettleCreditorButton expenseIds={ids} settled={true} />
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
+
+              {debtors.length === 0 && creditors.length === 0 && externalCreditors.length === 0 && (
                 <p className="text-sm text-green-600 font-medium">✅ Todos al día</p>
               )}
             </div>

@@ -24,6 +24,7 @@ function formatCurrency(value: number) {
 }
 
 export default function ExpenseItem({ expense, attendeeNames }: { expense: ExpenseData; attendeeNames?: string[] }) {
+  const isExternalInitially = attendeeNames ? !attendeeNames.some(n => n.trim().toLowerCase() === expense.responsible.trim().toLowerCase()) : false
   const [editing, setEditing] = useState(false)
   const [loading, setLoading] = useState(false)
   const [description, setDescription] = useState(expense.description)
@@ -32,6 +33,7 @@ export default function ExpenseItem({ expense, attendeeNames }: { expense: Expen
   const [notes, setNotes] = useState(expense.notes || "")
   const [paymentAlias, setPaymentAlias] = useState(expense.payment_alias || "")
   const [receiptUrl, setReceiptUrl] = useState<string | null>(expense.receipt_url)
+  const [isExternal, setIsExternal] = useState(isExternalInitially)
   const router = useRouter()
 
   async function handleSave() {
@@ -72,16 +74,38 @@ export default function ExpenseItem({ expense, attendeeNames }: { expense: Expen
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Descripción" className="text-sm h-8" />
             {attendeeNames ? (
-              <select
-                value={responsible}
-                onChange={(e) => setResponsible(e.target.value)}
-                className="text-sm h-8 rounded-md border border-input bg-background px-3 w-full"
-              >
-                <option value="" disabled>Seleccioná quién pagó</option>
-                {attendeeNames.map((name) => (
-                  <option key={name} value={name}>{name}</option>
-                ))}
-              </select>
+              isExternal ? (
+                <div className="flex gap-1">
+                  <Input value={responsible} onChange={(e) => setResponsible(e.target.value)} placeholder="Nombre de quien pagó" className="text-sm h-8 flex-1" />
+                  <button
+                    type="button"
+                    onClick={() => { setIsExternal(false); setResponsible("") }}
+                    className="text-xs text-gray-400 hover:text-gray-600 px-2 shrink-0"
+                    title="Volver a lista de asistentes"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) : (
+                <select
+                  value={responsible}
+                  onChange={(e) => {
+                    if (e.target.value === "__external__") {
+                      setIsExternal(true)
+                      setResponsible("")
+                    } else {
+                      setResponsible(e.target.value)
+                    }
+                  }}
+                  className="text-sm h-8 rounded-md border border-input bg-background px-3 w-full"
+                >
+                  <option value="" disabled>Seleccioná quién pagó</option>
+                  {attendeeNames.map((name) => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                  <option value="__external__">Otra persona (no asistente)</option>
+                </select>
+              )
             ) : (
               <Input value={responsible} onChange={(e) => setResponsible(e.target.value)} placeholder="Responsable" className="text-sm h-8" />
             )}

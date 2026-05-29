@@ -354,3 +354,11 @@ Registro de todas las sesiones de trabajo. Cada entrada documenta cambios concre
 
 - **Mejora: convocatoria WhatsApp del admin incluye lista de confirmados:** el botón "Enviar convocatoria por WhatsApp" del panel admin ahora genera un mensaje con la misma estructura que el botón del link público: emojis de hockey/asado (🏑🍖🥗), lista numerada de confirmados, y precios/cupo. Antes solo mostraba el conteo de confirmados sin nombres.
   - Archivos: `components/whatsapp-invite-button.tsx`, `app/admin/(protected)/events/[id]/page.tsx`
+
+## Sesión 35 (2026-05-29)
+
+- **Feat: soporte para gastos pagados por personas que no son asistentes:** antes solo se podía asignar un gasto a un asistente confirmado del evento. Ahora el select del formulario de gastos (crear y editar) incluye la opción "Otra persona (no asistente)" que muestra un input de texto libre para el nombre.
+  - En el balance del admin, los pagadores externos aparecen en una sección separada "Pagaron sin ser asistentes" con alias de pago y botón de saldar.
+  - En el resumen de saldos (cuota por persona), los externos no se cuentan como participantes para la división — la cuota se reparte solo entre asistentes reales. Los compradores externos se muestran con el tag "(no asistente)".
+  - No requiere migración de DB: el campo `responsible` ya era texto libre.
+  - Archivos: `components/expense-form.tsx`, `components/expense-item.tsx`, `app/admin/(protected)/events/[id]/page.tsx`, `components/expense-settlement.tsx`
