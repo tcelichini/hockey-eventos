@@ -50,6 +50,43 @@ La app opera en `America/Argentina/Buenos_Aires` (UTC−3). Vercel corre en UTC,
 
 Cuando un campo numérico puede venir legítimamente con valor `0` (ej: `payment_amount` en modo "Por fecha"), no usar `!campo` en la validación porque `!0 === true`. Usar `campo == null` para distinguir `0` de `undefined`/`null`.
 
+## Edición inline en listados: el formulario debe reemplazar la fila
+
+Cuando una fila de un listado tiene un botón de "Editar" que muestra un formulario inline, **el formulario debe renderizarse al nivel de la fila completa**, no dentro del contenedor de botones/acciones.
+
+**Mal** — el formulario queda atrapado en el `shrink-0` de los botones y se superpone en mobile:
+```tsx
+<div className="flex items-start justify-between">
+  <div className="flex-1">{/* info */}</div>
+  <div className="shrink-0">
+    <EditButton />  {/* ← si el form se renderiza acá adentro, se rompe */}
+    <DeleteButton />
+  </div>
+</div>
+```
+
+**Bien** — usar un componente cliente que alterne entre display y form a nivel de fila:
+```tsx
+// ItemComponent.tsx ("use client")
+if (editing) {
+  return (
+    <div className="py-3">
+      <div className="space-y-2">{/* inputs en grillas responsive */}</div>
+    </div>
+  )
+}
+return (
+  <div className="py-3">
+    <div className="flex items-start justify-between">
+      <div className="flex-1">{/* info */}</div>
+      <div className="shrink-0">{/* botones editar/eliminar */}</div>
+    </div>
+  </div>
+)
+```
+
+**Razón:** en mobile, un formulario con inputs de ancho completo no cabe dentro de un contenedor `shrink-0` pensado para iconos. El formulario debe tomar el ancho total de la fila.
+
 ## Buckets de Storage por tipo de contenido
 
 Mantener buckets separados para distinguir conceptualmente entre **ingresos** (pagos de asistentes → `event-banners`) y **egresos** (gastos del evento → `expense-receipts`). Esto facilita auditoría y permisos diferenciados a futuro.

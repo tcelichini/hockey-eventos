@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { revalidatePath } from "next/cache"
 import { db } from "@/db"
 import { expenses } from "@/db/schema"
 import { eq } from "drizzle-orm"
@@ -35,6 +36,9 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     return NextResponse.json({ error: "Gasto no encontrado" }, { status: 404 })
   }
 
+  revalidatePath(`/admin/events/${updated.event_id}`)
+  revalidatePath(`/e`)
+
   return NextResponse.json(updated)
 }
 
@@ -51,6 +55,9 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
   if (!deleted) {
     return NextResponse.json({ error: "Gasto no encontrado" }, { status: 404 })
   }
+
+  revalidatePath(`/admin/events/${deleted.event_id}`)
+  revalidatePath(`/e`)
 
   return NextResponse.json({ ok: true })
 }

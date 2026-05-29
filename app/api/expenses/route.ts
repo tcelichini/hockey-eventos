@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { revalidatePath } from "next/cache"
 import { db } from "@/db"
 import { expenses, events } from "@/db/schema"
 import { eq } from "drizzle-orm"
@@ -28,6 +29,9 @@ export async function POST(request: NextRequest) {
       receipt_url: receipt_url || null,
     })
     .returning()
+
+  revalidatePath(`/admin/events/${event_id}`)
+  revalidatePath(`/e`)
 
   return NextResponse.json(expense, { status: 201 })
 }
