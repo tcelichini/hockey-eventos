@@ -236,6 +236,7 @@ export default async function EventDetailPage({ params }: { params: { id: string
             publicLink={publicLink}
             maxCapacity={event.max_capacity}
             confirmedCount={confirmed.length}
+            attendees={confirmed.map(a => ({ full_name: a.full_name }))}
             paymentAmount={amount}
             pricingTiers={event.pricing_tiers}
           />

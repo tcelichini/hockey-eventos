@@ -346,3 +346,11 @@ Registro de todas las sesiones de trabajo. Cada entrada documenta cambios concre
   - La página de confirmación re-fetchea los datos del evento después de confirmar, para que la lista incluya al recién anotado.
   - La sección "¿Quiénes van?" en la página pública ahora muestra los nombres numerados por orden de inscripción (antes era alfabético).
   - Archivos: `components/whatsapp-list-button.tsx` (nuevo), `app/e/[slug]/confirm/page.tsx`, `app/e/[slug]/page.tsx`, `app/api/events/by-slug/[slug]/route.ts`
+
+## Sesión 34 (2026-05-29)
+
+- **Fix: quitar números de la sección "¿Quiénes van?" en link público:** la sesión 33 agregó números (1. Salcha, 2. Agusto…) a los chips de asistentes en la página pública. Se removieron para dejar solo los nombres, ya que los números son para la lista de WhatsApp, no para la UI.
+  - Archivos: `app/e/[slug]/page.tsx`
+
+- **Mejora: convocatoria WhatsApp del admin incluye lista de confirmados:** el botón "Enviar convocatoria por WhatsApp" del panel admin ahora genera un mensaje con la misma estructura que el botón del link público: emojis de hockey/asado (🏑🍖🥗), lista numerada de confirmados, y precios/cupo. Antes solo mostraba el conteo de confirmados sin nombres.
+  - Archivos: `components/whatsapp-invite-button.tsx`, `app/admin/(protected)/events/[id]/page.tsx`

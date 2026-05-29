@@ -293,7 +293,7 @@ export default async function EventPage({ params }: { params: { slug: string } }
                   }`}
                 >
                   {a.payment_status === "paid" && <CheckCircleIcon className="w-3.5 h-3.5 text-green-500" />}
-                  {i + 1}. {a.full_name}
+                  {a.full_name}
                 </span>
               ))}
             </div>

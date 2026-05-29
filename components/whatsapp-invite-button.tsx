@@ -28,6 +28,7 @@ export default function WhatsAppInviteButton({
   publicLink,
   maxCapacity,
   confirmedCount,
+  attendees,
   paymentAmount,
   pricingTiers,
 }: {
@@ -37,17 +38,17 @@ export default function WhatsAppInviteButton({
   publicLink: string
   maxCapacity: number | null
   confirmedCount: number
+  attendees: { full_name: string }[]
   paymentAmount: number
   pricingTiers: { upTo: number | null; price: number }[] | null
 }) {
   function handleClick() {
     const lines: string[] = [
-      `⚽ *${eventTitle}*`,
-      "",
+      `🏑🍖🥗 *${eventTitle}*`,
     ]
 
     if (eventDescription) {
-      lines.push(eventDescription, "")
+      lines.push(eventDescription)
     }
 
     if (eventDate) {
@@ -64,16 +65,20 @@ export default function WhatsAppInviteButton({
       lines.push(`💰 ${formatCurrency(paymentAmount)}`)
     }
 
-    if (confirmedCount > 0) {
-      lines.push("", `✅ Confirmados: ${confirmedCount}`)
+    if (attendees.length > 0) {
+      lines.push("")
+      lines.push(`✅ *Confirmados (${attendees.length}):*`)
+      attendees.forEach((a, i) => {
+        lines.push(`${i + 1}. ${a.full_name}`)
+      })
     }
 
     if (maxCapacity) {
       const remaining = maxCapacity - confirmedCount
       if (remaining > 0) {
-        lines.push(`📢 ¡Quedan ${remaining} lugares!`)
+        lines.push("", `📢 ¡Quedan ${remaining} lugares!`)
       } else {
-        lines.push(`⚠️ Cupo completo`)
+        lines.push("", `⚠️ Cupo completo`)
       }
     }
 
