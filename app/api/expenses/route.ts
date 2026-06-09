@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache"
 import { db } from "@/db"
 import { expenses, events } from "@/db/schema"
 import { eq } from "drizzle-orm"
+import { syncExpensePayment } from "@/lib/sync-expense-payment"
 
 export async function POST(request: NextRequest) {
   const body = await request.json()
@@ -29,6 +30,8 @@ export async function POST(request: NextRequest) {
       receipt_url: receipt_url || null,
     })
     .returning()
+
+  await syncExpensePayment(event_id, responsible.trim())
 
   revalidatePath(`/admin/events/${event_id}`)
   revalidatePath(`/e`)

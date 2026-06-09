@@ -95,8 +95,8 @@ La tabla `attendees` tiene un campo `combo_id` (nullable) que referencia al comb
 ```
 net = eventDebt - expPaid
 
-eventDebt = 0             (si ya pagó el evento)
-eventDebt = price_paid    (si aún no pagó)
+eventDebt = 0                    (si ya pagó el evento)
+eventDebt = getOwedPrice(a)      (si aún no pagó — tramo más caro)
 expPaid   = suma de gastos adelantados por esa persona
 
 net > 0 → debe plata (naranja) — aparece en "Deben pagar"
@@ -104,8 +104,31 @@ net < 0 → se le debe plata (verde) — aparece en "Se les debe devolver"
 net = 0 → al día
 ```
 
+### Precio para no-pagadores (`getOwedPrice`)
+
+Para asistentes que no pagaron se usa el **tramo más caro**, no el precio asignado al anotarse:
+
+| Tipo de evento | Precio usado |
+|---|---|
+| `date_tiers` | `calculateDatePrice()` con fecha actual (post-evento = catch-all, el más caro) |
+| `pricing_tiers` | `Math.max(...)` de todos los tramos |
+| Precio fijo | `payment_amount` |
+| Inferiores | `inferiores_price` (siempre fijo) |
+
+### Auto-marcado de pago por gastos (`lib/sync-expense-payment.ts`)
+
+Cuando se crea, edita o borra un gasto, se sincroniza el `payment_status` del asistente responsable:
+
+- Si total gastos ≥ precio evento → `payment_status = "paid"` (sin necesidad de comprobante)
+- Si total gastos < precio evento y no tiene comprobante (`payment_proof_url` es null) → `payment_status = "pending"`
+- Si tiene comprobante, nunca se revierte — pagó de verdad
+
+### Tarjeta "No pagaron, cubiertos por gastos"
+
+Asistentes con `payment_status !== "paid"` cuyos gastos ≥ `getOwedPrice`. Se muestran en una tercera tarjeta junto a "Confirmaron" y "Pagaron". No cuentan como pendientes en "Falta cobrar".
+
 Además, se detectan gastos cuyo `responsible` no matchea ningún asistente confirmado y se muestran como **acreedores externos** en la sección "Pagaron sin ser asistentes", con alias de pago y botón de saldar.
 
 En el componente `expense-settlement.tsx` (resumen de saldos público), la cuota por persona se divide solo entre asistentes confirmados — los pagadores externos no inflan el divisor.
 
-Para eventos en modo "Por fecha", el `eventDebt` de asistentes pendientes se recalcula con `calculateDatePrice(event.date_tiers, payment_amount)` para reflejar el tramo vigente al día de hoy (no el original al momento de anotarse). El `totalCollected` sigue usando `price_paid` real (lo que efectivamente se cobró).
+El `totalCollected` sigue usando `price_paid` real (lo que efectivamente se cobró).

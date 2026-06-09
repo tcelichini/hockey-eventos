@@ -4,6 +4,7 @@ import { db } from "@/db"
 import { expenses } from "@/db/schema"
 import { eq } from "drizzle-orm"
 import { COOKIE_NAME, verifySession } from "@/lib/auth"
+import { syncExpensePayment } from "@/lib/sync-expense-payment"
 
 async function authCheck(request: NextRequest) {
   const cookie = request.cookies.get(COOKIE_NAME)?.value
@@ -17,6 +18,11 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
   const body = await request.json()
   const { description, responsible, amount, notes, payment_alias, receipt_url, settled } = body
+
+  // Guardar el responsable anterior para sincronizar si cambia
+  const [existing] = await db.select({ responsible: expenses.responsible, event_id: expenses.event_id })
+    .from(expenses).where(eq(expenses.id, params.id)).limit(1)
+  const prevResponsible = existing?.responsible
 
   const [updated] = await db
     .update(expenses)
@@ -34,6 +40,11 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
   if (!updated) {
     return NextResponse.json({ error: "Gasto no encontrado" }, { status: 404 })
+  }
+
+  await syncExpensePayment(updated.event_id, updated.responsible)
+  if (prevResponsible && prevResponsible.trim().toLowerCase() !== updated.responsible.trim().toLowerCase()) {
+    await syncExpensePayment(updated.event_id, prevResponsible)
   }
 
   revalidatePath(`/admin/events/${updated.event_id}`)
@@ -55,6 +66,8 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
   if (!deleted) {
     return NextResponse.json({ error: "Gasto no encontrado" }, { status: 404 })
   }
+
+  await syncExpensePayment(deleted.event_id, deleted.responsible)
 
   revalidatePath(`/admin/events/${deleted.event_id}`)
   revalidatePath(`/e`)

@@ -362,3 +362,12 @@ Registro de todas las sesiones de trabajo. Cada entrada documenta cambios concre
   - En el resumen de saldos (cuota por persona), los externos no se cuentan como participantes para la división — la cuota se reparte solo entre asistentes reales. Los compradores externos se muestran con el tag "(no asistente)".
   - No requiere migración de DB: el campo `responsible` ya era texto libre.
   - Archivos: `components/expense-form.tsx`, `components/expense-item.tsx`, `app/admin/(protected)/events/[id]/page.tsx`, `components/expense-settlement.tsx`
+
+## Sesión 36 (2026-06-09)
+
+- **Fix: precio del tramo más caro para no-pagadores + auto-marcado de pago por gastos**
+  - Para asistentes que no pagaron el evento, el balance ahora usa el precio del tramo más caro (post-evento) en vez del precio asignado al momento de anotarse. Aplica tanto a `date_tiers` (ya usaba `currentTierPrice`) como a `pricing_tiers` (nuevo: `maxPricingTierPrice`).
+  - Nueva tarjeta "No pagaron, cubiertos por gastos" en la fila de stats (Confirmaron | Pagaron | No pagaron), visible solo cuando hay casos. "Falta cobrar" ahora excluye estos asistentes del conteo de pendientes.
+  - Detalle de acreedores no-pagadores muestra `getOwedPrice` (tramo más caro) en vez de `getPrice` (precio original).
+  - Nuevo helper `lib/sync-expense-payment.ts`: sincroniza `payment_status` automáticamente cuando se crea, edita o borra un gasto. Si los gastos de un asistente cubren el precio del evento → marca como `paid`. Si se borran/reducen y no tiene comprobante → revierte a `pending`.
+  - Archivos: `app/admin/(protected)/events/[id]/page.tsx`, `app/api/expenses/route.ts`, `app/api/expenses/[id]/route.ts`, `lib/sync-expense-payment.ts`

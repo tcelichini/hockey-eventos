@@ -96,13 +96,17 @@ export default async function EventDetailPage({ params }: { params: { id: string
   const currentTierPrice = event.date_tiers && event.date_tiers.length > 0
     ? calculateDatePrice(event.date_tiers, String(event.payment_amount))
     : null
+  // Precio más caro de pricing_tiers (para no-pagadores en eventos por cantidad)
+  const maxPricingTierPrice = event.pricing_tiers && event.pricing_tiers.length > 0
+    ? Math.max(...event.pricing_tiers.map(t => t.price))
+    : null
   const getPrice = (a: typeof confirmed[0]) => Number(a.price_paid) || amount
-  // Para los pendientes: si el evento tiene date_tiers, usar el precio del tramo actual
-  // (no el original, que pudo cambiar si pasaron las fechas)
   const inferioresPrice = event.inferiores_price ? Number(event.inferiores_price) : null
   const getOwedPrice = (a: typeof confirmed[0]) =>
     a.is_inferiores && inferioresPrice !== null ? inferioresPrice
-    : currentTierPrice !== null ? currentTierPrice : getPrice(a)
+    : currentTierPrice !== null ? currentTierPrice
+    : maxPricingTierPrice !== null ? maxPricingTierPrice
+    : getPrice(a)
   const totalCollected = paid.reduce((sum, a) => sum + getPrice(a), 0)
 
   const expenseList = await db
@@ -132,7 +136,16 @@ export default async function EventDetailPage({ params }: { params: { id: string
     const allSettled = ids.every((id: string) => expenseList.find(e => e.id === id)?.settled === true)
     settledByPerson.set(key, allSettled)
   })
-  const totalPending = unpaid.reduce((sum, a) => {
+  // Jugadores que no pagaron pero sus gastos cubren la deuda (excedente va al pozo)
+  const unpaidCoveredByExpenses = unpaid.filter(a => {
+    const exp = expenseByPerson.get(a.full_name.trim().toLowerCase()) || 0
+    return exp > 0 && exp >= getOwedPrice(a)
+  })
+  const unpaidStillOwing = unpaid.filter(a => {
+    const exp = expenseByPerson.get(a.full_name.trim().toLowerCase()) || 0
+    return exp <= 0 || exp < getOwedPrice(a)
+  })
+  const totalPending = unpaidStillOwing.reduce((sum, a) => {
     const owed = getOwedPrice(a)
     const exp = expenseByPerson.get(a.full_name.trim().toLowerCase()) || 0
     return sum + Math.max(owed - exp, 0)
@@ -243,7 +256,7 @@ export default async function EventDetailPage({ params }: { params: { id: string
       </Card>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className={`grid gap-3 ${unpaidCoveredByExpenses.length > 0 ? "grid-cols-3" : "grid-cols-2"}`}>
         <Card>
           <CardContent className="pt-4 pb-4 text-center">
             <div className="text-3xl font-bold text-green-600">{confirmed.length}</div>
@@ -256,6 +269,14 @@ export default async function EventDetailPage({ params }: { params: { id: string
             <div className="text-xs text-gray-500 mt-1">Pagaron</div>
           </CardContent>
         </Card>
+        {unpaidCoveredByExpenses.length > 0 && (
+          <Card>
+            <CardContent className="pt-4 pb-4 text-center">
+              <div className="text-3xl font-bold text-amber-600">{unpaidCoveredByExpenses.length}</div>
+              <div className="text-xs text-gray-500 mt-1">No pagaron, cubiertos por gastos</div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Money Stats */}
@@ -272,7 +293,7 @@ export default async function EventDetailPage({ params }: { params: { id: string
             <CardContent className="pt-4 pb-4">
               <div className="text-xs text-gray-500 mb-1">Falta cobrar</div>
               <div className="text-xl font-bold text-orange-500">{formatCurrency(totalPending)}</div>
-              <div className="text-xs text-gray-400 mt-0.5">{unpaid.length} pendiente{unpaid.length !== 1 ? "s" : ""}</div>
+              <div className="text-xs text-gray-400 mt-0.5">{unpaidStillOwing.length} pendiente{unpaidStillOwing.length !== 1 ? "s" : ""}</div>
             </CardContent>
           </Card>
         </div>
@@ -356,7 +377,7 @@ export default async function EventDetailPage({ params }: { params: { id: string
                               <p className="text-xs text-gray-400">pagó evento + {formatCurrency(expPaid)} en gastos</p>
                             )}
                             {expPaid > 0 && a.payment_status !== "paid" && (
-                              <p className="text-xs text-gray-400">{formatCurrency(getPrice(a))} − {formatCurrency(expPaid)} gastos</p>
+                              <p className="text-xs text-gray-400">{formatCurrency(getOwedPrice(a))} − {formatCurrency(expPaid)} gastos</p>
                             )}
                           </div>
                         </div>
