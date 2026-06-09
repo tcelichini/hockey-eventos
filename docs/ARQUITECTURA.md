@@ -88,6 +88,29 @@ Un combo agrupa varios eventos con un precio conjunto (con descuento). El asiste
 
 La tabla `attendees` tiene un campo `combo_id` (nullable) que referencia al combo. Cuando alguien se inscribe a un combo, se crea un registro de attendee por cada evento del combo, todos con el mismo `combo_id`.
 
+### Flujo de pago del combo
+
+Hay dos formas en que un asistente con `combo_id` puede quedar como "paid":
+
+| Forma de pago | Cómo funciona | Resultado en la DB |
+|---|---|---|
+| **Vía combo** | Sube comprobante en la página del combo → `upload-proof` guarda la URL en un attendee → `upload-proof-url` copia la **misma URL** a todos los demás attendees del combo | Todos los registros del attendee comparten la **misma** `payment_proof_url` |
+| **Individual** | Sube comprobante en la página de cada evento por separado | Cada registro tiene una `payment_proof_url` **distinta** |
+
+### Detección de "pagó vía combo" (`paidViaCombo`)
+
+En el panel admin del evento, se determina si un asistente pagó vía combo comparando las `payment_proof_url` de todos sus registros dentro del combo:
+
+```
+paidViaCombo = todos los registros del combo tienen la misma payment_proof_url (no nula)
+```
+
+- **Misma URL en todos** → pagó vía combo → badge "Combo" + link al combo
+- **URLs distintas** → pagó cada evento individual → solo badge "Comprobante"
+- **Sin URL** (marcado manual o cubierto por gastos) → no cuenta como combo
+
+**IMPORTANTE:** Esta lógica depende de que `upload-proof-url` copie exactamente la misma URL. Si se cambia el flujo de pago del combo, esta detección se rompe. No cambiar la lógica de `paidViaCombo` sin entender el flujo completo de pago.
+
 ---
 
 ## Lógica de balance neto (Resumen admin)
@@ -115,17 +138,25 @@ Para asistentes que no pagaron se usa el **tramo más caro**, no el precio asign
 | Precio fijo | `payment_amount` |
 | Inferiores | `inferiores_price` (siempre fijo) |
 
-### Auto-marcado de pago por gastos (`lib/sync-expense-payment.ts`)
+### Auto-marcado de pago por gastos
 
-Cuando se crea, edita o borra un gasto, se sincroniza el `payment_status` del asistente responsable:
+Hay dos mecanismos que sincronizan `payment_status` cuando un asistente cubre el costo del evento con gastos:
 
+1. **Al crear/editar/borrar un gasto** (`lib/sync-expense-payment.ts`): se ejecuta desde las APIs de gastos.
+2. **Al cargar la página del evento** (`page.tsx`): sincroniza asistentes que quedaron sin marcar (ej: gastos creados antes de que existiera el sync).
+
+Lógica:
 - Si total gastos ≥ precio evento → `payment_status = "paid"` (sin necesidad de comprobante)
 - Si total gastos < precio evento y no tiene comprobante (`payment_proof_url` es null) → `payment_status = "pending"`
 - Si tiene comprobante, nunca se revierte — pagó de verdad
 
-### Tarjeta "No pagaron, cubiertos por gastos"
+### Badge "Gastó" y tarjeta "Cubiertos por gastos"
 
-Asistentes con `payment_status !== "paid"` cuyos gastos ≥ `getOwedPrice`. Se muestran en una tercera tarjeta junto a "Confirmaron" y "Pagaron". No cuentan como pendientes en "Falta cobrar".
+Asistentes marcados como "paid" por el sync de gastos (sin `payment_proof_url`, con gastos ≥ `getOwedPrice`):
+- En la lista de asistentes muestran badge amber **"Gastó"** en lugar de "Comprobante"
+- No muestran badge "Combo" aunque tengan `combo_id`
+- Se cuentan en la tarjeta **"Cubiertos por gastos"** (tercera tarjeta junto a "Confirmaron" y "Pagaron")
+- No cuentan como pendientes en "Falta cobrar"
 
 Además, se detectan gastos cuyo `responsible` no matchea ningún asistente confirmado y se muestran como **acreedores externos** en la sección "Pagaron sin ser asistentes", con alias de pago y botón de saldar.
 

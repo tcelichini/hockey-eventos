@@ -371,3 +371,13 @@ Registro de todas las sesiones de trabajo. Cada entrada documenta cambios concre
   - Detalle de acreedores no-pagadores muestra `getOwedPrice` (tramo más caro) en vez de `getPrice` (precio original).
   - Nuevo helper `lib/sync-expense-payment.ts`: sincroniza `payment_status` automáticamente cuando se crea, edita o borra un gasto. Si los gastos de un asistente cubren el precio del evento → marca como `paid`. Si se borran/reducen y no tiene comprobante → revierte a `pending`.
   - Archivos: `app/admin/(protected)/events/[id]/page.tsx`, `app/api/expenses/route.ts`, `app/api/expenses/[id]/route.ts`, `lib/sync-expense-payment.ts`
+
+## Sesión 37 (2026-06-09)
+
+- **Fix: sync de pago por gastos al cargar página + badge "Gastó" + lógica de combo corregida**
+  - El sync de `payment_status` por gastos (sesión 36) solo corría al crear/editar/borrar gastos. Los gastos pre-existentes no disparaban el sync. Ahora también se ejecuta al cargar la página admin del evento, marcando como "paid" a asistentes cuyos gastos cubren el costo.
+  - Nuevo badge amber **"Gastó"** en la lista de asistentes para los cubiertos por gastos (sin comprobante). Reemplaza al badge "Comprobante" que no aplica.
+  - Tarjeta de stats "Cubiertos por gastos" ahora usa `coveredByExpensesIds` (asistentes ya marcados como paid por sync) en vez de filtrar desde `unpaid`.
+  - **Fix crítico en lógica `paidViaCombo`:** la lógica anterior (`allPaid = todos los registros del combo pagados`) se rompía cuando el sync marcaba como "paid" a asistentes que no pagaron vía combo. Ahora se verifica que todos los registros del combo compartan la **misma `payment_proof_url`** (no nula), lo cual distingue correctamente pago vía combo (misma URL copiada por `upload-proof-url`) vs pago individual (URLs distintas por evento).
+  - Documentada la lógica de detección de pago combo en `docs/ARQUITECTURA.md`.
+  - Archivos: `app/admin/(protected)/events/[id]/page.tsx`, `components/sortable-attendee-list.tsx`

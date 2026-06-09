@@ -53,8 +53,6 @@ export default async function EventDetailPage({ params }: { params: { id: string
 
   const confirmed = attendeeList.filter((a) => a.status === "confirmed")
   const declined = attendeeList.filter((a) => a.status === "declined")
-  const paid = confirmed.filter((a) => a.payment_status === "paid")
-  const unpaid = confirmed.filter((a) => a.payment_status !== "paid")
 
   // Para cada asistente con combo_id, determinar si pagó vía combo o individualmente.
   // Lógica: si TODOS sus registros del mismo combo están pagados → pagó vía combo.
@@ -69,24 +67,25 @@ export default async function EventDetailPage({ params }: { params: { id: string
 
     // Buscar TODOS los attendees de estos combos (incluyendo otros eventos)
     const allComboAttendees = await db
-      .select({ id: attendees.id, combo_id: attendees.combo_id, full_name: attendees.full_name, payment_status: attendees.payment_status })
+      .select({ id: attendees.id, combo_id: attendees.combo_id, full_name: attendees.full_name, payment_status: attendees.payment_status, payment_proof_url: attendees.payment_proof_url })
       .from(attendees)
       .where(inArray(attendees.combo_id, comboIds))
 
     // Agrupar por combo_id + nombre normalizado
     const normalize = (s: string) => s.trim().toLowerCase()
-    const comboPersonGroups = new Map<string, { ids: string[]; allPaid: boolean }>()
+    const comboPersonGroups = new Map<string, { ids: string[]; proofUrls: (string | null)[] }>()
     for (const a of allComboAttendees) {
       const key = `${a.combo_id}::${normalize(a.full_name)}`
-      const group = comboPersonGroups.get(key) || { ids: [], allPaid: true }
+      const group = comboPersonGroups.get(key) || { ids: [], proofUrls: [] }
       group.ids.push(a.id)
-      if (a.payment_status !== "paid") group.allPaid = false
+      group.proofUrls.push(a.payment_proof_url)
       comboPersonGroups.set(key, group)
     }
 
-    // Marcar como "pagó vía combo" solo si TODOS los registros del combo están pagados
+    // Pagó vía combo = todos los registros comparten la misma proof URL (no nula)
     Array.from(comboPersonGroups.values()).forEach(group => {
-      if (group.allPaid) {
+      const firstProof = group.proofUrls[0]
+      if (firstProof && group.proofUrls.every(url => url === firstProof)) {
         group.ids.forEach(id => paidViaCombo.add(id))
       }
     })
@@ -107,7 +106,6 @@ export default async function EventDetailPage({ params }: { params: { id: string
     : currentTierPrice !== null ? currentTierPrice
     : maxPricingTierPrice !== null ? maxPricingTierPrice
     : getPrice(a)
-  const totalCollected = paid.reduce((sum, a) => sum + getPrice(a), 0)
 
   const expenseList = await db
     .select()
@@ -116,7 +114,6 @@ export default async function EventDetailPage({ params }: { params: { id: string
     .orderBy(expenses.created_at)
 
   const totalExpenses = expenseList.reduce((sum, e) => sum + Number(e.amount), 0)
-  const balance = totalCollected - totalExpenses
 
   // Mapa de gastos adelantados por persona (nombre normalizado -> total)
   const expenseByPerson = new Map<string, number>()
@@ -136,11 +133,38 @@ export default async function EventDetailPage({ params }: { params: { id: string
     const allSettled = ids.every((id: string) => expenseList.find(e => e.id === id)?.settled === true)
     settledByPerson.set(key, allSettled)
   })
-  // Jugadores que no pagaron pero sus gastos cubren la deuda (excedente va al pozo)
-  const unpaidCoveredByExpenses = unpaid.filter(a => {
+  // Sync: marcar como pagados a asistentes cuyos gastos cubren el costo del evento
+  const toSync = confirmed.filter(a => {
+    if (a.payment_status === "paid") return false
     const exp = expenseByPerson.get(a.full_name.trim().toLowerCase()) || 0
     return exp > 0 && exp >= getOwedPrice(a)
   })
+  if (toSync.length > 0) {
+    await db.update(attendees)
+      .set({ payment_status: "paid" })
+      .where(inArray(attendees.id, toSync.map(a => a.id)))
+    for (const a of toSync) {
+      ;(a as { payment_status: string }).payment_status = "paid"
+    }
+  }
+
+  const paid = confirmed.filter((a) => a.payment_status === "paid")
+  const unpaid = confirmed.filter((a) => a.payment_status !== "paid")
+  const totalCollected = paid.reduce((sum, a) => sum + getPrice(a), 0)
+  const balance = totalCollected - totalExpenses
+
+  const coveredByExpensesIds = new Set(
+    confirmed
+      .filter(a => a.payment_status === "paid" && !a.payment_proof_url)
+      .filter(a => {
+        const exp = expenseByPerson.get(a.full_name.trim().toLowerCase()) || 0
+        return exp > 0 && exp >= getOwedPrice(a)
+      })
+      .map(a => a.id)
+  )
+
+  // Asistentes cubiertos por gastos (ya marcados como paid por el sync)
+  const coveredByExpenses = confirmed.filter(a => coveredByExpensesIds.has(a.id))
   const unpaidStillOwing = unpaid.filter(a => {
     const exp = expenseByPerson.get(a.full_name.trim().toLowerCase()) || 0
     return exp <= 0 || exp < getOwedPrice(a)
@@ -256,7 +280,7 @@ export default async function EventDetailPage({ params }: { params: { id: string
       </Card>
 
       {/* Stats */}
-      <div className={`grid gap-3 ${unpaidCoveredByExpenses.length > 0 ? "grid-cols-3" : "grid-cols-2"}`}>
+      <div className={`grid gap-3 ${coveredByExpenses.length > 0 ? "grid-cols-3" : "grid-cols-2"}`}>
         <Card>
           <CardContent className="pt-4 pb-4 text-center">
             <div className="text-3xl font-bold text-green-600">{confirmed.length}</div>
@@ -269,11 +293,11 @@ export default async function EventDetailPage({ params }: { params: { id: string
             <div className="text-xs text-gray-500 mt-1">Pagaron</div>
           </CardContent>
         </Card>
-        {unpaidCoveredByExpenses.length > 0 && (
+        {coveredByExpenses.length > 0 && (
           <Card>
             <CardContent className="pt-4 pb-4 text-center">
-              <div className="text-3xl font-bold text-amber-600">{unpaidCoveredByExpenses.length}</div>
-              <div className="text-xs text-gray-500 mt-1">No pagaron, cubiertos por gastos</div>
+              <div className="text-3xl font-bold text-amber-600">{coveredByExpenses.length}</div>
+              <div className="text-xs text-gray-500 mt-1">Cubiertos por gastos</div>
             </CardContent>
           </Card>
         )}
@@ -533,6 +557,7 @@ export default async function EventDetailPage({ params }: { params: { id: string
                 proofUploadedAtISO: a.proof_uploaded_at ? new Date(a.proof_uploaded_at).toISOString() : null,
                 proofUploadedAtFormatted: a.proof_uploaded_at ? shortDateFmt.format(new Date(a.proof_uploaded_at)) : null,
                 isInferiores: a.is_inferiores,
+                coveredByExpenses: coveredByExpensesIds.has(a.id),
               }
             })}
             hasInferioresPrice={inferioresPrice !== null}
