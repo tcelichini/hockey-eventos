@@ -389,3 +389,12 @@ Registro de todas las sesiones de trabajo. Cada entrada documenta cambios concre
   - Lógica: se comparan las `payment_proof_url` de todos los registros del combo. Si todas difieren y todos están pagados → `paidIndividually = true`.
   - Badges de eventos truncados a 120px con `truncate` para evitar desborde en mobile.
   - Archivos: `app/admin/(protected)/combos/[id]/page.tsx`
+
+## Sesión 39 (2026-06-10)
+
+- **Fix: balance neto descontaba mal gastos de asistentes cubiertos por gastos**
+  - Antes: si un asistente sin comprobante tenía gastos ≥ precio del evento, se auto-marcaba como "paid" y el balance mostraba "Le deben $totalGasto" (el total del gasto), en vez de la diferencia gasto − evento.
+  - Causa: `eventDebt = 0` para todos los "paid", sin distinguir si pagaron con comprobante o fueron cubiertos por gastos.
+  - Fix: se detecta `paidViaExpenses` via `coveredByExpensesIds`. Si fue cubierto por gastos, `eventDebt = getOwedPrice(a)` para que el balance sea `precioEvento - gastos` (diferencia correcta). Si pagó con comprobante, `eventDebt = 0` y se le devuelve el total del gasto.
+  - Texto descriptivo actualizado: "gastos $X − evento $Y" para cubiertos por gastos, "pagó evento + $X en gastos" para pagadores con comprobante.
+  - Archivos: `app/admin/(protected)/events/[id]/page.tsx`, `docs/ARQUITECTURA.md`

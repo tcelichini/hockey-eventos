@@ -118,14 +118,16 @@ paidViaCombo = todos los registros del combo tienen la misma payment_proof_url (
 ```
 net = eventDebt - expPaid
 
-eventDebt = 0                    (si ya pagó el evento)
-eventDebt = getOwedPrice(a)      (si aún no pagó — tramo más caro)
+eventDebt = 0                    (si pagó con comprobante o en efectivo — pago independiente)
+eventDebt = getOwedPrice(a)      (si no pagó, o si fue cubierto por gastos — para descontar del gasto)
 expPaid   = suma de gastos adelantados por esa persona
 
 net > 0 → debe plata (naranja) — aparece en "Deben pagar"
 net < 0 → se le debe plata (verde) — aparece en "Se les debe devolver"
 net = 0 → al día
 ```
+
+La distinción clave es `paidViaExpenses` (detectado via `coveredByExpensesIds`): si alguien fue marcado como "paid" por el auto-sync de gastos (sin `payment_proof_url`), `eventDebt` sigue siendo el precio del evento para que el gasto lo cubra y solo se devuelva la diferencia. Si pagó independientemente (con comprobante), `eventDebt = 0` y se le devuelve el total del gasto.
 
 ### Precio para no-pagadores (`getOwedPrice`)
 

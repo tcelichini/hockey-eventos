@@ -332,9 +332,10 @@ export default async function EventDetailPage({ params }: { params: { id: string
           // net = (precio del evento si no pagó, 0 si ya pagó) - gastos adelantados
           const confirmedKeys = new Set(confirmed.map(a => a.full_name.trim().toLowerCase()))
           const balances = confirmed.map(a => {
-            const eventDebt = a.payment_status === "paid" ? 0 : getOwedPrice(a)
+            const paidViaExpenses = coveredByExpensesIds.has(a.id)
+            const eventDebt = (a.payment_status === "paid" && !paidViaExpenses) ? 0 : getOwedPrice(a)
             const expPaid = expenseByPerson.get(a.full_name.trim().toLowerCase()) || 0
-            return { a, net: eventDebt - expPaid, expPaid }
+            return { a, net: eventDebt - expPaid, expPaid, paidViaExpenses }
           })
           const debtors = balances.filter(b => b.net > 0)   // deben plata
           const creditors = balances.filter(b => b.net < 0) // se les debe plata
@@ -380,7 +381,7 @@ export default async function EventDetailPage({ params }: { params: { id: string
                     <p className="text-xs text-gray-400 uppercase tracking-wide">
                       Se les debe devolver{unsettled.length < creditors.length ? ` (${unsettled.length} pendiente${unsettled.length !== 1 ? "s" : ""})` : ""}
                     </p>
-                    {unsettled.map(({ a, net, expPaid }) => {
+                    {unsettled.map(({ a, net, expPaid, paidViaExpenses }) => {
                       const key = personKey(a.full_name)
                       const alias = aliasByPerson.get(key)
                       const ids = expenseIdsByPerson.get(key) || []
@@ -397,10 +398,13 @@ export default async function EventDetailPage({ params }: { params: { id: string
                               <span className="font-medium text-green-600">Le deben {formatCurrency(Math.abs(net))}</span>
                               <SettleCreditorButton expenseIds={ids} />
                             </div>
-                            {expPaid > 0 && a.payment_status === "paid" && (
+                            {expPaid > 0 && paidViaExpenses && (
+                              <p className="text-xs text-gray-400">{formatCurrency(expPaid)} gastos − {formatCurrency(getOwedPrice(a))} evento</p>
+                            )}
+                            {expPaid > 0 && !paidViaExpenses && a.payment_status === "paid" && (
                               <p className="text-xs text-gray-400">pagó evento + {formatCurrency(expPaid)} en gastos</p>
                             )}
-                            {expPaid > 0 && a.payment_status !== "paid" && (
+                            {expPaid > 0 && !paidViaExpenses && a.payment_status !== "paid" && (
                               <p className="text-xs text-gray-400">{formatCurrency(getOwedPrice(a))} − {formatCurrency(expPaid)} gastos</p>
                             )}
                           </div>
