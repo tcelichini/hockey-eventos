@@ -548,7 +548,8 @@ export default async function EventDetailPage({ params }: { params: { id: string
                 timeZone: "America/Argentina/Buenos_Aires",
               })
               const isCovered = coveredByExpensesIds.has(a.id)
-              const displayPrice = isCovered ? getOwedPrice(a) : getPrice(a)
+              const showOwedPrice = isCovered || a.payment_status !== "paid"
+              const displayPrice = showOwedPrice ? getOwedPrice(a) : getPrice(a)
               return {
                 id: a.id,
                 full_name: a.full_name,

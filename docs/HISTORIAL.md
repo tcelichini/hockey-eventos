@@ -401,7 +401,7 @@ Registro de todas las sesiones de trabajo. Cada entrada documenta cambios concre
 
 ## Sesión 40 (2026-06-10)
 
-- **Fix: precio mostrado en lista de asistentes cubiertos por gastos**
-  - Antes: asistentes con badge "Gastó" mostraban `price_paid` (precio al anotarse, ej: $24.000 del primer tramo), aunque el balance neto usaba `getOwedPrice` (tramo vigente/más caro, ej: $30.000).
-  - Fix: para asistentes cubiertos por gastos (`coveredByExpensesIds`), se muestra `getOwedPrice(a)` en la lista, alineando lo visible con el cálculo real del balance.
+- **Fix: precio mostrado en lista de asistentes no pagados y cubiertos por gastos**
+  - Antes: la lista de asistentes siempre mostraba `price_paid` (precio al anotarse), aunque el balance neto usaba `getOwedPrice` (tramo vigente/más caro). Ej: alguien anotado en el primer tramo ($24.000) seguía mostrando ese precio incluso después de vencido el tramo ($30.000).
+  - Fix: se muestra `getOwedPrice(a)` para todo asistente que no haya pagado (`payment_status !== "paid"`) y para los cubiertos por gastos. Solo quienes pagaron con comprobante o combo conservan su `price_paid` original.
   - Archivos: `app/admin/(protected)/events/[id]/page.tsx`
