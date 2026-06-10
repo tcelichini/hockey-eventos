@@ -398,3 +398,10 @@ Registro de todas las sesiones de trabajo. Cada entrada documenta cambios concre
   - Fix: se detecta `paidViaExpenses` via `coveredByExpensesIds`. Si fue cubierto por gastos, `eventDebt = getOwedPrice(a)` para que el balance sea `precioEvento - gastos` (diferencia correcta). Si pagó con comprobante, `eventDebt = 0` y se le devuelve el total del gasto.
   - Texto descriptivo actualizado: "gastos $X − evento $Y" para cubiertos por gastos, "pagó evento + $X en gastos" para pagadores con comprobante.
   - Archivos: `app/admin/(protected)/events/[id]/page.tsx`, `docs/ARQUITECTURA.md`
+
+## Sesión 40 (2026-06-10)
+
+- **Fix: precio mostrado en lista de asistentes cubiertos por gastos**
+  - Antes: asistentes con badge "Gastó" mostraban `price_paid` (precio al anotarse, ej: $24.000 del primer tramo), aunque el balance neto usaba `getOwedPrice` (tramo vigente/más caro, ej: $30.000).
+  - Fix: para asistentes cubiertos por gastos (`coveredByExpensesIds`), se muestra `getOwedPrice(a)` en la lista, alineando lo visible con el cálculo real del balance.
+  - Archivos: `app/admin/(protected)/events/[id]/page.tsx`

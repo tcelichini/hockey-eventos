@@ -547,14 +547,16 @@ export default async function EventDetailPage({ params }: { params: { id: string
                 minute: "2-digit",
                 timeZone: "America/Argentina/Buenos_Aires",
               })
+              const isCovered = coveredByExpensesIds.has(a.id)
+              const displayPrice = isCovered ? getOwedPrice(a) : getPrice(a)
               return {
                 id: a.id,
                 full_name: a.full_name,
                 payment_status: a.payment_status,
                 payment_proof_url: a.payment_proof_url,
                 combo_id: a.combo_id,
-                price: getPrice(a),
-                priceFormatted: formatCurrency(getPrice(a)),
+                price: displayPrice,
+                priceFormatted: formatCurrency(displayPrice),
                 paidViaCombo: paidViaCombo.has(a.id),
                 createdAtISO: a.created_at ? new Date(a.created_at).toISOString() : null,
                 createdAtFormatted: a.created_at ? shortDateFmt.format(new Date(a.created_at)) : null,
