@@ -381,3 +381,11 @@ Registro de todas las sesiones de trabajo. Cada entrada documenta cambios concre
   - **Fix crítico en lógica `paidViaCombo`:** la lógica anterior (`allPaid = todos los registros del combo pagados`) se rompía cuando el sync marcaba como "paid" a asistentes que no pagaron vía combo. Ahora se verifica que todos los registros del combo compartan la **misma `payment_proof_url`** (no nula), lo cual distingue correctamente pago vía combo (misma URL copiada por `upload-proof-url`) vs pago individual (URLs distintas por evento).
   - Documentada la lógica de detección de pago combo en `docs/ARQUITECTURA.md`.
   - Archivos: `app/admin/(protected)/events/[id]/page.tsx`, `components/sortable-attendee-list.tsx`
+
+## Sesión 38 (2026-06-09)
+
+- **Distinguir pagos individuales vs combo en panel admin del combo**
+  - Cuando un inscripto al combo paga todos los eventos por separado (con comprobantes distintos), ahora se muestra un badge naranja **"Individual"** junto a badges clickeables por cada evento (con link al comprobante respectivo), en vez de mostrar un único "Comprobante" idéntico a quienes pagaron vía combo.
+  - Lógica: se comparan las `payment_proof_url` de todos los registros del combo. Si todas difieren y todos están pagados → `paidIndividually = true`.
+  - Badges de eventos truncados a 120px con `truncate` para evitar desborde en mobile.
+  - Archivos: `app/admin/(protected)/combos/[id]/page.tsx`

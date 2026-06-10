@@ -55,11 +55,25 @@ export default async function ComboDetailPage({ params }: { params: { id: string
     personMap.set(key, list)
   }
 
+  const eventTitleMap = new Map(linkedEvents.map(e => [e.id, e.title]))
+
   const persons = Array.from(personMap.entries()).map(([, attendeeList]) => {
     const totalPaid = attendeeList.reduce((sum, a) => sum + Number(a.price_paid || 0), 0)
     const allPaid = attendeeList.every((a) => a.payment_status === "paid")
     const proofUrl = attendeeList.find((a) => a.payment_proof_url)?.payment_proof_url
     const proofUploadedAt = attendeeList.find((a) => a.proof_uploaded_at)?.proof_uploaded_at
+    const proofUrls = attendeeList.map(a => a.payment_proof_url).filter(Boolean)
+    const allSameProof = proofUrls.length > 0 && proofUrls.every(url => url === proofUrls[0])
+    const paidIndividually = allPaid && proofUrls.length > 1 && !allSameProof
+    const individualProofs = paidIndividually
+      ? attendeeList
+          .filter(a => a.payment_proof_url)
+          .map(a => ({
+            eventTitle: eventTitleMap.get(a.event_id) || "Evento",
+            proofUrl: a.payment_proof_url!,
+            pricePaid: Number(a.price_paid || 0),
+          }))
+      : []
     return {
       name: attendeeList[0].full_name,
       attendees: attendeeList,
@@ -67,12 +81,13 @@ export default async function ComboDetailPage({ params }: { params: { id: string
       allPaid,
       proofUrl,
       proofUploadedAt,
+      paidIndividually,
+      individualProofs,
     }
   }).sort((a, b) => a.name.localeCompare(b.name, "es"))
 
   // Detectar personas que pagaron solo ALGUNOS eventos del combo (pago individual parcial).
   // Si alguien tiene algunos eventos pagados y otros pendientes, pagó individualmente.
-  const eventTitleMap = new Map(linkedEvents.map(e => [e.id, e.title]))
   const partialPaidMap = new Map<string, { paidEvents: { eventTitle: string; pricePaid: number }[]; unpaidEvents: string[] }>()
   Array.from(personMap.entries()).forEach(([key, attendeeGroup]) => {
     const paidEvents = attendeeGroup.filter((a: typeof comboAttendees[0]) => a.payment_status === "paid")
@@ -246,14 +261,27 @@ export default async function ComboDetailPage({ params }: { params: { id: string
                       )
                     })()}
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {person.proofUrl && (
+                  <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
+                    {person.paidIndividually ? (
+                      <>
+                        {person.individualProofs.map((p, i) => (
+                          <a key={i} href={p.proofUrl} target="_blank" rel="noopener noreferrer">
+                            <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 cursor-pointer text-[10px] max-w-[120px] truncate">
+                              {p.eventTitle}
+                            </Badge>
+                          </a>
+                        ))}
+                        <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100 text-[10px] whitespace-nowrap">
+                          Individual
+                        </Badge>
+                      </>
+                    ) : person.proofUrl ? (
                       <a href={person.proofUrl} target="_blank" rel="noopener noreferrer">
                         <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 cursor-pointer">
                           Comprobante
                         </Badge>
                       </a>
-                    )}
+                    ) : null}
                     {person.allPaid ? (
                       <>
                         <Badge className="bg-green-100 text-green-700 hover:bg-green-100">Pagó</Badge>
