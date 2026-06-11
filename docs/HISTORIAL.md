@@ -405,3 +405,10 @@ Registro de todas las sesiones de trabajo. Cada entrada documenta cambios concre
   - Antes: la lista de asistentes siempre mostraba `price_paid` (precio al anotarse), aunque el balance neto usaba `getOwedPrice` (tramo vigente/más caro). Ej: alguien anotado en el primer tramo ($24.000) seguía mostrando ese precio incluso después de vencido el tramo ($30.000).
   - Fix: se muestra `getOwedPrice(a)` para todo asistente que no haya pagado (`payment_status !== "paid"`) y para los cubiertos por gastos. Solo quienes pagaron con comprobante o combo conservan su `price_paid` original.
   - Archivos: `app/admin/(protected)/events/[id]/page.tsx`
+
+## Sesión 41 (2026-06-11)
+
+- **Fix: botones con estado loading que nunca se reseteaba tras `router.refresh()`**
+  - `router.refresh()` en Next.js App Router re-fetcha Server Components pero no desmonta Client Components, así que el estado `loading = true` persistía y el botón/badge quedaba trabado mostrando "..." o "Eliminando...".
+  - Fix: agregar `setLoading(false)` después de `router.refresh()` en todos los componentes afectados.
+  - Archivos: `components/toggle-inferiores-button.tsx`, `components/delete-attendee-button.tsx`, `components/delete-expense-button.tsx`, `components/delete-combo-button.tsx`, `components/delete-event-button.tsx`

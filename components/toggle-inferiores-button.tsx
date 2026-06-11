@@ -16,6 +16,7 @@ export default function ToggleInferioresButton({ attendeeId, isInferiores }: { a
       body: JSON.stringify({ is_inferiores: !isInferiores }),
     })
     router.refresh()
+    setLoading(false)
   }
 
   return (

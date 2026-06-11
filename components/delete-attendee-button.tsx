@@ -15,6 +15,7 @@ export default function DeleteAttendeeButton({ attendeeId }: { attendeeId: strin
     const res = await fetch(`/api/attendees/${attendeeId}`, { method: "DELETE" })
     if (res.ok) {
       router.refresh()
+      setLoading(false)
     } else {
       setLoading(false)
       setConfirming(false)

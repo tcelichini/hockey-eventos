@@ -16,6 +16,7 @@ export default function DeleteEventButton({ eventId }: { eventId: string }) {
     if (res.ok) {
       router.push("/admin")
       router.refresh()
+      setLoading(false)
     } else {
       setLoading(false)
       setConfirming(false)

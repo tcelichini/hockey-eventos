@@ -16,6 +16,7 @@ export default function DeleteComboButton({ comboId }: { comboId: string }) {
     if (res.ok) {
       router.push("/admin")
       router.refresh()
+      setLoading(false)
     } else {
       setLoading(false)
       setConfirming(false)

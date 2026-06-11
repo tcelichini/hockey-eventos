@@ -15,6 +15,7 @@ export default function DeleteExpenseButton({ expenseId }: { expenseId: string }
     const res = await fetch(`/api/expenses/${expenseId}`, { method: "DELETE" })
     if (res.ok) {
       router.refresh()
+      setLoading(false)
     } else {
       setLoading(false)
       setConfirming(false)
