@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/db"
 import { events, attendees } from "@/db/schema"
-import { eq } from "drizzle-orm"
+import { eq, and } from "drizzle-orm"
 import { COOKIE_NAME, verifySession } from "@/lib/auth"
 import { getPlayersForTeams } from "@/lib/players"
 import { calculateDatePrice, calculatePrice } from "@/lib/pricing"
@@ -86,14 +86,18 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     return NextResponse.json({ error: "Evento no encontrado" }, { status: 404 })
   }
 
-  // Si el precio cambió en un evento de precio fijo, actualizar price_paid de todos los asistentes
+  // En eventos de precio fijo, sincronizar price_paid de asistentes no-inferiores con payment_amount
   const isFixedPrice = !updated.pricing_tiers && !updated.date_tiers
-  const priceChanged = String(payment_amount) !== String(existing.payment_amount)
-  if (isFixedPrice && priceChanged) {
+  if (isFixedPrice) {
     await db
       .update(attendees)
       .set({ price_paid: String(payment_amount) })
-      .where(eq(attendees.event_id, updated.id))
+      .where(
+        and(
+          eq(attendees.event_id, updated.id),
+          eq(attendees.is_inferiores, false)
+        )
+      )
   }
 
   // Si tras el update el evento es 3T y hay equipos nuevos respecto al estado anterior,
