@@ -11,6 +11,7 @@ import Link from "next/link"
 import { ArrowLeftIcon } from "lucide-react"
 import DateTiersEditor from "@/components/date-tiers-editor"
 import EventSelector from "@/components/event-selector"
+import CurrencyInput from "@/components/currency-input"
 import type { DateTier } from "@/db/schema"
 
 type ComboData = {
@@ -125,7 +126,7 @@ export default function EditComboPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="payment_amount">Monto base / fallback (ARS) *</Label>
-                <Input id="payment_amount" name="payment_amount" type="number" min="0" step="0.01" defaultValue={combo.payment_amount} required />
+                <CurrencyInput id="payment_amount" name="payment_amount" defaultValue={combo.payment_amount} required />
               </div>
 
               <DateTiersEditor value={dateTiers} onChange={setDateTiers} />

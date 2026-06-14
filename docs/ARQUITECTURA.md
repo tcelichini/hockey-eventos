@@ -11,6 +11,7 @@ Mapa de archivos clave y lógica de negocio del proyecto.
 | `lib/players.ts` | Lista estática del plantel (36 jugadores, formato "Apellido, Nombre") |
 | `components/pricing-tiers-editor.tsx` | Editor de tramos por cantidad |
 | `components/date-tiers-editor.tsx` | Editor de tramos por fecha de pago |
+| `components/currency-input.tsx` | Input de montos con formato argentino (punto = miles, coma = decimal) y preview verde |
 | `components/refresh-button.tsx` | Botón "Actualizar" que llama a `router.refresh()` |
 | `components/image-upload.tsx` | Upload con selector de posición (#top/#bottom en URL) |
 | `components/whatsapp-invite-button.tsx` | Botón WhatsApp con descripción |

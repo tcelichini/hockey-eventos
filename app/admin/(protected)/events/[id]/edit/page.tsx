@@ -12,6 +12,7 @@ import { ArrowLeftIcon } from "lucide-react"
 import ImageUpload from "@/components/image-upload"
 import PricingTiersEditor from "@/components/pricing-tiers-editor"
 import DateTiersEditor from "@/components/date-tiers-editor"
+import CurrencyInput from "@/components/currency-input"
 import type { PricingTier, DateTier } from "@/db/schema"
 
 type PricingMode = "fixed" | "tiers" | "date"
@@ -302,12 +303,9 @@ export default function EditEventPage() {
                   <Label htmlFor="payment_amount">
                     {pricingMode === "fixed" ? "Monto a pagar (ARS) *" : "Monto base / fallback (ARS) *"}
                   </Label>
-                  <Input
+                  <CurrencyInput
                     id="payment_amount"
                     name="payment_amount"
-                    type="number"
-                    min="0"
-                    step="0.01"
                     defaultValue={event.payment_amount}
                     required
                   />
@@ -343,12 +341,9 @@ export default function EditEventPage() {
                   {inferioresEnabled && (
                     <div className="space-y-2 pl-7">
                       <Label htmlFor="inferiores_price">Monto inferiores (ARS) *</Label>
-                      <Input
+                      <CurrencyInput
                         id="inferiores_price"
                         name="inferiores_price"
-                        type="number"
-                        min="0"
-                        step="0.01"
                         defaultValue={event.inferiores_price ?? ""}
                         placeholder="Ej: 20000"
                         required

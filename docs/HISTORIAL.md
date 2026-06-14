@@ -412,3 +412,16 @@ Registro de todas las sesiones de trabajo. Cada entrada documenta cambios concre
   - `router.refresh()` en Next.js App Router re-fetcha Server Components pero no desmonta Client Components, así que el estado `loading = true` persistía y el botón/badge quedaba trabado mostrando "..." o "Eliminando...".
   - Fix: agregar `setLoading(false)` después de `router.refresh()` en todos los componentes afectados.
   - Archivos: `components/toggle-inferiores-button.tsx`, `components/delete-attendee-button.tsx`, `components/delete-expense-button.tsx`, `components/delete-combo-button.tsx`, `components/delete-event-button.tsx`
+
+## Sesión 42 (2026-06-13)
+
+- **Fix: input de montos interpretaba el punto como separador decimal en vez de miles**
+  - Causa: `<input type="number">` en HTML siempre interpreta el punto como decimal. Al escribir "140.000" (formato argentino para 140 mil), el browser lo parseaba como 140.000 = 140. Esto provocó que el evento del PRODE se guardara con `payment_amount = 140` en vez de 140.000.
+  - Fix: nuevo componente `CurrencyInput` (`type="text"` con `inputMode="numeric"`) que interpreta el formato argentino (punto = miles, coma = decimal). Muestra un preview verde debajo del input con el valor formateado ("= $140.000") para que el usuario confirme visualmente.
+  - Se reemplazó en todos los formularios: evento nuevo/editar (`payment_amount`, `inferiores_price`) y combo nuevo/editar (`payment_amount`).
+  - Archivos: `components/currency-input.tsx` (nuevo), `app/admin/(protected)/events/new/page.tsx`, `app/admin/(protected)/events/[id]/edit/page.tsx`, `app/admin/(protected)/combos/new/page.tsx`, `app/admin/(protected)/combos/[id]/edit/page.tsx`
+
+- **Mejora: al editar precio fijo de un evento, actualiza `price_paid` de asistentes no pagados**
+  - Antes: cambiar `payment_amount` en el admin solo actualizaba el evento, no los asistentes ya registrados. Si se corregía un precio mal cargado, los asistentes seguían con el precio viejo.
+  - Fix: el endpoint PATCH de eventos ahora detecta si el precio cambió en un evento de precio fijo y actualiza `price_paid` de todos los asistentes con `payment_status = "pending"` y sin comprobante.
+  - Archivos: `app/api/events/[id]/route.ts`

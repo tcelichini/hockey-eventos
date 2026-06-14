@@ -11,6 +11,7 @@ import Link from "next/link"
 import { ArrowLeftIcon } from "lucide-react"
 import DateTiersEditor from "@/components/date-tiers-editor"
 import EventSelector from "@/components/event-selector"
+import CurrencyInput from "@/components/currency-input"
 import type { DateTier } from "@/db/schema"
 
 export default function NewComboPage() {
@@ -109,13 +110,10 @@ export default function NewComboPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="payment_amount">Monto base / fallback (ARS) *</Label>
-                <Input
+                <CurrencyInput
                   id="payment_amount"
                   name="payment_amount"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  placeholder="48000"
+                  placeholder="Ej: 48000"
                   required
                 />
                 <p className="text-xs text-gray-400">Se usa si no aplica ningun tramo por fecha.</p>
