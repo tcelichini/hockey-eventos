@@ -11,7 +11,7 @@ import Link from "next/link"
 import { ArrowLeftIcon } from "lucide-react"
 import DateTiersEditor from "@/components/date-tiers-editor"
 import EventSelector from "@/components/event-selector"
-import CurrencyInput from "@/components/currency-input"
+import CurrencyInput, { parseCurrencyInput } from "@/components/currency-input"
 import type { DateTier } from "@/db/schema"
 
 export default function NewComboPage() {
@@ -37,7 +37,7 @@ export default function NewComboPage() {
       description: (form.elements.namedItem("description") as HTMLTextAreaElement).value,
       event_ids: eventIds,
       date_tiers: dateTiers,
-      payment_amount: parseFloat((form.elements.namedItem("payment_amount") as HTMLInputElement).value),
+      payment_amount: parseCurrencyInput((form.elements.namedItem("payment_amount") as HTMLInputElement).value),
       payment_account: (form.elements.namedItem("payment_account") as HTMLInputElement).value,
       whatsapp_number: (form.elements.namedItem("whatsapp_number") as HTMLInputElement).value,
       whatsapp_confirmation: whatsappConfirmation,

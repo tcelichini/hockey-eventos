@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Input } from "@/components/ui/input"
 
-function parseCurrencyInput(raw: string): number {
+export function parseCurrencyInput(raw: string): number {
   // "140.000" -> 140000 (dot = thousands separator in AR)
   // "140.000,50" -> 140000.50
   // "1500,50" -> 1500.50
@@ -48,13 +48,13 @@ export default function CurrencyInput({ name, id, defaultValue, placeholder, req
         type="text"
         inputMode="numeric"
         id={id}
+        name={name}
         value={display}
         onChange={handleChange}
         placeholder={placeholder}
         required={required}
         className={className}
       />
-      <input type="hidden" name={name} value={numeric} />
       {numeric > 0 && (
         <p className="text-xs text-green-600">
           = {formatPreview(numeric)}

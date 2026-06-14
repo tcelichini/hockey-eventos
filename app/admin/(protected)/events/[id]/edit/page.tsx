@@ -12,7 +12,7 @@ import { ArrowLeftIcon } from "lucide-react"
 import ImageUpload from "@/components/image-upload"
 import PricingTiersEditor from "@/components/pricing-tiers-editor"
 import DateTiersEditor from "@/components/date-tiers-editor"
-import CurrencyInput from "@/components/currency-input"
+import CurrencyInput, { parseCurrencyInput } from "@/components/currency-input"
 import type { PricingTier, DateTier } from "@/db/schema"
 
 type PricingMode = "fixed" | "tiers" | "date"
@@ -101,7 +101,7 @@ export default function EditEventPage() {
       date: (form.elements.namedItem("date") as HTMLInputElement).value,
       flyer_url: flyerUrl,
       payment_account: (form.elements.namedItem("payment_account") as HTMLInputElement).value,
-      payment_amount: parseFloat((form.elements.namedItem("payment_amount") as HTMLInputElement).value),
+      payment_amount: parseCurrencyInput((form.elements.namedItem("payment_amount") as HTMLInputElement).value),
       whatsapp_number: "0",
       max_capacity: maxCapacityVal ? parseInt(maxCapacityVal) : null,
       pricing_tiers: pricingMode === "tiers" ? pricingTiers : null,
@@ -111,7 +111,7 @@ export default function EditEventPage() {
       teams: is3t ? teams : null,
       inferiores_price: !is3t && inferioresEnabled ? (() => {
         const val = (form.elements.namedItem("inferiores_price") as HTMLInputElement | null)?.value
-        return val ? parseFloat(val) : null
+        return val ? parseCurrencyInput(val) : null
       })() : null,
     }
 
