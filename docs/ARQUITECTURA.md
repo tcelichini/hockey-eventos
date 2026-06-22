@@ -155,11 +155,19 @@ Lógica:
 
 ### Badge "Gastó" y tarjeta "Cubiertos por gastos"
 
+El badge amber **"Gastó"** aparece en todos los asistentes que tienen gastos registrados (`expenseByPerson > 0`), independientemente del monto o de si tienen comprobante. Es independiente del badge "Comprobante" — un asistente puede mostrar ambos.
+
 Asistentes marcados como "paid" por el sync de gastos (sin `payment_proof_url`, con gastos ≥ `getOwedPrice`):
-- En la lista de asistentes muestran badge amber **"Gastó"** en lugar de "Comprobante"
 - No muestran badge "Combo" aunque tengan `combo_id`
 - Se cuentan en la tarjeta **"Cubiertos por gastos"** (tercera tarjeta junto a "Confirmaron" y "Pagaron")
 - No cuentan como pendientes en "Falta cobrar"
+
+### Balance neto en Resumen (gastos + comprobante)
+
+Cuando un asistente tiene comprobante (`payment_proof_url`) **y** gastos, se asume que el gasto cubre parte del precio del evento y el comprobante cubre la diferencia:
+- `net = -max(gastos - precioEvento, 0)`
+- Si gastos < evento → net = 0 (saldado, no aparece como acreedor)
+- Si gastos > evento → net negativo, solo el exceso es crédito a devolver
 
 Además, se detectan gastos cuyo `responsible` no matchea ningún asistente confirmado y se muestran como **acreedores externos** en la sección "Pagaron sin ser asistentes", con alias de pago y botón de saldar.
 

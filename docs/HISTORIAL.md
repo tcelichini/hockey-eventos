@@ -425,3 +425,16 @@ Registro de todas las sesiones de trabajo. Cada entrada documenta cambios concre
   - Antes: cambiar `payment_amount` en el admin solo actualizaba el evento, no los asistentes ya registrados. Si se corregía un precio mal cargado, los asistentes seguían con el precio viejo.
   - Fix: el endpoint PATCH de eventos ahora detecta si el precio cambió en un evento de precio fijo y actualiza `price_paid` de todos los asistentes con `payment_status = "pending"` y sin comprobante.
   - Archivos: `app/api/events/[id]/route.ts`
+
+## Sesión 43 (2026-06-22)
+
+- **Fix: balance incorrecto en Resumen para asistentes con gastos + comprobante de pago**
+  - Bug: cuando un asistente tenía gastos < precio del evento y subía comprobante por la diferencia, el sistema asumía que el comprobante cubría el total del evento ($30.000) y mostraba los gastos como crédito extra ("Le deben $X"). En realidad, el gasto era parte del pago del evento.
+  - Fix: nueva rama en el cálculo de balance del Resumen: si tiene comprobante + gastos, net = -max(gastos - precioEvento, 0). Si gastos < evento, net = 0 (saldado). Si gastos > evento, solo el exceso es crédito.
+  - Archivos: `app/admin/(protected)/events/[id]/page.tsx`
+
+- **Mejora: badge "Gastó" visible para todos los asistentes con gastos**
+  - Antes: el badge amber "Gastó" solo aparecía en asistentes cubiertos por gastos (sin comprobante, gastos ≥ evento). Ahora aparece en todos los que tienen gastos, independientemente del monto o si tienen comprobante.
+  - El badge "Gastó" y "Comprobante" ahora son independientes — un asistente puede mostrar ambos si tiene gastos + comprobante.
+  - Nueva prop `hasExpenses` en `AttendeeItem` type.
+  - Archivos: `components/sortable-attendee-list.tsx`, `app/admin/(protected)/events/[id]/page.tsx`

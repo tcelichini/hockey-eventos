@@ -26,6 +26,7 @@ export type AttendeeItem = {
   proofUploadedAtFormatted: string | null
   isInferiores?: boolean
   coveredByExpenses?: boolean
+  hasExpenses?: boolean
 }
 
 const SORT_OPTIONS: { value: SortField; label: string }[] = [
@@ -118,11 +119,12 @@ export default function SortableAttendeeList({ attendees, hasInferioresPrice }: 
                   </Badge>
                 </Link>
               )}
-              {attendee.coveredByExpenses ? (
+              {attendee.hasExpenses && (
                 <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">
                   Gastó
                 </Badge>
-              ) : attendee.payment_proof_url ? (
+              )}
+              {attendee.payment_proof_url ? (
                 <a href={attendee.payment_proof_url} target="_blank" rel="noopener noreferrer">
                   <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 cursor-pointer">
                     Comprobante
