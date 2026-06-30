@@ -164,10 +164,22 @@ Asistentes marcados como "paid" por el sync de gastos (sin `payment_proof_url`, 
 
 ### Balance neto en Resumen (gastos + comprobante)
 
-Cuando un asistente tiene comprobante (`payment_proof_url`) **y** gastos, se asume que el gasto cubre parte del precio del evento y el comprobante cubre la diferencia:
-- `net = -max(gastos - precioEvento, 0)`
-- Si gastos < evento → net = 0 (saldado, no aparece como acreedor)
-- Si gastos > evento → net negativo, solo el exceso es crédito a devolver
+> **INVARIANTE CRÍTICO — no modificar sin validar con casos reales:**
+>
+> El pago del evento y los gastos adelantados son **dos conceptos independientes**.
+> Si un asistente pagó el evento (con comprobante, vía combo, o marcado manual),
+> `eventDebt = 0` y se le devuelven TODOS sus gastos. No se descuenta el precio
+> del evento de los gastos — el comprobante ya cubre el evento.
+>
+> La ÚNICA excepción es `paidViaExpenses`: asistentes cuyo `payment_status` fue
+> marcado como "paid" automáticamente porque sus gastos cubrieron el evento
+> (sin `payment_proof_url`). En ese caso `eventDebt = getOwedPrice(a)` para que
+> el gasto lo cubra y solo se devuelva la diferencia.
+>
+> **Regla de decisión:**
+> - `payment_status === "paid" && !paidViaExpenses` → `eventDebt = 0`
+> - `paidViaExpenses` (paid por sync, sin proof) → `eventDebt = getOwedPrice(a)`
+> - `payment_status !== "paid"` → `eventDebt = getOwedPrice(a)`
 
 Además, se detectan gastos cuyo `responsible` no matchea ningún asistente confirmado y se muestran como **acreedores externos** en la sección "Pagaron sin ser asistentes", con alias de pago y botón de saldar.
 

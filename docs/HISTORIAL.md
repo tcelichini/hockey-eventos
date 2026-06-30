@@ -438,3 +438,12 @@ Registro de todas las sesiones de trabajo. Cada entrada documenta cambios concre
   - El badge "Gastó" y "Comprobante" ahora son independientes — un asistente puede mostrar ambos si tiene gastos + comprobante.
   - Nueva prop `hasExpenses` en `AttendeeItem` type.
   - Archivos: `components/sortable-attendee-list.tsx`, `app/admin/(protected)/events/[id]/page.tsx`
+
+## Sesión 44 (2026-06-30)
+
+- **Fix crítico: balance incorrecto para asistentes que pagaron evento + tienen gastos**
+  - Bug: la sesión 43 introdujo un caso especial `paidWithProofAndExpenses` que descontaba el precio del evento de los gastos de TODOS los asistentes con comprobante + gastos. Esto era incorrecto para quienes pagaron el evento de forma independiente (vía combo o individual): se les descontaba el evento de sus gastos cuando en realidad ya lo habían pagado aparte.
+  - Ejemplo: Alvarez Sly pagó $24k (combo) y gastó $72k → mostraba "Le deben $42k" ($72k - $30k) en vez de "Le deben $72k".
+  - Fix: se eliminó el caso especial. La fórmula vuelve a ser la original y correcta: `eventDebt = (paid && !paidViaExpenses) ? 0 : getOwedPrice(a)`. Si pagó (con proof), `eventDebt = 0` y se devuelven todos los gastos. Si fue cubierto por gastos (`paidViaExpenses`), el evento se descuenta.
+  - Invariante documentado en ARQUITECTURA.md: pago del evento y gastos son conceptos independientes. No mezclar.
+  - Archivos: `app/admin/(protected)/events/[id]/page.tsx`, `docs/ARQUITECTURA.md`
