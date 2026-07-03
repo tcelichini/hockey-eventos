@@ -447,3 +447,18 @@ Registro de todas las sesiones de trabajo. Cada entrada documenta cambios concre
   - Fix: se eliminó el caso especial. La fórmula vuelve a ser la original y correcta: `eventDebt = (paid && !paidViaExpenses) ? 0 : getOwedPrice(a)`. Si pagó (con proof), `eventDebt = 0` y se devuelven todos los gastos. Si fue cubierto por gastos (`paidViaExpenses`), el evento se descuenta.
   - Invariante documentado en ARQUITECTURA.md: pago del evento y gastos son conceptos independientes. No mezclar.
   - Archivos: `app/admin/(protected)/events/[id]/page.tsx`, `docs/ARQUITECTURA.md`
+
+## Sesión 45 (2026-07-03)
+
+- **Refactor: la Liquidación ahora vive en un módulo puro con tests (`lib/settlement.ts`)**
+  - Contexto: la lógica de plata (getOwedPrice, paidViaExpenses, balance neto, acreedores externos) estaba copiada en 4 archivos y las copias divergían — las sesiones 43/44 fueron bugs causados exactamente por eso.
+  - Nuevo `lib/settlement.ts`: `settleEvent({event, attendees, expenses, now?})` devuelve la liquidación completa (deudores, acreedores, cubiertos por gastos, externos, totales y `toMarkPaid`). Función pura, sin DB. `getOwedPrice(event, attendee, now?)` y `normalizeName()` exportadas como primitivas.
+  - Nuevo `lib/combo-payment.ts`: `classifyComboPayment()` (badge "Combo", concepto de display — no participa del cálculo de plata).
+  - Callers migrados: `app/admin/(protected)/events/[id]/page.tsx` (aplica el write de `toMarkPaid` que decide el módulo), `app/admin/(protected)/pendientes/page.tsx` (usa `debtors` — imposible que vuelva a divergir del Resumen), `lib/sync-expense-payment.ts` (usa `getOwedPrice`).
+  - **Fix de drift 1:** Pendientes ignoraba `pricing_tiers` (tramo más caro), `inferiores_price` e `is_inferiores` al calcular la deuda — mostraba montos distintos al panel del evento.
+  - **Fix de drift 2:** el matching de gastos↔asistentes ahora quita tildes (`normalizeName`): "José" y "Jose" son la misma persona. Antes un gasto cargado sin tilde no matcheaba y el balance salía mal en silencio.
+  - **Regla de negocio nueva (decidida, ver CONTEXT.md):** el descuento del combo es solo si pagás. Un asistente de combo impago debe el precio del evento, no la cuota-parte del combo (Pendientes dividía `comboPrice / eventCount`; eso se eliminó).
+  - **Tests:** Vitest agregado (`npm run test`), `lib/settlement.test.ts` con 18 tests que cubren la escalera de precios, el INVARIANTE CRÍTICO (sesión 44), toMarkPaid, tildes, externos y classifyComboPayment.
+  - Nuevo `CONTEXT.md` en la raíz: glosario de dominio y reglas de negocio decididas.
+  - Limpieza: `comboMap` en el panel del evento era código muerto (se escribía, nunca se leía).
+  - Archivos: `lib/settlement.ts`, `lib/settlement.test.ts`, `lib/combo-payment.ts`, `lib/sync-expense-payment.ts`, `app/admin/(protected)/events/[id]/page.tsx`, `app/admin/(protected)/pendientes/page.tsx`, `vitest.config.ts`, `CONTEXT.md`

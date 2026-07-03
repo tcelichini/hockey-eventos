@@ -7,6 +7,9 @@ Mapa de archivos clave y lógica de negocio del proyecto.
 | Archivo | Qué hace |
 |---|---|
 | `db/schema.ts` | Tipos `PricingTier`, `DateTier` y tablas `events`, `attendees`, `expenses`, `combos` |
+| `lib/settlement.ts` | **Módulo de Liquidación** (puro, con tests): `settleEvent`, `getOwedPrice`, `normalizeName`. Ver CONTEXT.md |
+| `lib/settlement.test.ts` | Tests de la liquidación (`npm run test`, Vitest) |
+| `lib/combo-payment.ts` | `classifyComboPayment`: detección de "pagó vía combo" (badge, display) |
 | `lib/pricing.ts` | Helpers: `todayArg`, `getTierLabel`, `calculatePrice`, `calculateDatePrice`, `getDateTierLabel`, `validateTiers` |
 | `lib/players.ts` | Lista estática del plantel (36 jugadores, formato "Apellido, Nombre") |
 | `components/pricing-tiers-editor.tsx` | Editor de tramos por cantidad |
@@ -115,6 +118,13 @@ paidViaCombo = todos los registros del combo tienen la misma payment_proof_url (
 ---
 
 ## Lógica de balance neto (Resumen admin)
+
+> **Desde la sesión 45 esta lógica vive en `lib/settlement.ts` (`settleEvent`)** — función pura
+> con tests en `lib/settlement.test.ts`. El panel del evento, Pendientes y el sync de gastos la
+> consumen a través de esa interfaz. **No re-implementar estos cálculos inline en páginas o APIs.**
+> El matching gastos↔asistentes usa `normalizeName()` (quita tildes).
+> Regla de combos (ver CONTEXT.md): un asistente de combo impago debe el precio del evento,
+> NO la cuota-parte del combo — el descuento del combo es solo si pagás.
 
 ```
 net = eventDebt - expPaid

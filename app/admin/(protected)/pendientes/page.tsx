@@ -1,12 +1,11 @@
 import Link from "next/link"
 import { db } from "@/db"
-import { events, attendees, combos, expenses } from "@/db/schema"
-import type { DateTier } from "@/db/schema"
-import { eq, and, sql, inArray } from "drizzle-orm"
+import { events, attendees, expenses } from "@/db/schema"
+import { eq, and, inArray } from "drizzle-orm"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ArrowLeftIcon } from "lucide-react"
-import { calculateDatePrice } from "@/lib/pricing"
+import { settleEvent } from "@/lib/settlement"
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("es-AR", {
@@ -42,146 +41,72 @@ function getInitials(name: string) {
 export default async function PendientesPage() {
   const now = new Date()
 
-  const unpaidAttendees = await db
-    .select({
-      id: attendees.id,
-      full_name: attendees.full_name,
-      price_paid: attendees.price_paid,
-      combo_id: attendees.combo_id,
-      event_id: attendees.event_id,
-      event_title: events.title,
-      event_date: events.date,
-      event_is_open: events.is_open,
-      event_slug: events.slug,
-      event_payment_amount: events.payment_amount,
-      event_date_tiers: events.date_tiers,
-    })
+  // Eventos con al menos un pago pendiente
+  const pendingEventRows = await db
+    .selectDistinct({ event_id: attendees.event_id })
     .from(attendees)
-    .innerJoin(events, eq(attendees.event_id, events.id))
     .where(and(eq(attendees.status, "confirmed"), eq(attendees.payment_status, "pending")))
-    .orderBy(sql`${events.date} DESC, ${attendees.full_name} ASC`)
+  const eventIds = pendingEventRows.map((r) => r.event_id)
 
-  // Fetch combo data for attendees registered via combo
-  const comboIds = Array.from(new Set(unpaidAttendees.map((a) => a.combo_id).filter((id): id is string => id !== null)))
-  const comboMap = new Map<string, { date_tiers: DateTier[] | null; payment_amount: string; eventCount: number }>()
-  if (comboIds.length > 0) {
-    const comboRows = await db
-      .select({
-        id: combos.id,
-        date_tiers: combos.date_tiers,
-        payment_amount: combos.payment_amount,
-        event_ids: combos.event_ids,
-      })
-      .from(combos)
-      .where(inArray(combos.id, comboIds))
-    for (const c of comboRows) {
-      comboMap.set(c.id, {
-        date_tiers: c.date_tiers,
-        payment_amount: c.payment_amount,
-        eventCount: c.event_ids.length,
-      })
-    }
+  type Person = { id: string; name: string; amount: number; grossAmount: number; expPaid: number }
+  type Group = {
+    event_id: string
+    title: string
+    date: Date | null
+    is_open: boolean
+    slug: string
+    people: Person[]
   }
-
-  // Group by event
-  const eventMap = new Map<
-    string,
-    {
-      event_id: string
-      title: string
-      date: Date | null
-      is_open: boolean
-      slug: string
-      payment_amount: string
-      date_tiers: DateTier[] | null
-      people: { id: string; name: string; amount: number; grossAmount: number; expPaid: number }[]
-    }
-  >()
-
-  for (const row of unpaidAttendees) {
-    if (!eventMap.has(row.event_id)) {
-      eventMap.set(row.event_id, {
-        event_id: row.event_id,
-        title: row.event_title,
-        date: row.event_date,
-        is_open: row.event_is_open,
-        slug: row.event_slug,
-        payment_amount: row.event_payment_amount,
-        date_tiers: row.event_date_tiers,
-        people: [],
-      })
-    }
-
-    let amount: number
-    if (row.combo_id && comboMap.has(row.combo_id)) {
-      const combo = comboMap.get(row.combo_id)!
-      const comboPrice = combo.date_tiers && combo.date_tiers.length > 0
-        ? calculateDatePrice(combo.date_tiers, combo.payment_amount)
-        : Number(combo.payment_amount)
-      amount = Math.round((comboPrice / combo.eventCount) * 100) / 100
-    } else {
-      const currentTierPrice = row.event_date_tiers && row.event_date_tiers.length > 0
-        ? calculateDatePrice(row.event_date_tiers, row.event_payment_amount)
-        : null
-      amount = currentTierPrice ?? (Number(row.price_paid) || Number(row.event_payment_amount) || 0)
-    }
-
-    eventMap.get(row.event_id)!.people.push({
-      id: row.id,
-      name: row.full_name,
-      amount,
-      grossAmount: amount,
-      expPaid: 0,
-    })
-  }
-
-  // Fetch expenses for events with pending payments and discount from each person's amount
-  const eventIdsWithPending = Array.from(eventMap.keys())
-  if (eventIdsWithPending.length > 0) {
-    const expenseList = await db
-      .select()
-      .from(expenses)
-      .where(inArray(expenses.event_id, eventIdsWithPending))
-
-    const expenseByEventPerson = new Map<string, number>()
-    for (const e of expenseList) {
-      const key = `${e.event_id}::${e.responsible.trim().toLowerCase()}`
-      expenseByEventPerson.set(key, (expenseByEventPerson.get(key) || 0) + Number(e.amount))
-    }
-
-    for (const group of Array.from(eventMap.values())) {
-      for (const person of group.people) {
-        const key = `${group.event_id}::${person.name.trim().toLowerCase()}`
-        const exp = expenseByEventPerson.get(key) || 0
-        if (exp > 0) {
-          person.expPaid = exp
-          person.amount = Math.max(0, person.grossAmount - exp)
-        }
-      }
-      group.people = group.people.filter((p) => p.amount > 0)
-    }
-  }
-
-  const grouped = Array.from(eventMap.values())
-    .filter((g) => g.people.length > 0)
-    .sort((a, b) => new Date(b.date!).getTime() - new Date(a.date!).getTime())
-
-  // Confirmed counts per event (for "X pendientes de Y confirmados")
+  const grouped: Group[] = []
   const confirmedCounts = new Map<string, number>()
-  if (grouped.length > 0) {
-    const eventIds = grouped.map((g) => g.event_id)
-    const counts = await db
-      .select({
-        event_id: attendees.event_id,
-        count: sql<number>`count(*)`,
+  let totalCollected = 0
+
+  if (eventIds.length > 0) {
+    const [eventRows, confirmedRows, expenseRows] = await Promise.all([
+      db.select().from(events).where(inArray(events.id, eventIds)),
+      db
+        .select()
+        .from(attendees)
+        .where(and(eq(attendees.status, "confirmed"), inArray(attendees.event_id, eventIds)))
+        .orderBy(attendees.full_name),
+      db.select().from(expenses).where(inArray(expenses.event_id, eventIds)),
+    ])
+
+    for (const ev of eventRows) {
+      const confirmed = confirmedRows.filter((a) => a.event_id === ev.id)
+
+      // La misma liquidación que el Resumen del panel del evento (lib/settlement.ts).
+      // Deudor = net > 0. Un pendiente cuyos gastos ya lo cubren no es deudor.
+      const { debtors } = settleEvent({
+        event: ev,
+        attendees: confirmed,
+        expenses: expenseRows.filter((e) => e.event_id === ev.id),
       })
-      .from(attendees)
-      .where(and(eq(attendees.status, "confirmed"), inArray(attendees.event_id, eventIds)))
-      .groupBy(attendees.event_id)
-    for (const c of counts) {
-      confirmedCounts.set(c.event_id, Number(c.count))
+      if (debtors.length === 0) continue
+
+      confirmedCounts.set(ev.id, confirmed.length)
+      totalCollected += confirmed
+        .filter((a) => a.payment_status === "paid")
+        .reduce((sum, a) => sum + (a.price_paid !== null ? Number(a.price_paid) : Number(ev.payment_amount)), 0)
+
+      grouped.push({
+        event_id: ev.id,
+        title: ev.title,
+        date: ev.date,
+        is_open: ev.is_open,
+        slug: ev.slug,
+        people: debtors.map((b) => ({
+          id: b.attendee.id,
+          name: b.attendee.full_name,
+          amount: b.net,
+          grossAmount: b.owed,
+          expPaid: b.expPaid,
+        })),
+      })
     }
   }
+
+  grouped.sort((a, b) => new Date(b.date!).getTime() - new Date(a.date!).getTime())
 
   // Split into upcoming vs past, with explicit sort to guarantee order
   const upcoming = grouped
@@ -196,27 +121,7 @@ export default async function PendientesPage() {
     (sum, g) => sum + g.people.reduce((s, p) => s + p.amount, 0),
     0
   )
-  const totalPeopleCount = unpaidAttendees.length
-
-  // Collected amount for events that have pending payments
-  let totalCollected = 0
-  if (grouped.length > 0) {
-    const eventIds = grouped.map((g) => g.event_id)
-    const [result] = await db
-      .select({
-        sum: sql<number>`coalesce(sum(coalesce(${attendees.price_paid}, ${events.payment_amount})), 0)`,
-      })
-      .from(attendees)
-      .innerJoin(events, eq(attendees.event_id, events.id))
-      .where(
-        and(
-          eq(attendees.status, "confirmed"),
-          eq(attendees.payment_status, "paid"),
-          inArray(attendees.event_id, eventIds)
-        )
-      )
-    totalCollected = Number(result.sum)
-  }
+  const totalPeopleCount = grouped.reduce((sum, g) => sum + g.people.length, 0)
 
   const totalConfirmedInEvents = Array.from(confirmedCounts.values()).reduce((a, b) => a + b, 0)
   const totalPaidInEvents = totalConfirmedInEvents - totalPeopleCount

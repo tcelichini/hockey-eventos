@@ -1,5 +1,5 @@
 import { db } from "@/db"
-import { events, attendees, expenses, combos } from "@/db/schema"
+import { events, attendees, expenses } from "@/db/schema"
 import { eq, inArray } from "drizzle-orm"
 import { notFound } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
@@ -21,7 +21,9 @@ import AddAttendeeButton from "@/components/add-attendee-button"
 import SortableAttendeeList from "@/components/sortable-attendee-list"
 import ExpenseForm from "@/components/expense-form"
 import SettleCreditorButton from "@/components/settle-creditor-button"
-import { getTierLabel, getDateTierLabel, calculateDatePrice, todayArg } from "@/lib/pricing"
+import { getTierLabel, getDateTierLabel, todayArg } from "@/lib/pricing"
+import { settleEvent, getOwedPrice, normalizeName } from "@/lib/settlement"
+import { classifyComboPayment } from "@/lib/combo-payment"
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 0 }).format(value)
@@ -54,58 +56,21 @@ export default async function EventDetailPage({ params }: { params: { id: string
   const confirmed = attendeeList.filter((a) => a.status === "confirmed")
   const declined = attendeeList.filter((a) => a.status === "declined")
 
-  // Para cada asistente con combo_id, determinar si pagó vía combo o individualmente.
-  // Lógica: si TODOS sus registros del mismo combo están pagados → pagó vía combo.
-  // Si solo este está pagado (y otros no) → pagó individualmente.
+  // Badge "Combo": asistentes que pagaron vía combo (misma proof URL en todos
+  // sus registros del combo). Requiere los registros de otros eventos del combo.
   const comboIds = Array.from(new Set(confirmed.filter(a => a.combo_id).map(a => a.combo_id!)))
-  const comboMap = new Map<string, string>()
-  // Set de attendee IDs que efectivamente pagaron vía combo
-  const paidViaCombo = new Set<string>()
+  let paidViaCombo = new Set<string>()
   if (comboIds.length > 0) {
-    const comboList = await db.select({ id: combos.id, title: combos.title }).from(combos).where(inArray(combos.id, comboIds))
-    for (const c of comboList) comboMap.set(c.id, c.title)
-
-    // Buscar TODOS los attendees de estos combos (incluyendo otros eventos)
     const allComboAttendees = await db
-      .select({ id: attendees.id, combo_id: attendees.combo_id, full_name: attendees.full_name, payment_status: attendees.payment_status, payment_proof_url: attendees.payment_proof_url })
+      .select({ id: attendees.id, combo_id: attendees.combo_id, full_name: attendees.full_name, payment_proof_url: attendees.payment_proof_url })
       .from(attendees)
       .where(inArray(attendees.combo_id, comboIds))
-
-    // Agrupar por combo_id + nombre normalizado
-    const normalize = (s: string) => s.trim().toLowerCase()
-    const comboPersonGroups = new Map<string, { ids: string[]; proofUrls: (string | null)[] }>()
-    for (const a of allComboAttendees) {
-      const key = `${a.combo_id}::${normalize(a.full_name)}`
-      const group = comboPersonGroups.get(key) || { ids: [], proofUrls: [] }
-      group.ids.push(a.id)
-      group.proofUrls.push(a.payment_proof_url)
-      comboPersonGroups.set(key, group)
-    }
-
-    // Pagó vía combo = todos los registros comparten la misma proof URL (no nula)
-    Array.from(comboPersonGroups.values()).forEach(group => {
-      const firstProof = group.proofUrls[0]
-      if (firstProof && group.proofUrls.every(url => url === firstProof)) {
-        group.ids.forEach(id => paidViaCombo.add(id))
-      }
-    })
+    paidViaCombo = classifyComboPayment(allComboAttendees)
   }
+
   const amount = Number(event.payment_amount) || 0
-  // Precio del tramo vigente hoy (para eventos con date_tiers)
-  const currentTierPrice = event.date_tiers && event.date_tiers.length > 0
-    ? calculateDatePrice(event.date_tiers, String(event.payment_amount))
-    : null
-  // Precio más caro de pricing_tiers (para no-pagadores en eventos por cantidad)
-  const maxPricingTierPrice = event.pricing_tiers && event.pricing_tiers.length > 0
-    ? Math.max(...event.pricing_tiers.map(t => t.price))
-    : null
   const getPrice = (a: typeof confirmed[0]) => Number(a.price_paid) || amount
   const inferioresPrice = event.inferiores_price ? Number(event.inferiores_price) : null
-  const getOwedPrice = (a: typeof confirmed[0]) =>
-    a.is_inferiores && inferioresPrice !== null ? inferioresPrice
-    : currentTierPrice !== null ? currentTierPrice
-    : maxPricingTierPrice !== null ? maxPricingTierPrice
-    : getPrice(a)
 
   const expenseList = await db
     .select()
@@ -113,67 +78,37 @@ export default async function EventDetailPage({ params }: { params: { id: string
     .where(eq(expenses.event_id, event.id))
     .orderBy(expenses.created_at)
 
-  const totalExpenses = expenseList.reduce((sum, e) => sum + Number(e.amount), 0)
+  // Liquidación completa (lib/settlement.ts): balances, deudores, acreedores y totales
+  const settlement = settleEvent({ event, attendees: confirmed, expenses: expenseList })
+  const owedOf = (a: typeof confirmed[0]) => getOwedPrice(event, a)
 
-  // Mapa de gastos adelantados por persona (nombre normalizado -> total)
-  const expenseByPerson = new Map<string, number>()
-  // Alias/CBU por persona (primer alias no nulo encontrado)
-  const aliasByPerson = new Map<string, string>()
-  // IDs de gastos por persona (para marcar como saldados)
-  const expenseIdsByPerson = new Map<string, string[]>()
-  // Si todos los gastos de una persona están saldados
-  const settledByPerson = new Map<string, boolean>()
-  for (const e of expenseList) {
-    const key = e.responsible.trim().toLowerCase()
-    expenseByPerson.set(key, (expenseByPerson.get(key) || 0) + Number(e.amount))
-    if (e.payment_alias && !aliasByPerson.has(key)) aliasByPerson.set(key, e.payment_alias)
-    expenseIdsByPerson.set(key, [...(expenseIdsByPerson.get(key) || []), e.id])
-  }
-  Array.from(expenseIdsByPerson.entries()).forEach(([key, ids]) => {
-    const allSettled = ids.every((id: string) => expenseList.find(e => e.id === id)?.settled === true)
-    settledByPerson.set(key, allSettled)
-  })
-  // Sync: marcar como pagados a asistentes cuyos gastos cubren el costo del evento
-  const toSync = confirmed.filter(a => {
-    if (a.payment_status === "paid") return false
-    const exp = expenseByPerson.get(a.full_name.trim().toLowerCase()) || 0
-    return exp > 0 && exp >= getOwedPrice(a)
-  })
-  if (toSync.length > 0) {
+  // Aplicar el sync que decidió la liquidación: pendientes cuyos gastos cubren el evento
+  if (settlement.toMarkPaid.length > 0) {
     await db.update(attendees)
       .set({ payment_status: "paid" })
-      .where(inArray(attendees.id, toSync.map(a => a.id)))
-    for (const a of toSync) {
-      ;(a as { payment_status: string }).payment_status = "paid"
+      .where(inArray(attendees.id, settlement.toMarkPaid))
+    const toMarkPaidIds = new Set(settlement.toMarkPaid)
+    for (const a of confirmed) {
+      if (toMarkPaidIds.has(a.id)) a.payment_status = "paid"
     }
   }
 
+  const {
+    coveredByExpensesIds,
+    expenseByPerson,
+    aliasByPerson,
+    expenseIdsByPerson,
+    settledByPerson,
+    totalCollected,
+    totalExpenses,
+    balance,
+    totalPending,
+  } = settlement
+
   const paid = confirmed.filter((a) => a.payment_status === "paid")
-  const unpaid = confirmed.filter((a) => a.payment_status !== "paid")
-  const totalCollected = paid.reduce((sum, a) => sum + getPrice(a), 0)
-  const balance = totalCollected - totalExpenses
-
-  const coveredByExpensesIds = new Set(
-    confirmed
-      .filter(a => a.payment_status === "paid" && !a.payment_proof_url)
-      .filter(a => {
-        const exp = expenseByPerson.get(a.full_name.trim().toLowerCase()) || 0
-        return exp > 0 && exp >= getOwedPrice(a)
-      })
-      .map(a => a.id)
-  )
-
-  // Asistentes cubiertos por gastos (ya marcados como paid por el sync)
+  // Asistentes cubiertos por gastos (marcados como paid sin comprobante)
   const coveredByExpenses = confirmed.filter(a => coveredByExpensesIds.has(a.id))
-  const unpaidStillOwing = unpaid.filter(a => {
-    const exp = expenseByPerson.get(a.full_name.trim().toLowerCase()) || 0
-    return exp <= 0 || exp < getOwedPrice(a)
-  })
-  const totalPending = unpaidStillOwing.reduce((sum, a) => {
-    const owed = getOwedPrice(a)
-    const exp = expenseByPerson.get(a.full_name.trim().toLowerCase()) || 0
-    return sum + Math.max(owed - exp, 0)
-  }, 0)
+  const pendingCount = settlement.debtors.length
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").trim()
   const publicLink = `${appUrl}/e/${event.slug}`
 
@@ -317,7 +252,7 @@ export default async function EventDetailPage({ params }: { params: { id: string
             <CardContent className="pt-4 pb-4">
               <div className="text-xs text-gray-500 mb-1">Falta cobrar</div>
               <div className="text-xl font-bold text-orange-500">{formatCurrency(totalPending)}</div>
-              <div className="text-xs text-gray-400 mt-0.5">{unpaidStillOwing.length} pendiente{unpaidStillOwing.length !== 1 ? "s" : ""}</div>
+              <div className="text-xs text-gray-400 mt-0.5">{pendingCount} pendiente{pendingCount !== 1 ? "s" : ""}</div>
             </CardContent>
           </Card>
         </div>
@@ -328,61 +263,42 @@ export default async function EventDetailPage({ params }: { params: { id: string
         {confirmed.length === 0 ? (
           <p className="text-gray-400 text-sm text-center py-2">Sin asistentes confirmados</p>
         ) : (() => {
-          // Calcular balance neto de cada asistente confirmado:
-          // net = (precio del evento si no pagó, 0 si ya pagó) - gastos adelantados
-          const confirmedKeys = new Set(confirmed.map(a => a.full_name.trim().toLowerCase()))
-          const balances = confirmed.map(a => {
-            const paidViaExpenses = coveredByExpensesIds.has(a.id)
-            const expPaid = expenseByPerson.get(a.full_name.trim().toLowerCase()) || 0
-            const eventDebt = (a.payment_status === "paid" && !paidViaExpenses) ? 0 : getOwedPrice(a)
-            return { a, net: eventDebt - expPaid, expPaid, paidViaExpenses }
-          })
-          const debtors = balances.filter(b => b.net > 0)   // deben plata
-          const creditors = balances.filter(b => b.net < 0) // se les debe plata
-
-          // Personas externas que pagaron gastos pero no son asistentes
-          const externalCreditors: { name: string; expPaid: number; key: string }[] = []
-          expenseByPerson.forEach((total, key) => {
-            if (!confirmedKeys.has(key)) {
-              const displayName = expenseList.find(e => e.responsible.trim().toLowerCase() === key)?.responsible || key
-              externalCreditors.push({ name: displayName, expPaid: total, key })
-            }
-          })
+          // Balance neto por asistente: calculado por settleEvent (lib/settlement.ts)
+          const { debtors, creditors, externalCreditors } = settlement
 
           return (
             <div className="space-y-3">
               {debtors.length > 0 && (
                 <div className="space-y-1.5">
                   <p className="text-xs text-gray-400 uppercase tracking-wide">Deben pagar ({debtors.length})</p>
-                  {debtors.map(({ a, net, expPaid }) => (
+                  {debtors.map(({ attendee: a, net, expPaid, owed }) => (
                     <div key={a.id} className="flex items-center justify-between text-sm">
                       <span className="text-gray-700">{a.full_name}</span>
                       <div className="text-right">
                         <span className="font-medium text-orange-500">{formatCurrency(net)}</span>
                         {expPaid > 0 && (
-                          <p className="text-xs text-gray-400">{formatCurrency(getOwedPrice(a))} − {formatCurrency(expPaid)} gastos</p>
+                          <p className="text-xs text-gray-400">{formatCurrency(owed)} − {formatCurrency(expPaid)} gastos</p>
                         )}
                       </div>
                     </div>
                   ))}
                   <PaymentReminderButton
-                    unpaidList={debtors.map(({ a, net }) => ({ name: a.full_name, amount: net }))}
+                    unpaidList={debtors.map(({ attendee: a, net }) => ({ name: a.full_name, amount: net }))}
                     eventTitle={event.title}
                   />
                 </div>
               )}
 
               {creditors.length > 0 && (() => {
-                const personKey = (name: string) => name.trim().toLowerCase()
-                const unsettled = creditors.filter(({ a }) => !settledByPerson.get(personKey(a.full_name)))
-                const settled = creditors.filter(({ a }) => settledByPerson.get(personKey(a.full_name)))
+                const unsettled = creditors.filter(({ attendee: a }) => !settledByPerson.get(normalizeName(a.full_name)))
+                const settled = creditors.filter(({ attendee: a }) => settledByPerson.get(normalizeName(a.full_name)))
                 return (
                   <div className={`space-y-2 ${debtors.length > 0 ? "pt-3 border-t border-gray-100" : ""}`}>
                     <p className="text-xs text-gray-400 uppercase tracking-wide">
                       Se les debe devolver{unsettled.length < creditors.length ? ` (${unsettled.length} pendiente${unsettled.length !== 1 ? "s" : ""})` : ""}
                     </p>
-                    {unsettled.map(({ a, net, expPaid, paidViaExpenses }) => {
-                      const key = personKey(a.full_name)
+                    {unsettled.map(({ attendee: a, net, expPaid, paidViaExpenses, owed }) => {
+                      const key = normalizeName(a.full_name)
                       const alias = aliasByPerson.get(key)
                       const ids = expenseIdsByPerson.get(key) || []
                       return (
@@ -399,13 +315,13 @@ export default async function EventDetailPage({ params }: { params: { id: string
                               <SettleCreditorButton expenseIds={ids} />
                             </div>
                             {expPaid > 0 && paidViaExpenses && (
-                              <p className="text-xs text-gray-400">{formatCurrency(expPaid)} gastos − {formatCurrency(getOwedPrice(a))} evento</p>
+                              <p className="text-xs text-gray-400">{formatCurrency(expPaid)} gastos − {formatCurrency(owed)} evento</p>
                             )}
                             {expPaid > 0 && !paidViaExpenses && a.payment_status === "paid" && (
                               <p className="text-xs text-gray-400">pagó evento + {formatCurrency(expPaid)} en gastos</p>
                             )}
                             {expPaid > 0 && !paidViaExpenses && a.payment_status !== "paid" && (
-                              <p className="text-xs text-gray-400">{formatCurrency(getOwedPrice(a))} − {formatCurrency(expPaid)} gastos</p>
+                              <p className="text-xs text-gray-400">{formatCurrency(owed)} − {formatCurrency(expPaid)} gastos</p>
                             )}
                           </div>
                         </div>
@@ -414,8 +330,8 @@ export default async function EventDetailPage({ params }: { params: { id: string
                     {settled.length > 0 && (
                       <div className={`space-y-1 ${unsettled.length > 0 ? "pt-2 border-t border-gray-100" : ""}`}>
                         <p className="text-xs text-gray-400 uppercase tracking-wide">Ya saldados</p>
-                        {settled.map(({ a }) => {
-                          const key = personKey(a.full_name)
+                        {settled.map(({ attendee: a }) => {
+                          const key = normalizeName(a.full_name)
                           const ids = expenseIdsByPerson.get(key) || []
                           return (
                             <div key={a.id} className="flex items-center justify-between text-sm">
@@ -549,7 +465,7 @@ export default async function EventDetailPage({ params }: { params: { id: string
               })
               const isCovered = coveredByExpensesIds.has(a.id)
               const showOwedPrice = isCovered || a.payment_status !== "paid"
-              const displayPrice = showOwedPrice ? getOwedPrice(a) : getPrice(a)
+              const displayPrice = showOwedPrice ? owedOf(a) : getPrice(a)
               return {
                 id: a.id,
                 full_name: a.full_name,
@@ -565,7 +481,7 @@ export default async function EventDetailPage({ params }: { params: { id: string
                 proofUploadedAtFormatted: a.proof_uploaded_at ? shortDateFmt.format(new Date(a.proof_uploaded_at)) : null,
                 isInferiores: a.is_inferiores,
                 coveredByExpenses: coveredByExpensesIds.has(a.id),
-                hasExpenses: (expenseByPerson.get(a.full_name.trim().toLowerCase()) || 0) > 0,
+                hasExpenses: (expenseByPerson.get(normalizeName(a.full_name)) || 0) > 0,
               }
             })}
             hasInferioresPrice={inferioresPrice !== null}
