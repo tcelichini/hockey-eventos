@@ -196,15 +196,16 @@ export default async function AdminPage() {
               )}
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="p-4">
+          <Link href="/admin/cuentas" className="h-full">
+            <div className="bg-white rounded-xl border border-gray-200 p-4 hover:border-gray-300 hover:shadow-sm transition-all cursor-pointer h-full">
               <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
                 <ClockIcon className="w-4 h-4" />
                 Pendiente
               </div>
               <p className="text-2xl font-bold text-orange-500">{formatCurrency(totalPending)}</p>
-            </CardContent>
-          </Card>
+              <p className="text-xs text-gray-400 mt-0.5">ver cuenta corriente →</p>
+            </div>
+          </Link>
         </div>
       )}
 

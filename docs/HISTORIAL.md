@@ -462,3 +462,15 @@ Registro de todas las sesiones de trabajo. Cada entrada documenta cambios concre
   - Nuevo `CONTEXT.md` en la raíz: glosario de dominio y reglas de negocio decididas.
   - Limpieza: `comboMap` en el panel del evento era código muerto (se escribía, nunca se leía).
   - Archivos: `lib/settlement.ts`, `lib/settlement.test.ts`, `lib/combo-payment.ts`, `lib/sync-expense-payment.ts`, `app/admin/(protected)/events/[id]/page.tsx`, `app/admin/(protected)/pendientes/page.tsx`, `vitest.config.ts`, `CONTEXT.md`
+
+## Sesión 46 (2026-07-07)
+
+- **Feature: cuenta corriente por jugador**
+  - Saldo consolidado por persona across eventos (deudas impagas − gastos sin devolver). Responde la pregunta "¿cuánto te tengo que pasar en total?" sin que el admin consolide a mano.
+  - `lib/cuenta-corriente.ts`: `consolidateAccounts()` — pura, agrupa los `settleEvent` de cada evento por `normalizeName`. Reglas: entra `net ≠ 0`; acreedores con todos sus gastos `settled` no entran; externos entran con `net = -expPaid`. 9 tests nuevos (27 total).
+  - `lib/cuenta-corriente-query.ts`: fetch (3 queries) + consolidación, compartido por la página admin y la API pública — una sola implementación.
+  - **Admin** `/admin/cuentas`: cards "Por cobrar"/"Por devolver", listas de deudores y acreedores con detalle por evento (`<details>` nativo, sin JS cliente), botón WhatsApp (`components/whatsapp-cuentas-button.tsx`, molde de payment-reminder-button). Entrada: la card "Pendiente" del dashboard ahora linkea a `/admin/cuentas`.
+  - **Público** `/mi-cuenta`: selector de nombre (solo nombres con saldo ≠ 0) → fetch a `GET /api/cuenta?name=` → saldo total + detalle por evento + alias de transferencia. El listado completo de montos nunca viaja al cliente. Link "Ver mi cuenta corriente →" al pie de la página pública del evento.
+  - Limitación conocida: apodos/formatos distintos del mismo jugador ("Guillote Campana" vs "Campana, Guillermo") no se unifican — solo tildes/mayúsculas vía `normalizeName`.
+  - Nota: la card "Pendiente" del dashboard ($ por SQL de `price_paid`) puede diferir levemente de "Por cobrar" en cuentas (usa `getOwedPrice` con tramo vigente) — semántica histórica del dashboard, no regresión.
+  - Archivos: `lib/cuenta-corriente.ts`, `lib/cuenta-corriente.test.ts`, `lib/cuenta-corriente-query.ts`, `app/admin/(protected)/cuentas/page.tsx`, `app/mi-cuenta/page.tsx`, `app/api/cuenta/route.ts`, `components/whatsapp-cuentas-button.tsx`, `app/admin/(protected)/page.tsx`, `app/e/[slug]/page.tsx`, `CONTEXT.md`

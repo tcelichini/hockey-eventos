@@ -10,6 +10,11 @@ Mapa de archivos clave y lógica de negocio del proyecto.
 | `lib/settlement.ts` | **Módulo de Liquidación** (puro, con tests): `settleEvent`, `getOwedPrice`, `normalizeName`. Ver CONTEXT.md |
 | `lib/settlement.test.ts` | Tests de la liquidación (`npm run test`, Vitest) |
 | `lib/combo-payment.ts` | `classifyComboPayment`: detección de "pagó vía combo" (badge, display) |
+| `lib/cuenta-corriente.ts` | `consolidateAccounts` (puro, con tests): saldo por persona across eventos. Ver CONTEXT.md |
+| `lib/cuenta-corriente-query.ts` | Fetch + settleEvent por evento + consolidación (compartido por admin y API pública) |
+| `app/admin/(protected)/cuentas/page.tsx` | Página admin de cuenta corriente (deudores/acreedores consolidados + WhatsApp) |
+| `app/mi-cuenta/page.tsx` | Consulta pública: el jugador elige su nombre y ve solo su saldo |
+| `app/api/cuenta/route.ts` | API pública de cuenta corriente (nombres / saldo por persona) |
 | `lib/pricing.ts` | Helpers: `todayArg`, `getTierLabel`, `calculatePrice`, `calculateDatePrice`, `getDateTierLabel`, `validateTiers` |
 | `lib/players.ts` | Lista estática del plantel (36 jugadores, formato "Apellido, Nombre") |
 | `components/pricing-tiers-editor.tsx` | Editor de tramos por cantidad |

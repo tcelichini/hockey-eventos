@@ -308,6 +308,13 @@ export default async function EventPage({ params }: { params: { slug: string } }
           <ExpenseForm eventId={event.id} attendeeNames={confirmedAttendees.length > 0 ? [...confirmedAttendees].sort((a, b) => a.full_name.localeCompare(b.full_name)).map(a => a.full_name) : undefined} />
         </CollapsibleSection>
 
+        {/* Cuenta corriente */}
+        <div className="mx-3 py-3 text-center">
+          <a href="/mi-cuenta" className="text-sm text-[#002060] hover:underline">
+            Ver mi cuenta corriente →
+          </a>
+        </div>
+
         {/* Footer branding */}
         <div className="mx-3 rounded-b-2xl bg-[#002060] px-5 py-3 flex items-center justify-center gap-2">
           <div className="w-5 h-5 bg-[#00A651] rounded-full flex items-center justify-center">
