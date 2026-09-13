@@ -1,9 +1,26 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/db"
-import { attendees, events, combos } from "@/db/schema"
+import { attendees, events, combos, expenses } from "@/db/schema"
 import { eq, and, inArray } from "drizzle-orm"
 import { notifyAdminWhatsApp } from "@/lib/whatsapp-notify"
 import { calculatePrice, calculateDatePrice } from "@/lib/pricing"
+import { syncExpensePayment } from "@/lib/sync-expense-payment"
+import { normalizeName } from "@/lib/settlement"
+
+/**
+ * Total de gastos adelantados por una persona en un evento (misma normalización
+ * que lib/settlement.ts).
+ */
+async function getExpensesTotal(eventId: string, fullName: string): Promise<number> {
+  const key = normalizeName(fullName)
+  const rows = await db
+    .select({ responsible: expenses.responsible, amount: expenses.amount })
+    .from(expenses)
+    .where(eq(expenses.event_id, eventId))
+  return rows
+    .filter((e) => normalizeName(e.responsible) === key)
+    .reduce((sum, e) => sum + Number(e.amount), 0)
+}
 
 export async function POST(request: NextRequest) {
   const body = await request.json()
@@ -53,10 +70,23 @@ export async function POST(request: NextRequest) {
           .where(eq(attendees.id, existing.id))
       }
 
+      // Gastos adelantados: si aún no pagó, solo debe la diferencia (precio − gastos).
+      // Si los gastos cubren el precio, el sync lo marca como pagado.
+      const expensesTotal = await getExpensesTotal(event_id, full_name)
+      let attendeeRow = existing
+      if (expensesTotal > 0 && existing.payment_status !== "paid") {
+        await syncExpensePayment(event_id, full_name)
+        const [refreshed] = await db.select().from(attendees).where(eq(attendees.id, existing.id)).limit(1)
+        if (refreshed) attendeeRow = refreshed
+      }
+      const amountDue = Math.max(Number(currentPaymentAmount) - expensesTotal, 0)
+
       return NextResponse.json({
-        attendee: existing,
+        attendee: attendeeRow,
         payment_account: event.payment_account,
         payment_amount: currentPaymentAmount,
+        expenses_total: String(expensesTotal),
+        amount_due: String(amountDue),
         whatsapp_number: event.whatsapp_number,
         event_title: event.title,
         existing: true,
@@ -140,10 +170,25 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // Puede haber gastos cargados a su nombre antes de anotarse: descontarlos del monto a pagar
+  let attendeeRow = attendee
+  let expensesTotal = 0
+  if (status === "confirmed") {
+    expensesTotal = await getExpensesTotal(event_id, full_name)
+    if (expensesTotal > 0) {
+      await syncExpensePayment(event_id, full_name)
+      const [refreshed] = await db.select().from(attendees).where(eq(attendees.id, attendee.id)).limit(1)
+      if (refreshed) attendeeRow = refreshed
+    }
+  }
+  const amountDue = Math.max(price - expensesTotal, 0)
+
   return NextResponse.json({
-    attendee,
+    attendee: attendeeRow,
     payment_account: event.payment_account,
     payment_amount: String(price),
+    expenses_total: String(expensesTotal),
+    amount_due: String(amountDue),
     whatsapp_number: event.whatsapp_number,
     event_title: event.title,
   }, { status: 201 })

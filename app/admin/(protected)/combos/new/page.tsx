@@ -20,7 +20,6 @@ export default function NewComboPage() {
   const [error, setError] = useState("")
   const [eventIds, setEventIds] = useState<string[]>([])
   const [dateTiers, setDateTiers] = useState<DateTier[] | null>(null)
-  const [whatsappConfirmation, setWhatsappConfirmation] = useState(false)
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -39,8 +38,9 @@ export default function NewComboPage() {
       date_tiers: dateTiers,
       payment_amount: parseCurrencyInput((form.elements.namedItem("payment_amount") as HTMLInputElement).value),
       payment_account: (form.elements.namedItem("payment_account") as HTMLInputElement).value,
-      whatsapp_number: (form.elements.namedItem("whatsapp_number") as HTMLInputElement).value,
-      whatsapp_confirmation: whatsappConfirmation,
+      // WhatsApp para comprobantes ya no se usa (igual que en eventos): valores fijos
+      whatsapp_number: "0",
+      whatsapp_confirmation: false,
     }
 
     const res = await fetch("/api/combos", {
@@ -131,30 +131,6 @@ export default function NewComboPage() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="whatsapp_number">WhatsApp para comprobantes *</Label>
-                <Input
-                  id="whatsapp_number"
-                  name="whatsapp_number"
-                  type="tel"
-                  placeholder="Ej: 5491112345678 (con codigo de pais, sin +)"
-                  required
-                />
-              </div>
-
-              <div className="flex items-center gap-3 pt-2">
-                <input
-                  type="checkbox"
-                  id="whatsapp_confirmation"
-                  checked={whatsappConfirmation}
-                  onChange={(e) => setWhatsappConfirmation(e.target.checked)}
-                  className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
-                />
-                <div>
-                  <Label htmlFor="whatsapp_confirmation" className="cursor-pointer">Habilitar envio de comprobante por WhatsApp</Label>
-                  <p className="text-xs text-gray-400">Los asistentes veran la opcion de enviar el comprobante por WhatsApp.</p>
-                </div>
-              </div>
             </div>
 
             {error && <p className="text-red-500 text-sm">{error}</p>}

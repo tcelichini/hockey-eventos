@@ -179,22 +179,27 @@ Asistentes marcados como "paid" por el sync de gastos (sin `payment_proof_url`, 
 
 ### Balance neto en Resumen (gastos + comprobante)
 
-> **INVARIANTE CRÍTICO — no modificar sin validar con casos reales:**
+> **INVARIANTE CRÍTICO — no modificar sin validar con casos reales (y sin tests en `lib/settlement.test.ts`):**
 >
-> El pago del evento y los gastos adelantados son **dos conceptos independientes**.
-> Si un asistente pagó el evento (con comprobante, vía combo, o marcado manual),
-> `eventDebt = 0` y se le devuelven TODOS sus gastos. No se descuenta el precio
-> del evento de los gastos — el comprobante ya cubre el evento.
+> El pago del evento y los gastos adelantados son conceptos independientes, pero la
+> **cronología** entre ambos importa: quien carga un gasto ANTES de pagar el evento
+> paga solo la diferencia (precio − gasto), y quien ya pagó el evento y carga un gasto
+> DESPUÉS se lleva el gasto entero de vuelta. La app no guarda el monto transferido,
+> así que `settleEvent` lo infiere comparando `expenses.created_at` con
+> `attendees.proof_uploaded_at`.
 >
-> La ÚNICA excepción es `paidViaExpenses`: asistentes cuyo `payment_status` fue
-> marcado como "paid" automáticamente porque sus gastos cubrieron el evento
-> (sin `payment_proof_url`). En ese caso `eventDebt = getOwedPrice(a)` para que
-> el gasto lo cubra y solo se devuelva la diferencia.
+> **Regla de decisión** (`balances` en `lib/settlement.ts`):
+> - `payment_status !== "paid"` → `eventDebt = owed` (debe precio − gastos)
+> - `paidViaExpenses` (paid por sync, sin proof) → `eventDebt = owed` (se devuelve gastos − precio)
+> - pagó independientemente (`paid && !paidViaExpenses`) → `eventDebt = min(owed, gastosCargadosAntesDelComprobante)`
+>   - Sin comprobante (combo / marcado manual), sin fechas, o sin gastos previos al comprobante → `eventDebt = 0`, se devuelven TODOS los gastos (caso Alvarez Sly, sesión 44).
+>   - Con gastos cargados antes del comprobante → se asume que transfirió `precio − gastosPrevios` (`amountTransferred`; caso Fausto, sesión 45): net = 0 si gastos < precio; si gastos > precio solo se devuelve el exceso. Los gastos posteriores al comprobante se devuelven enteros.
 >
-> **Regla de decisión:**
-> - `payment_status === "paid" && !paidViaExpenses` → `eventDebt = 0`
-> - `paidViaExpenses` (paid por sync, sin proof) → `eventDebt = getOwedPrice(a)`
-> - `payment_status !== "paid"` → `eventDebt = getOwedPrice(a)`
+> `net = eventDebt − gastosTotales`. `net > 0` debe pagar, `net < 0` se le debe devolver.
+>
+> Limitación conocida: si alguien carga un gasto y aun así transfiere el precio completo, la
+> inferencia falla (le va a mostrar menos de lo que se le debe). La solución definitiva es
+> guardar el monto realmente transferido (`amount_paid`) editable desde admin.
 
 Además, se detectan gastos cuyo `responsible` no matchea ningún asistente confirmado y se muestran como **acreedores externos** en la sección "Pagaron sin ser asistentes", con alias de pago y botón de saldar.
 

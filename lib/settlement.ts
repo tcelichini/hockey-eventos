@@ -37,6 +37,8 @@ export type SettlementAttendee = {
   full_name: string
   payment_status: string
   payment_proof_url: string | null
+  /** Cuándo subió el comprobante. Opcional: sin fecha no se infiere descuento de gastos previos. */
+  proof_uploaded_at?: Date | string | null
   price_paid: string | null
   is_inferiores: boolean
 }
@@ -47,6 +49,8 @@ export type SettlementExpense = {
   amount: string
   payment_alias: string | null
   settled: boolean
+  /** Cuándo se cargó el gasto. Opcional: sin fecha se asume posterior al comprobante. */
+  created_at?: Date | string | null
 }
 
 export type PersonBalance = {
@@ -61,6 +65,14 @@ export type PersonBalance = {
   net: number
   /** Marcado como pagado porque sus gastos cubren el evento (sin comprobante). */
   paidViaExpenses: boolean
+  /**
+   * Parte del precio que se asume descontada del pago con comprobante porque
+   * la persona ya había cargado gastos ANTES de subirlo (ver CONTEXT.md).
+   * 0 si no aplica. eventDebt = discountedFromProof en ese caso.
+   */
+  discountedFromProof: number
+  /** Monto que efectivamente transfirió por el evento (owed − discountedFromProof); 0 si no pagó o pagó vía gastos. */
+  amountTransferred: number
 }
 
 export type ExternalCreditor = {
@@ -159,6 +171,22 @@ export function settleEvent({
   const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0)
   const expOf = (a: SettlementAttendee) => expenseByPerson.get(normalizeName(a.full_name)) || 0
 
+  // Gastos cargados ANTES de que la persona subiera su comprobante. Se asume que
+  // al pagar los descontó (transfirió precio − gastos previos). Sin fechas → 0.
+  const toTime = (d: Date | string | null | undefined) => (d ? new Date(d).getTime() : NaN)
+  const expensesBeforeProofOf = (a: SettlementAttendee) => {
+    const proofAt = toTime(a.proof_uploaded_at)
+    if (!a.payment_proof_url || Number.isNaN(proofAt)) return 0
+    const key = normalizeName(a.full_name)
+    return expenses
+      .filter((e) => normalizeName(e.responsible) === key)
+      .filter((e) => {
+        const t = toTime(e.created_at)
+        return !Number.isNaN(t) && t < proofAt
+      })
+      .reduce((sum, e) => sum + Number(e.amount), 0)
+  }
+
   // Pendientes cuyos gastos ya cubren el evento → el caller los marca "paid".
   const toMarkPaid = attendees
     .filter((a) => {
@@ -181,16 +209,31 @@ export function settleEvent({
       .map((a) => a.id),
   )
 
-  // Balance neto por asistente. INVARIANTE CRÍTICO (ver CONTEXT.md): si pagó
-  // independientemente (comprobante, combo o marcado manual), eventDebt = 0 y
-  // se le devuelven TODOS sus gastos. Solo paidViaExpenses mantiene la deuda
-  // para que el gasto la absorba.
+  // Balance neto por asistente (ver CONTEXT.md, "Pago de evento y gastos"):
+  // - no pagó, o paidViaExpenses → eventDebt = owed (el gasto absorbe la deuda)
+  // - pagó independientemente (combo, marcado manual, o comprobante sin gastos
+  //   previos) → eventDebt = 0, se le devuelven TODOS sus gastos
+  // - pagó con comprobante habiendo cargado gastos ANTES → se asume que transfirió
+  //   precio − gastos previos: eventDebt = min(owed, gastosPrevios). Los gastos
+  //   cargados después del comprobante se devuelven enteros.
   const balances: PersonBalance[] = attendees.map((a) => {
     const paidViaExpenses = coveredByExpensesIds.has(a.id)
     const expPaid = expOf(a)
     const owed = owedOf(a)
-    const eventDebt = isPaid(a) && !paidViaExpenses ? 0 : owed
-    return { attendee: a, owed, eventDebt, expPaid, net: eventDebt - expPaid, paidViaExpenses }
+    const paidIndependently = isPaid(a) && !paidViaExpenses
+    const discountedFromProof = paidIndependently ? Math.min(owed, expensesBeforeProofOf(a)) : 0
+    const eventDebt = paidIndependently ? discountedFromProof : owed
+    const amountTransferred = paidIndependently ? owed - discountedFromProof : 0
+    return {
+      attendee: a,
+      owed,
+      eventDebt,
+      expPaid,
+      net: eventDebt - expPaid,
+      paidViaExpenses,
+      discountedFromProof,
+      amountTransferred,
+    }
   })
   const debtors = balances.filter((b) => b.net > 0)
   const creditors = balances.filter((b) => b.net < 0)

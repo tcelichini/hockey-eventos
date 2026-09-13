@@ -474,3 +474,20 @@ Registro de todas las sesiones de trabajo. Cada entrada documenta cambios concre
   - Limitación conocida: apodos/formatos distintos del mismo jugador ("Guillote Campana" vs "Campana, Guillermo") no se unifican — solo tildes/mayúsculas vía `normalizeName`.
   - Nota: la card "Pendiente" del dashboard ($ por SQL de `price_paid`) puede diferir levemente de "Por cobrar" en cuentas (usa `getOwedPrice` con tramo vigente) — semántica histórica del dashboard, no regresión.
   - Archivos: `lib/cuenta-corriente.ts`, `lib/cuenta-corriente.test.ts`, `lib/cuenta-corriente-query.ts`, `app/admin/(protected)/cuentas/page.tsx`, `app/mi-cuenta/page.tsx`, `app/api/cuenta/route.ts`, `components/whatsapp-cuentas-button.tsx`, `app/admin/(protected)/page.tsx`, `app/e/[slug]/page.tsx`, `CONTEXT.md`
+
+## Sesión 45 (2026-09-13)
+
+- **Fix: asistente que cargó gasto y después pagó la diferencia figuraba como acreedor**
+  - Bug: Fausto cargó $19.000 de gastos sin haber pagado, transfirió la diferencia ($16.000) y subió comprobante. `upload-proof` lo marca `paid` y `settleEvent` asumía pago completo → "Le deben $19.000" cuando el saldo real era $0.
+  - Fix en `lib/settlement.ts`: para pagados independientemente, `eventDebt = min(owed, gastos con created_at < proof_uploaded_at)`; nuevos campos `discountedFromProof` y `amountTransferred` en `PersonBalance`. Campos `proof_uploaded_at` / `created_at` opcionales en los tipos (sin fechas → comportamiento anterior). Aplica a Resumen, Pendientes y Cuenta corriente porque todos usan `settleEvent`.
+  - 6 tests nuevos (33 total): Fausto → net 0; gasto > precio antes del proof → solo exceso; pagó antes + gastó después → todo (Alvarez Sly); mixto; sin fechas; paidViaExpenses intacto.
+  - Resumen admin: nuevo texto "pagó $X + $Y gastos − $Z evento".
+  - Archivos: `lib/settlement.ts`, `lib/settlement.test.ts`, `app/admin/(protected)/events/[id]/page.tsx`, `docs/ARQUITECTURA.md`, `CONTEXT.md`
+- **Link público: monto a pagar descuenta los gastos adelantados**
+  - `POST /api/attendees` devuelve `expenses_total` y `amount_due = max(precio − gastos, 0)` (inscriptos existentes y nuevos) y corre `syncExpensePayment` si hay gastos, por si un gasto se cargó antes de anotarse. Usa `normalizeName`.
+  - `confirm/page.tsx`: el "Monto" muestra `amount_due` con la aclaración "$precio del evento − $gastos que adelantaste". Si los gastos cubren el evento (paid sin comprobante), el estado "Ya pagaste" explica que no necesita transferir nada. No se muestra "te deben": la devolución la gestiona el admin.
+  - Archivos: `app/api/attendees/route.ts`, `app/e/[slug]/confirm/page.tsx`
+- **Combos: quitados campos WhatsApp del formulario (crear/editar)**
+  - Mismo criterio que eventos (mayo): el form envía `whatsapp_number: "0"` y `whatsapp_confirmation: false`. Schema y API sin cambios; combos existentes conservan su valor.
+  - Archivos: `app/admin/(protected)/combos/new/page.tsx`, `app/admin/(protected)/combos/[id]/edit/page.tsx`
+

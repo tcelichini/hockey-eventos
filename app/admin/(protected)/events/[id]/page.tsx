@@ -297,7 +297,7 @@ export default async function EventDetailPage({ params }: { params: { id: string
                     <p className="text-xs text-gray-400 uppercase tracking-wide">
                       Se les debe devolver{unsettled.length < creditors.length ? ` (${unsettled.length} pendiente${unsettled.length !== 1 ? "s" : ""})` : ""}
                     </p>
-                    {unsettled.map(({ attendee: a, net, expPaid, paidViaExpenses, owed }) => {
+                    {unsettled.map(({ attendee: a, net, expPaid, paidViaExpenses, owed, discountedFromProof, amountTransferred }) => {
                       const key = normalizeName(a.full_name)
                       const alias = aliasByPerson.get(key)
                       const ids = expenseIdsByPerson.get(key) || []
@@ -317,8 +317,11 @@ export default async function EventDetailPage({ params }: { params: { id: string
                             {expPaid > 0 && paidViaExpenses && (
                               <p className="text-xs text-gray-400">{formatCurrency(expPaid)} gastos − {formatCurrency(owed)} evento</p>
                             )}
-                            {expPaid > 0 && !paidViaExpenses && a.payment_status === "paid" && (
+                            {expPaid > 0 && !paidViaExpenses && a.payment_status === "paid" && discountedFromProof === 0 && (
                               <p className="text-xs text-gray-400">pagó evento + {formatCurrency(expPaid)} en gastos</p>
+                            )}
+                            {expPaid > 0 && !paidViaExpenses && a.payment_status === "paid" && discountedFromProof > 0 && (
+                              <p className="text-xs text-gray-400">pagó {formatCurrency(amountTransferred)} + {formatCurrency(expPaid)} gastos − {formatCurrency(owed)} evento</p>
                             )}
                             {expPaid > 0 && !paidViaExpenses && a.payment_status !== "paid" && (
                               <p className="text-xs text-gray-400">{formatCurrency(owed)} − {formatCurrency(expPaid)} gastos</p>

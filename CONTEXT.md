@@ -14,7 +14,7 @@ El cálculo de plata de un evento: quién debe, a quién se le debe, y los total
 ## Reglas de negocio (decididas, no re-litigar)
 
 - **El descuento del combo es solo si pagás.** (2026-07-03) Un asistente anotado vía combo que no pagó debe el precio del evento (tramo vigente / más caro), NO la cuota-parte del combo. La división `comboPrice / eventCount` solo aplica al asignar `price_paid` cuando efectivamente paga vía combo.
-- **Pago de evento y gastos son independientes.** Si alguien pagó con comprobante, se le devuelven TODOS sus gastos (no se descuenta el evento). Única excepción: `paidViaExpenses`. (Ver INVARIANTE CRÍTICO en `docs/ARQUITECTURA.md`.)
+- **Pago de evento y gastos son independientes, pero la cronología manda.** (2026-09-13, refina la regla de 2026-06-30) Quien carga un gasto ANTES de subir el comprobante pagó solo la diferencia (precio − gasto): `eventDebt = min(precio, gastos previos al comprobante)`. Quien pagó primero y cargó gastos DESPUÉS se lleva todos sus gastos de vuelta (`eventDebt = 0`). `paidViaExpenses` sigue siendo la excepción (eventDebt = precio). Se infiere por `expenses.created_at` vs `attendees.proof_uploaded_at` porque la app no guarda el monto transferido. (Ver INVARIANTE CRÍTICO en `docs/ARQUITECTURA.md`.)
 
 ## Cuenta corriente
 

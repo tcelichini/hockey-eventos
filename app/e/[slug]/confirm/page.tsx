@@ -33,6 +33,8 @@ type EventData = {
 type PaymentData = {
   payment_account: string
   payment_amount: string
+  expenses_total: string
+  amount_due: string
   whatsapp_number: string
   event_title: string
   attendee_name: string
@@ -99,6 +101,8 @@ export default function ConfirmPage() {
       setPaymentData({
         payment_account: data.payment_account,
         payment_amount: data.payment_amount,
+        expenses_total: data.expenses_total ?? "0",
+        amount_due: data.amount_due ?? data.payment_amount,
         whatsapp_number: data.whatsapp_number,
         event_title: data.event_title,
         attendee_name: name,
@@ -136,6 +140,12 @@ export default function ConfirmPage() {
   }
 
   const is3t = event.is_3t
+  const expensesTotal = paymentData ? Number(paymentData.expenses_total) : 0
+  const hasExpenses = expensesTotal > 0
+  // Pagado sin comprobante y con gastos >= precio = fue el gasto lo que cubrió el evento
+  // (no un pago por combo ni un marcado manual del admin)
+  const coveredByExpenses =
+    alreadyPaid && hasExpenses && !existingProofUrl && paymentData !== null && expensesTotal >= Number(paymentData.payment_amount)
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -261,7 +271,13 @@ export default function ConfirmPage() {
                     <h2 className="text-xl font-bold text-gray-900">
                       ¡Ya pagaste, {paymentData.attendee_name.includes(",") ? paymentData.attendee_name.split(",")[1].trim() : paymentData.attendee_name.split(" ")[0]}!
                     </h2>
-                    <p className="text-gray-500 text-sm mt-1">Tu pago ya fue registrado. No necesitás hacer nada más.</p>
+                    {coveredByExpenses ? (
+                      <p className="text-gray-500 text-sm mt-1">
+                        Los {formatCurrency(paymentData.expenses_total)} que adelantaste en gastos cubren el precio del evento. No necesitás transferir nada.
+                      </p>
+                    ) : (
+                      <p className="text-gray-500 text-sm mt-1">Tu pago ya fue registrado. No necesitás hacer nada más.</p>
+                    )}
                     {existingProofUrl && (
                       <a
                         href={existingProofUrl}
@@ -299,7 +315,12 @@ export default function ConfirmPage() {
                       <div className="space-y-2">
                         <div>
                           <p className="text-xs text-gray-400 uppercase tracking-wide">Monto</p>
-                          <p className="text-2xl font-bold text-green-600">{formatCurrency(paymentData.payment_amount)}</p>
+                          <p className="text-2xl font-bold text-green-600">{formatCurrency(paymentData.amount_due)}</p>
+                          {hasExpenses && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              {formatCurrency(paymentData.payment_amount)} del evento − {formatCurrency(paymentData.expenses_total)} que adelantaste en gastos
+                            </p>
+                          )}
                         </div>
                         <div>
                           <p className="text-xs text-gray-400 uppercase tracking-wide">CBU / Alias</p>

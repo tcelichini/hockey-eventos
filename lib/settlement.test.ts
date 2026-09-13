@@ -120,6 +120,86 @@ describe("settleEvent", () => {
     expect(s.creditors).toHaveLength(1)
   })
 
+  describe("gastos cargados antes del comprobante (sesión 45)", () => {
+    const T1 = "2026-09-01T18:00:00Z"
+    const T5 = "2026-09-05T20:00:00Z"
+    const T9 = "2026-09-09T12:00:00Z"
+
+    it("Fausto: cargó gasto < precio y después subió comprobante → pagó la diferencia, saldo 0", () => {
+      const a = makeAttendee({ full_name: "Fausto", payment_status: "paid", payment_proof_url: "https://proof", proof_uploaded_at: T5 })
+      const s = settleEvent({
+        event: makeEvent({ payment_amount: "35000" }),
+        attendees: [a],
+        expenses: [makeExpense({ responsible: "Fausto", amount: "19000", created_at: T1 })],
+      })
+      const b = s.balances[0]
+      expect(b.discountedFromProof).toBe(19000)
+      expect(b.amountTransferred).toBe(16000)
+      expect(b.net).toBe(0)
+      expect(s.creditors).toHaveLength(0)
+      expect(s.debtors).toHaveLength(0)
+    })
+
+    it("gasto > precio antes del comprobante → solo se devuelve el exceso", () => {
+      const a = makeAttendee({ payment_status: "paid", payment_proof_url: "https://proof", proof_uploaded_at: T5 })
+      const s = settleEvent({
+        event: makeEvent({ payment_amount: "35000" }),
+        attendees: [a],
+        expenses: [makeExpense({ amount: "50000", created_at: T1 })],
+      })
+      expect(s.balances[0].amountTransferred).toBe(0)
+      expect(s.balances[0].net).toBe(-15000)
+    })
+
+    it("pagó ANTES y cargó el gasto después → se le devuelve todo (caso Alvarez Sly, sesión 44)", () => {
+      const a = makeAttendee({ payment_status: "paid", payment_proof_url: "https://proof", proof_uploaded_at: T1 })
+      const s = settleEvent({
+        event: makeEvent({ payment_amount: "30000" }),
+        attendees: [a],
+        expenses: [makeExpense({ amount: "72000", created_at: T5 })],
+      })
+      expect(s.balances[0].discountedFromProof).toBe(0)
+      expect(s.balances[0].amountTransferred).toBe(30000)
+      expect(s.balances[0].net).toBe(-72000)
+    })
+
+    it("mixto: gasto antes + gasto después del comprobante", () => {
+      const a = makeAttendee({ payment_status: "paid", payment_proof_url: "https://proof", proof_uploaded_at: T5 })
+      const s = settleEvent({
+        event: makeEvent({ payment_amount: "35000" }),
+        attendees: [a],
+        expenses: [
+          makeExpense({ amount: "19000", created_at: T1 }),
+          makeExpense({ amount: "10000", created_at: T9 }),
+        ],
+      })
+      expect(s.balances[0].amountTransferred).toBe(16000)
+      expect(s.balances[0].net).toBe(-10000)
+    })
+
+    it("sin fechas (callers viejos) → comportamiento anterior: se devuelven todos los gastos", () => {
+      const a = makeAttendee({ payment_status: "paid", payment_proof_url: "https://proof" })
+      const s = settleEvent({
+        event: makeEvent({ payment_amount: "35000" }),
+        attendees: [a],
+        expenses: [makeExpense({ amount: "19000" })],
+      })
+      expect(s.balances[0].net).toBe(-19000)
+    })
+
+    it("paidViaExpenses no se ve afectado aunque tenga fechas", () => {
+      const a = makeAttendee({ payment_status: "pending" })
+      const s = settleEvent({
+        event: makeEvent({ payment_amount: "35000" }),
+        attendees: [a],
+        expenses: [makeExpense({ amount: "50000", created_at: T1 })],
+      })
+      expect(s.toMarkPaid).toEqual([a.id])
+      expect(s.balances[0].discountedFromProof).toBe(0)
+      expect(s.balances[0].net).toBe(-15000)
+    })
+  })
+
   it("cubierto por gastos: entra en toMarkPaid y solo se devuelve la diferencia", () => {
     const a = makeAttendee() // pending, evento de $10000
     const s = settleEvent({
