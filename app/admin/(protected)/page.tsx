@@ -12,6 +12,7 @@ import {
   ClockIcon,
   TrendingUpIcon,
   PackageIcon,
+  ChevronRightIcon,
 } from "lucide-react"
 import CopyLinkButton from "@/components/copy-link-button"
 import RefreshButton from "@/components/refresh-button"
@@ -175,13 +176,14 @@ export default async function AdminPage() {
             </CardContent>
           </Card>
           <Link href="/admin/pendientes" className="h-full">
-            <div className="bg-white rounded-xl border border-gray-200 p-4 hover:border-gray-300 hover:shadow-sm transition-all cursor-pointer h-full">
+            <div className="relative bg-blue-50/40 rounded-xl border border-blue-100 p-4 hover:border-blue-300 hover:bg-blue-50 hover:shadow-sm transition-all cursor-pointer h-full">
+              <ChevronRightIcon className="w-4 h-4 text-blue-300 absolute top-4 right-4" />
               <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
                 <UsersIcon className="w-4 h-4" />
                 Sin pagar
               </div>
               <p className="text-2xl font-bold text-orange-500">{totalPendingCount}</p>
-              <p className="text-xs text-gray-400 mt-0.5">confirmados pendientes</p>
+              <p className="text-xs text-blue-600 font-medium mt-0.5">ver detalle →</p>
             </div>
           </Link>
           <Card>
@@ -197,13 +199,14 @@ export default async function AdminPage() {
             </CardContent>
           </Card>
           <Link href="/admin/cuentas" className="h-full">
-            <div className="bg-white rounded-xl border border-gray-200 p-4 hover:border-gray-300 hover:shadow-sm transition-all cursor-pointer h-full">
+            <div className="relative bg-blue-50/40 rounded-xl border border-blue-100 p-4 hover:border-blue-300 hover:bg-blue-50 hover:shadow-sm transition-all cursor-pointer h-full">
+              <ChevronRightIcon className="w-4 h-4 text-blue-300 absolute top-4 right-4" />
               <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
                 <ClockIcon className="w-4 h-4" />
                 Pendiente
               </div>
               <p className="text-2xl font-bold text-orange-500">{formatCurrency(totalPending)}</p>
-              <p className="text-xs text-gray-400 mt-0.5">ver cuenta corriente →</p>
+              <p className="text-xs text-blue-600 font-medium mt-0.5">ver cuenta corriente →</p>
             </div>
           </Link>
         </div>

@@ -21,6 +21,7 @@ function formatDate(date: Date | null) {
 
 export default async function CuentasPage() {
   const { accounts } = await getCuentasCorrientes()
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").trim()
 
   const debtors = accounts.filter((a) => a.total > 0)
   const creditors = accounts.filter((a) => a.total < 0)
@@ -37,7 +38,10 @@ export default async function CuentasPage() {
           </Link>
           <h2 className="text-xl font-semibold text-gray-900">Cuenta corriente</h2>
         </div>
-        <WhatsAppCuentasButton debtors={debtors.map((a) => ({ name: a.displayName, amount: a.total }))} />
+        <WhatsAppCuentasButton
+          debtors={debtors.map((a) => ({ name: a.displayName, amount: a.total }))}
+          publicLink={`${appUrl}/mi-cuenta`}
+        />
       </div>
 
       {/* Empty state */}

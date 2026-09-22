@@ -10,9 +10,11 @@ function formatCurrency(value: number) {
 export default function PaymentReminderButton({
   unpaidList,
   eventTitle,
+  publicLink,
 }: {
   unpaidList: { name: string; amount: number }[]
   eventTitle: string
+  publicLink: string
 }) {
   function handleClick() {
     const total = unpaidList.reduce((sum, a) => sum + a.amount, 0)
@@ -25,6 +27,9 @@ export default function PaymentReminderButton({
       ...lines,
       "",
       `💰 Total pendiente: *${formatCurrency(total)}*`,
+      "",
+      `👉 Mirá cuánto debés y el alias para transferir acá:`,
+      publicLink,
     ].join("\n")
 
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank")

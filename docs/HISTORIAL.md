@@ -491,3 +491,14 @@ Registro de todas las sesiones de trabajo. Cada entrada documenta cambios concre
   - Mismo criterio que eventos (mayo): el form envía `whatsapp_number: "0"` y `whatsapp_confirmation: false`. Schema y API sin cambios; combos existentes conservan su valor.
   - Archivos: `app/admin/(protected)/combos/new/page.tsx`, `app/admin/(protected)/combos/[id]/edit/page.tsx`
 
+## Sesión 47 (2026-09-22)
+
+- **WhatsApp: recordatorios de pago ahora incluyen el link a `/mi-cuenta`**
+  - Antes el mensaje de recordatorio (por evento y de cuenta corriente) solo listaba nombres y montos. Ahora agrega al pie el link público `/mi-cuenta` para que cada persona entre, elija su nombre y vea su saldo + alias de transferencia sin tener que preguntarle al admin.
+  - `publicLink` se pasa como prop desde el server component (mismo patrón que `WhatsAppInviteButton`/`publicLink`), no se lee `process.env` dentro del botón cliente.
+  - Archivos: `components/payment-reminder-button.tsx`, `components/whatsapp-cuentas-button.tsx`, `app/admin/(protected)/events/[id]/page.tsx`, `app/admin/(protected)/cuentas/page.tsx`
+- **Dashboard: las cards clickeables ahora se distinguen de las informativas**
+  - Antes "Sin pagar" y "Pendiente" (son links a `/admin/pendientes` y `/admin/cuentas`) eran visualmente idénticas a "Eventos" y "Balance neto" (no clickeables) — mismo blanco, mismo borde gris.
+  - Ahora las dos cards clickeables tienen fondo celeste (`bg-blue-50/40`), borde azul y un ícono de flecha (`ChevronRightIcon`) arriba a la derecha, más el texto de call-to-action en azul.
+  - Archivos: `app/admin/(protected)/page.tsx`
+

@@ -285,6 +285,7 @@ export default async function EventDetailPage({ params }: { params: { id: string
                   <PaymentReminderButton
                     unpaidList={debtors.map(({ attendee: a, net }) => ({ name: a.full_name, amount: net }))}
                     eventTitle={event.title}
+                    publicLink={`${appUrl}/mi-cuenta`}
                   />
                 </div>
               )}

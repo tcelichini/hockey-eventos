@@ -9,8 +9,10 @@ function formatCurrency(value: number) {
 
 export default function WhatsAppCuentasButton({
   debtors,
+  publicLink,
 }: {
   debtors: { name: string; amount: number }[]
+  publicLink: string
 }) {
   if (debtors.length === 0) return null
 
@@ -22,6 +24,9 @@ export default function WhatsAppCuentasButton({
       ...debtors.map((d) => `• ${d.name} - ${formatCurrency(d.amount)}`),
       "",
       `Total pendiente: *${formatCurrency(total)}*`,
+      "",
+      "👉 Mirá cuánto debés y el alias para transferir acá:",
+      publicLink,
     ]
     const message = lines.join("\n")
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank")
