@@ -294,6 +294,35 @@ describe("settleEvent", () => {
     expect(s.settledByPerson.get("ana")).toBe(false)
     expect(s.settledByPerson.get("beto")).toBe(true)
   })
+
+  describe("invitados (payment_status = guest)", () => {
+    it("no debe nada: no es deudor ni suma a cobrado o pendiente", () => {
+      const guest = makeAttendee({ full_name: "Jorge", payment_status: "guest" })
+      const owing = makeAttendee({ full_name: "Cami" })
+      const s = settleEvent({ event: makeEvent(), attendees: [guest, owing], expenses: [] })
+      const b = s.balances.find((x) => x.attendee.id === guest.id)!
+      expect(b.guest).toBe(true)
+      expect(b.eventDebt).toBe(0)
+      expect(b.net).toBe(0)
+      expect(s.debtors.map((d) => d.attendee.id)).toEqual([owing.id])
+      expect(s.totalCollected).toBe(0)
+      expect(s.totalPending).toBe(10000) // solo Cami
+    })
+
+    it("si adelanta gastos se le devuelven enteros y no se lo marca pagado", () => {
+      const guest = makeAttendee({ full_name: "Jorge", payment_status: "guest" })
+      const s = settleEvent({
+        event: makeEvent(),
+        attendees: [guest],
+        expenses: [makeExpense({ responsible: "Jorge", amount: "15000" })],
+      })
+      expect(s.toMarkPaid).toEqual([])
+      expect(s.coveredByExpensesIds.has(guest.id)).toBe(false)
+      expect(s.balances[0].net).toBe(-15000)
+      expect(s.creditors).toHaveLength(1)
+      expect(s.externalCreditors).toHaveLength(0) // es asistente, no externo
+    })
+  })
 })
 
 // ── classifyComboPayment ────────────────────────────────────────────────────

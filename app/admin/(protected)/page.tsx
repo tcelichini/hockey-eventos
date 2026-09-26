@@ -71,7 +71,10 @@ export default async function AdminPage() {
   const stats = await Promise.all(
     eventList.map(async (event) => {
       const [confirmed] = await db
-        .select({ count: sql<number>`count(*)` })
+        .select({
+          count: sql<number>`count(*)`,
+          guests: sql<number>`count(*) filter (where ${attendees.payment_status} = 'guest')`,
+        })
         .from(attendees)
         .where(and(eq(attendees.event_id, event.id), eq(attendees.status, "confirmed")))
       const [paid] = await db
@@ -95,6 +98,7 @@ export default async function AdminPage() {
         .where(eq(expenses.event_id, event.id))
       return {
         confirmed: Number(confirmed.count),
+        guests: Number(confirmed.guests),
         paid: Number(paid.count),
         revenue: Number(revenue.sum),
         expenses: Number(eventExpenses.sum),
@@ -171,8 +175,20 @@ export default async function AdminPage() {
                 <CalendarIcon className="w-4 h-4" />
                 Eventos
               </div>
-              <p className="text-2xl font-bold text-gray-900">{eventList.length}</p>
+              <p className="text-xl sm:text-2xl font-bold text-gray-900">{eventList.length}</p>
               <p className="text-xs text-gray-400 mt-0.5">{upcoming.length} próximos · {past.length} pasados</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
+                <TrendingUpIcon className="w-4 h-4" />
+                Balance neto
+              </div>
+              <p className={`text-xl sm:text-2xl font-bold ${netRevenue >= 0 ? "text-green-600" : "text-red-500"}`}>{formatCurrency(netRevenue)}</p>
+              {totalExpenses > 0 && (
+                <p className="text-xs text-gray-400 mt-0.5">{formatCurrency(totalRevenue)} cobrado - {formatCurrency(totalExpenses)} gastos</p>
+              )}
             </CardContent>
           </Card>
           <Link href="/admin/pendientes" className="h-full">
@@ -182,22 +198,10 @@ export default async function AdminPage() {
                 <UsersIcon className="w-4 h-4" />
                 Sin pagar
               </div>
-              <p className="text-2xl font-bold text-orange-500">{totalPendingCount}</p>
+              <p className="text-xl sm:text-2xl font-bold text-orange-500">{totalPendingCount}</p>
               <p className="text-xs text-blue-600 font-medium mt-0.5">ver detalle →</p>
             </div>
           </Link>
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
-                <TrendingUpIcon className="w-4 h-4" />
-                Balance neto
-              </div>
-              <p className={`text-2xl font-bold ${netRevenue >= 0 ? "text-green-600" : "text-red-500"}`}>{formatCurrency(netRevenue)}</p>
-              {totalExpenses > 0 && (
-                <p className="text-xs text-gray-400 mt-0.5">{formatCurrency(totalRevenue)} cobrado - {formatCurrency(totalExpenses)} gastos</p>
-              )}
-            </CardContent>
-          </Card>
           <Link href="/admin/cuentas" className="h-full">
             <div className="relative bg-blue-50/40 rounded-xl border border-blue-100 p-4 hover:border-blue-300 hover:bg-blue-50 hover:shadow-sm transition-all cursor-pointer h-full">
               <ChevronRightIcon className="w-4 h-4 text-blue-300 absolute top-4 right-4" />
@@ -205,7 +209,7 @@ export default async function AdminPage() {
                 <ClockIcon className="w-4 h-4" />
                 Pendiente
               </div>
-              <p className="text-2xl font-bold text-orange-500">{formatCurrency(totalPending)}</p>
+              <p className="text-xl sm:text-2xl font-bold text-orange-500">{formatCurrency(totalPending)}</p>
               <p className="text-xs text-blue-600 font-medium mt-0.5">ver cuenta corriente →</p>
             </div>
           </Link>
@@ -342,10 +346,12 @@ function EventCard({
   isPast,
 }: {
   event: typeof events.$inferSelect
-  stats: { confirmed: number; paid: number; revenue: number; expenses: number }
+  stats: { confirmed: number; guests: number; paid: number; revenue: number; expenses: number }
   isPast: boolean
 }) {
-  const paidPct = stats.confirmed > 0 ? Math.round((stats.paid / stats.confirmed) * 100) : 0
+  // % sobre los que tienen que pagar: los invitados no cuentan
+  const payers = stats.confirmed - stats.guests
+  const paidPct = payers > 0 ? Math.round((stats.paid / payers) * 100) : 0
   const capacityPct =
     event.max_capacity && event.max_capacity > 0
       ? Math.round((stats.confirmed / event.max_capacity) * 100)
@@ -399,7 +405,7 @@ function EventCard({
                 <span>{stats.confirmed}</span>
               </div>
               <Badge variant={stats.paid > 0 ? "default" : "secondary"}>
-                {stats.paid} pagaron{stats.confirmed > 0 ? ` (${paidPct}%)` : ""}
+                {stats.paid} pagaron{payers > 0 ? ` (${paidPct}%)` : ""}
               </Badge>
             </div>
             {stats.revenue > 0 && (() => {

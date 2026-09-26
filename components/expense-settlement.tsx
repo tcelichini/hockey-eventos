@@ -1,7 +1,7 @@
 import { ArrowRightLeft } from "lucide-react"
 
 type ExpenseData = { responsible: string; amount: string }
-type AttendeeData = { full_name: string; price_paid?: string | null }
+type AttendeeData = { full_name: string; price_paid?: string | null; payment_status?: string }
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 0 }).format(amount)
@@ -14,7 +14,8 @@ function normalize(name: string) {
 function calculateSettlement(expenses: ExpenseData[], attendees: AttendeeData[]) {
   const attendeeKeys = new Set(attendees.map(a => normalize(a.full_name)))
 
-  const participantCount = attendees.length
+  // La cuota se reparte entre los que pagan: los invitados no entran en el divisor
+  const participantCount = attendees.filter(a => a.payment_status !== "guest").length
   if (participantCount === 0) return null
 
   const total = expenses.reduce((sum, e) => sum + Number(e.amount), 0)

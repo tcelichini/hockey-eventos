@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
     )
 
     if (existingForUser.length > 0) {
-      const anyUnpaid = existingForUser.some((a) => a.payment_status !== "paid")
+      const anyUnpaid = existingForUser.some((a) => a.payment_status === "pending")
       let currentComboPrice = existingForUser.reduce((sum, a) => sum + Number(a.price_paid || 0), 0)
 
       if (anyUnpaid && combo.date_tiers && combo.date_tiers.length > 0) {
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
         currentComboPrice = recalculated
         const pricePerEvent = Math.round((recalculated / linkedEvents.length) * 100) / 100
         for (const a of existingForUser) {
-          if (a.payment_status !== "paid") {
+          if (a.payment_status === "pending") {
             await db.update(attendees).set({ price_paid: String(pricePerEvent) }).where(eq(attendees.id, a.id))
           }
         }
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
         whatsapp_number: combo.whatsapp_number,
         combo_title: combo.title,
         existing: true,
-        already_paid: existingForUser.every((a) => a.payment_status === "paid"),
+        already_paid: existingForUser.every((a) => a.payment_status !== "pending"),
       })
     }
   }

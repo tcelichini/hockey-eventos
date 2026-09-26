@@ -9,6 +9,7 @@ export default defineConfig({
   },
   test: {
     include: ["**/*.test.ts"],
-    exclude: ["node_modules", ".next"],
+    // .claude/ tiene worktrees con copias del repo (y su node_modules): no correr sus tests
+    exclude: ["**/node_modules/**", ".next/**", ".claude/**"],
   },
 })

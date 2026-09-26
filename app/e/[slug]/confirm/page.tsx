@@ -64,6 +64,7 @@ export default function ConfirmPage() {
   const [proofUrl, setProofUrl] = useState<string | null>(null)
   const [isExisting, setIsExisting] = useState(false)
   const [alreadyPaid, setAlreadyPaid] = useState(false)
+  const [isGuest, setIsGuest] = useState(false)
   const [existingProofUrl, setExistingProofUrl] = useState<string | null>(null)
   const [copiedAlias, setCopiedAlias] = useState(false)
   const [isInferiores, setIsInferiores] = useState(false)
@@ -96,7 +97,9 @@ export default function ConfirmPage() {
       const data = await res.json()
       setAttendeeId(data.attendee.id)
       setIsExisting(!!data.existing)
-      setAlreadyPaid(data.attendee.payment_status === "paid")
+      // Invitado: no tiene nada que pagar → misma vista que "ya pagaste", con otro texto
+      setIsGuest(data.attendee.payment_status === "guest")
+      setAlreadyPaid(data.attendee.payment_status === "paid" || data.attendee.payment_status === "guest")
       setExistingProofUrl(data.attendee.payment_proof_url || null)
       setPaymentData({
         payment_account: data.payment_account,
@@ -145,7 +148,7 @@ export default function ConfirmPage() {
   // Pagado sin comprobante y con gastos >= precio = fue el gasto lo que cubrió el evento
   // (no un pago por combo ni un marcado manual del admin)
   const coveredByExpenses =
-    alreadyPaid && hasExpenses && !existingProofUrl && paymentData !== null && expensesTotal >= Number(paymentData.payment_amount)
+    !isGuest && alreadyPaid && hasExpenses && !existingProofUrl && paymentData !== null && expensesTotal >= Number(paymentData.payment_amount)
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -267,11 +270,13 @@ export default function ConfirmPage() {
                 {alreadyPaid ? (
                   /* Already paid state */
                   <div className="text-center mb-4">
-                    <CheckCircleIcon className="w-12 h-12 text-green-500 mx-auto mb-2" />
+                    <CheckCircleIcon className={`w-12 h-12 mx-auto mb-2 ${isGuest ? "text-blue-500" : "text-green-500"}`} />
                     <h2 className="text-xl font-bold text-gray-900">
-                      ¡Ya pagaste, {paymentData.attendee_name.includes(",") ? paymentData.attendee_name.split(",")[1].trim() : paymentData.attendee_name.split(" ")[0]}!
+                      {isGuest ? "¡Estás invitado" : "¡Ya pagaste"}, {paymentData.attendee_name.includes(",") ? paymentData.attendee_name.split(",")[1].trim() : paymentData.attendee_name.split(" ")[0]}!
                     </h2>
-                    {coveredByExpenses ? (
+                    {isGuest ? (
+                      <p className="text-gray-500 text-sm mt-1">Fuiste invitado al evento, no debés nada. ¡Te esperamos!</p>
+                    ) : coveredByExpenses ? (
                       <p className="text-gray-500 text-sm mt-1">
                         Los {formatCurrency(paymentData.expenses_total)} que adelantaste en gastos cubren el precio del evento. No necesitás transferir nada.
                       </p>

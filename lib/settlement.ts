@@ -22,6 +22,14 @@ export function normalizeName(s: string): string {
     .replace(/[̀-ͯ]/g, "")
 }
 
+/**
+ * Invitado (ej: entrenadores): cuenta como asistente pero no paga ni debe.
+ * No entra en deudores, cobrado ni pendiente; si adelanta gastos se le devuelven enteros.
+ */
+export function isGuest(attendee: { payment_status: string }): boolean {
+  return attendee.payment_status === "guest"
+}
+
 // Tipos estructurales mínimos: solo los campos que la liquidación necesita.
 // Cualquier proyección de Drizzle que los tenga, sirve.
 
@@ -73,6 +81,8 @@ export type PersonBalance = {
   discountedFromProof: number
   /** Monto que efectivamente transfirió por el evento (owed − discountedFromProof); 0 si no pagó o pagó vía gastos. */
   amountTransferred: number
+  /** Invitado: eventDebt = 0, no paga ni debe. */
+  guest: boolean
 }
 
 export type ExternalCreditor = {
@@ -188,9 +198,10 @@ export function settleEvent({
   }
 
   // Pendientes cuyos gastos ya cubren el evento → el caller los marca "paid".
+  // Los invitados nunca: no deben nada que el gasto tenga que cubrir.
   const toMarkPaid = attendees
     .filter((a) => {
-      if (a.payment_status === "paid") return false
+      if (a.payment_status === "paid" || isGuest(a)) return false
       const exp = expOf(a)
       return exp > 0 && exp >= owedOf(a)
     })
@@ -216,13 +227,15 @@ export function settleEvent({
   // - pagó con comprobante habiendo cargado gastos ANTES → se asume que transfirió
   //   precio − gastos previos: eventDebt = min(owed, gastosPrevios). Los gastos
   //   cargados después del comprobante se devuelven enteros.
+  // - invitado → eventDebt = 0, se le devuelven TODOS sus gastos
   const balances: PersonBalance[] = attendees.map((a) => {
+    const guest = isGuest(a)
     const paidViaExpenses = coveredByExpensesIds.has(a.id)
     const expPaid = expOf(a)
     const owed = owedOf(a)
     const paidIndependently = isPaid(a) && !paidViaExpenses
     const discountedFromProof = paidIndependently ? Math.min(owed, expensesBeforeProofOf(a)) : 0
-    const eventDebt = paidIndependently ? discountedFromProof : owed
+    const eventDebt = guest ? 0 : paidIndependently ? discountedFromProof : owed
     const amountTransferred = paidIndependently ? owed - discountedFromProof : 0
     return {
       attendee: a,
@@ -233,6 +246,7 @@ export function settleEvent({
       paidViaExpenses,
       discountedFromProof,
       amountTransferred,
+      guest,
     }
   })
   const debtors = balances.filter((b) => b.net > 0)
@@ -251,7 +265,7 @@ export function settleEvent({
     .filter((b) => isPaid(b.attendee))
     .reduce((sum, b) => sum + pricePaidOf(b.attendee), 0)
   const totalPending = balances
-    .filter((b) => !isPaid(b.attendee))
+    .filter((b) => !isPaid(b.attendee) && !b.guest)
     .reduce((sum, b) => sum + Math.max(b.owed - b.expPaid, 0), 0)
 
   return {

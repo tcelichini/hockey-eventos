@@ -57,7 +57,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     return NextResponse.json(updated)
   }
 
-  if (!payment_status || !["pending", "paid"].includes(payment_status)) {
+  if (!payment_status || !["pending", "paid", "guest"].includes(payment_status)) {
     return NextResponse.json({ error: "Estado de pago inválido" }, { status: 400 })
   }
 

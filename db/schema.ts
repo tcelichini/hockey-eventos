@@ -11,7 +11,8 @@ export type DateTier = {
 }
 
 export const statusEnum = pgEnum("rsvp_status", ["confirmed", "declined"])
-export const paymentStatusEnum = pgEnum("payment_status", ["pending", "paid"])
+// "guest" = invitado (ej: entrenadores): cuenta como asistente pero no paga ni debe (ver CONTEXT.md)
+export const paymentStatusEnum = pgEnum("payment_status", ["pending", "paid", "guest"])
 
 export const events = pgTable("events", {
   id: uuid("id").defaultRandom().primaryKey(),

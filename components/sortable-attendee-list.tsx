@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
 import MarkPaidButton from "@/components/mark-paid-button"
+import MarkGuestButton from "@/components/mark-guest-button"
 import DeleteAttendeeButton from "@/components/delete-attendee-button"
 import ToggleInferioresButton from "@/components/toggle-inferiores-button"
 import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react"
@@ -59,7 +60,16 @@ function sortAttendees(list: AttendeeItem[], field: SortField, dir: SortDirectio
   return sorted
 }
 
-export default function SortableAttendeeList({ attendees, hasInferioresPrice }: { attendees: AttendeeItem[]; hasInferioresPrice?: boolean }) {
+export default function SortableAttendeeList({
+  attendees,
+  hasInferioresPrice,
+  allowGuest = true,
+}: {
+  attendees: AttendeeItem[]
+  hasInferioresPrice?: boolean
+  /** Ofrecer "Invitado" a los pendientes (no en 3T: el plantel precargado es el que paga). */
+  allowGuest?: boolean
+}) {
   const [sortField, setSortField] = useState<SortField>("name")
   const [sortDir, setSortDir] = useState<SortDirection>("asc")
 
@@ -108,7 +118,7 @@ export default function SortableAttendeeList({ attendees, hasInferioresPrice }: 
                 )}
               </p>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
               {hasInferioresPrice && (
                 <ToggleInferioresButton attendeeId={attendee.id} isInferiores={!!attendee.isInferiores} />
               )}
@@ -136,10 +146,16 @@ export default function SortableAttendeeList({ attendees, hasInferioresPrice }: 
                   <Badge className="bg-green-100 text-green-700 hover:bg-green-100">Pagó</Badge>
                   <MarkPaidButton attendeeId={attendee.id} isPaid={true} />
                 </>
+              ) : attendee.payment_status === "guest" ? (
+                <>
+                  <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">Invitado</Badge>
+                  <MarkGuestButton attendeeId={attendee.id} isGuest={true} />
+                </>
               ) : (
                 <>
                   <Badge variant="secondary">Pendiente</Badge>
                   <MarkPaidButton attendeeId={attendee.id} isPaid={false} />
+                  {allowGuest && <MarkGuestButton attendeeId={attendee.id} isGuest={false} />}
                 </>
               )}
               <DeleteAttendeeButton attendeeId={attendee.id} />

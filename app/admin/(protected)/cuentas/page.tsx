@@ -113,7 +113,7 @@ function AccountSection({ title, accounts }: { title: string; accounts: PersonAc
               {account.events.map((detail, i) => (
                 <div key={i} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-0.5 sm:gap-3 text-sm">
                   <div className="min-w-0">
-                    <Link href={`/admin/events/${detail.event.id}`} className="text-gray-600 hover:text-blue-600">
+                    <Link href={`/admin/events/${detail.event.id}?from=cuentas`} className="text-gray-600 hover:text-blue-600">
                       {detail.event.title}
                     </Link>
                     <span className="text-xs text-gray-400 ml-2">{formatDate(detail.event.date)}</span>

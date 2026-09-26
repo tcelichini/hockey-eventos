@@ -502,3 +502,24 @@ Registro de todas las sesiones de trabajo. Cada entrada documenta cambios concre
   - Ahora las dos cards clickeables tienen fondo celeste (`bg-blue-50/40`), borde azul y un ícono de flecha (`ChevronRightIcon`) arriba a la derecha, más el texto de call-to-action en azul.
   - Archivos: `app/admin/(protected)/page.tsx`
 
+## Sesión 48 (2026-09-26)
+
+- **Nuevo estado "Invitado" para asistentes que no pagan (entrenadores, etc.)**
+  - Tercer valor del enum `payment_status`: `"guest"` (migración 8, `ALTER TYPE ... ADD VALUE`). Se eligió un estado en vez de un booleano `is_guest` porque es excluyente con pagado/pendiente y las queries por `'pending'`/`'paid'` los excluyen sin cambios.
+  - `settleEvent`: invitado → `eventDebt = 0`, no es deudor, no suma a cobrado/pendiente, si adelantó gastos se le devuelven enteros, nunca entra en `toMarkPaid`. Helper `isGuest()`. 2 tests nuevos (35 total).
+  - Admin evento: botón "Invitado" junto a "Marcar pagado", badge azul + deshacer, precio "Sin cargo", card "Invitados", "X pagaron de N" y "÷ N personas" sin invitados, texto "invitado · adelantó $X en gastos" en acreedores.
+  - Dashboard: "% pagaron" sobre los que pagan. Pendientes: "de N confirmados" sin invitados. Combos: registro invitado = saldado.
+  - Público: check azul en "¿Quiénes van?", divisor del resumen de saldos sin invitados. En "subir comprobante" siguen apareciendo en la lista, y al elegir su nombre ven "¡Estás invitado! Fuiste invitado al evento, no debés nada" (sin datos de pago ni upload).
+  - No aplica a eventos 3T (el plantel precargado es el que paga): el botón "Invitado" no se muestra ahí. Precio por cantidad no cuenta invitados. CSV "Invitado".
+  - Revisados todos los `!== "paid"` que significaban "debe" → `=== "pending"`.
+  - Archivos: `db/schema.ts`, `lib/settlement.ts`, `lib/settlement.test.ts`, `lib/sync-expense-payment.ts`, `components/mark-guest-button.tsx`, `components/sortable-attendee-list.tsx`, `components/expense-settlement.tsx`, `app/admin/(protected)/events/[id]/page.tsx`, `app/admin/(protected)/page.tsx`, `app/admin/(protected)/pendientes/page.tsx`, `app/admin/(protected)/combos/[id]/page.tsx`, `app/api/attendees/route.ts`, `app/api/attendees/[id]/route.ts`, `app/api/combo-attendees/route.ts`, `app/api/events/by-slug/[slug]/route.ts`, `app/api/events/[id]/export/route.ts`, `app/e/[slug]/page.tsx`, `app/e/[slug]/confirm/page.tsx`, `app/e/[slug]/resumen/page.tsx`, `docs/ARQUITECTURA.md`, `docs/MIGRACIONES.md`, `CONTEXT.md`
+- **"Volver" del evento regresa a la página de origen**
+  - Los links a un evento desde Pendientes y Cuenta corriente agregan `?from=pendientes` / `?from=cuentas`; el panel del evento muestra "Volver a pendientes" / "Volver a cuenta corriente" (mapa `BACK_ORIGINS`). Sin `from` → "Volver" al dashboard. Si se pasa por Editar, el origen se pierde (aceptado).
+  - Archivos: `app/admin/(protected)/events/[id]/page.tsx`, `app/admin/(protected)/pendientes/page.tsx`, `app/admin/(protected)/cuentas/page.tsx`
+- **Dashboard: cards informativas a la izquierda, clickeables a la derecha**
+  - Orden nuevo: Eventos · Balance neto · Sin pagar · Pendiente (en mobile: fila de arriba informativas, abajo clickeables). Números `text-xl sm:text-2xl` para que montos de 8 cifras no desborden en mobile.
+  - Archivos: `app/admin/(protected)/page.tsx`
+- **Fix: error de hidratación en Pendientes por emojis en nombres**
+  - `getInitials` tomaba `w[0]` de "🇮🇹" (medio par surrogate) → HTML distinto server/cliente. Ahora solo usa palabras que empiezan con letra (fallback "?").
+  - Archivos: `app/admin/(protected)/pendientes/page.tsx`
+- **Tests: `vitest.config.ts` excluye `.claude/**`** (worktrees con copias del repo hacían fallar `npm run test` con ~100 archivos ajenos).

@@ -289,10 +289,14 @@ export default async function EventPage({ params }: { params: { slug: string } }
                   className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-sm ${
                     a.payment_status === "paid"
                       ? "bg-green-50 text-green-700"
-                      : "bg-[#002060]/5 text-gray-700"
+                      : a.payment_status === "guest"
+                        ? "bg-blue-50 text-blue-700"
+                        : "bg-[#002060]/5 text-gray-700"
                   }`}
+                  title={a.payment_status === "guest" ? "Invitado" : undefined}
                 >
                   {a.payment_status === "paid" && <CheckCircleIcon className="w-3.5 h-3.5 text-green-500" />}
+                  {a.payment_status === "guest" && <CheckCircleIcon className="w-3.5 h-3.5 text-blue-500" />}
                   {a.full_name}
                 </span>
               ))}

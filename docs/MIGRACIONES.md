@@ -27,6 +27,10 @@ ALTER TABLE "expenses" ADD COLUMN IF NOT EXISTS "settled" boolean NOT NULL DEFAU
 -- Migración 7: precio reducido para jugadores de inferiores
 ALTER TABLE "events" ADD COLUMN IF NOT EXISTS "inferiores_price" numeric(10,2);
 ALTER TABLE "attendees" ADD COLUMN IF NOT EXISTS "is_inferiores" boolean NOT NULL DEFAULT false;
+
+-- Migración 8: estado de pago "invitado" (entrenadores, etc.) — aplicada 2026-09-26
+-- Nota: Postgres no permite quitar valores de un enum; si se deja de usar, queda inerte.
+ALTER TYPE payment_status ADD VALUE IF NOT EXISTS 'guest';
 ```
 
 ## Buckets de Storage

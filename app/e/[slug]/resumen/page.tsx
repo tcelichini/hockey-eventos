@@ -11,7 +11,7 @@ export default async function ResumenPage({ params }: { params: { slug: string }
   if (!event) notFound()
 
   const confirmedAttendees = await db
-    .select({ full_name: attendeesTable.full_name, price_paid: attendeesTable.price_paid })
+    .select({ full_name: attendeesTable.full_name, price_paid: attendeesTable.price_paid, payment_status: attendeesTable.payment_status })
     .from(attendeesTable)
     .where(and(eq(attendeesTable.event_id, event.id), eq(attendeesTable.status, "confirmed")))
 

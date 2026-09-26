@@ -27,7 +27,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   const rows = attendeeList.map((a) => {
     const name = `"${a.full_name.replace(/"/g, '""')}"`
     const price = Number(a.price_paid) || amount
-    const payment = a.payment_status === "paid" ? "Pagó" : "Pendiente"
+    const payment = a.payment_status === "paid" ? "Pagó" : a.payment_status === "guest" ? "Invitado" : "Pendiente"
     const inferiores = a.is_inferiores ? "Sí" : "No"
     const date = new Intl.DateTimeFormat("es-AR", {
       day: "numeric",

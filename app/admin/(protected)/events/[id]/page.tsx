@@ -22,7 +22,7 @@ import SortableAttendeeList from "@/components/sortable-attendee-list"
 import ExpenseForm from "@/components/expense-form"
 import SettleCreditorButton from "@/components/settle-creditor-button"
 import { getTierLabel, getDateTierLabel, todayArg } from "@/lib/pricing"
-import { settleEvent, getOwedPrice, normalizeName } from "@/lib/settlement"
+import { settleEvent, getOwedPrice, normalizeName, isGuest } from "@/lib/settlement"
 import { classifyComboPayment } from "@/lib/combo-payment"
 
 function formatCurrency(value: number) {
@@ -42,8 +42,23 @@ function formatDate(date: Date | null) {
   }).format(new Date(date))
 }
 
+const BACK_ORIGINS: Record<string, { href: string; label: string }> = {
+  pendientes: { href: "/admin/pendientes", label: "Volver a pendientes" },
+  cuentas: { href: "/admin/cuentas", label: "Volver a cuenta corriente" },
+}
 
-export default async function EventDetailPage({ params }: { params: { id: string } }) {
+export default async function EventDetailPage({
+  params,
+  searchParams,
+}: {
+  params: { id: string }
+  searchParams: { from?: string }
+}) {
+  // "Volver" regresa a la página de origen (?from=...) si se llegó desde ahí; si no, al dashboard
+  const origin = searchParams.from ? BACK_ORIGINS[searchParams.from] : undefined
+  const backHref = origin?.href ?? "/admin"
+  const backLabel = origin?.label ?? "Volver"
+
   const [event] = await db.select().from(events).where(eq(events.id, params.id)).limit(1)
   if (!event) notFound()
 
@@ -108,6 +123,10 @@ export default async function EventDetailPage({ params }: { params: { id: string
   const paid = confirmed.filter((a) => a.payment_status === "paid")
   // Asistentes cubiertos por gastos (marcados como paid sin comprobante)
   const coveredByExpenses = confirmed.filter(a => coveredByExpensesIds.has(a.id))
+  // Invitados: cuentan como asistentes pero no pagan — fuera de "pagaron de N" y del reparto de gastos
+  const guests = confirmed.filter(isGuest)
+  const payersCount = confirmed.length - guests.length
+  const statCards = 2 + (coveredByExpenses.length > 0 ? 1 : 0) + (guests.length > 0 ? 1 : 0)
   const pendingCount = settlement.debtors.length
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").trim()
   const publicLink = `${appUrl}/e/${event.slug}`
@@ -115,10 +134,10 @@ export default async function EventDetailPage({ params }: { params: { id: string
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <Link href="/admin">
+        <Link href={backHref}>
           <Button variant="ghost" size="sm">
             <ArrowLeftIcon className="w-4 h-4 mr-1" />
-            Volver
+            {backLabel}
           </Button>
         </Link>
         <div className="flex flex-wrap items-center gap-2">
@@ -215,7 +234,7 @@ export default async function EventDetailPage({ params }: { params: { id: string
       </Card>
 
       {/* Stats */}
-      <div className={`grid gap-3 ${coveredByExpenses.length > 0 ? "grid-cols-3" : "grid-cols-2"}`}>
+      <div className={`grid gap-3 ${statCards === 4 ? "grid-cols-2 sm:grid-cols-4" : statCards === 3 ? "grid-cols-3" : "grid-cols-2"}`}>
         <Card>
           <CardContent className="pt-4 pb-4 text-center">
             <div className="text-3xl font-bold text-green-600">{confirmed.length}</div>
@@ -236,6 +255,14 @@ export default async function EventDetailPage({ params }: { params: { id: string
             </CardContent>
           </Card>
         )}
+        {guests.length > 0 && (
+          <Card>
+            <CardContent className="pt-4 pb-4 text-center">
+              <div className="text-3xl font-bold text-blue-500">{guests.length}</div>
+              <div className="text-xs text-gray-500 mt-1">Invitados</div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Money Stats */}
@@ -245,7 +272,7 @@ export default async function EventDetailPage({ params }: { params: { id: string
             <CardContent className="pt-4 pb-4">
               <div className="text-xs text-gray-500 mb-1">Recaudado</div>
               <div className="text-xl font-bold text-green-600">{formatCurrency(totalCollected)}</div>
-              <div className="text-xs text-gray-400 mt-0.5">{paid.length} pagaron de {confirmed.length}</div>
+              <div className="text-xs text-gray-400 mt-0.5">{paid.length} pagaron de {payersCount}</div>
             </CardContent>
           </Card>
           <Card>
@@ -324,7 +351,10 @@ export default async function EventDetailPage({ params }: { params: { id: string
                             {expPaid > 0 && !paidViaExpenses && a.payment_status === "paid" && discountedFromProof > 0 && (
                               <p className="text-xs text-gray-400">pagó {formatCurrency(amountTransferred)} + {formatCurrency(expPaid)} gastos − {formatCurrency(owed)} evento</p>
                             )}
-                            {expPaid > 0 && !paidViaExpenses && a.payment_status !== "paid" && (
+                            {expPaid > 0 && isGuest(a) && (
+                              <p className="text-xs text-gray-400">invitado · adelantó {formatCurrency(expPaid)} en gastos</p>
+                            )}
+                            {expPaid > 0 && !paidViaExpenses && a.payment_status === "pending" && (
                               <p className="text-xs text-gray-400">{formatCurrency(owed)} − {formatCurrency(expPaid)} gastos</p>
                             )}
                           </div>
@@ -436,12 +466,12 @@ export default async function EventDetailPage({ params }: { params: { id: string
                 />
               ))}
             </div>
-            {confirmed.length > 0 && (
+            {payersCount > 0 && (
               <div className="pt-3 mt-1 border-t border-gray-100">
                 <p className="text-sm text-gray-700">
                   Total: <span className="font-bold">{formatCurrency(totalExpenses)}</span>
-                  <span className="text-gray-400"> ÷ {confirmed.length} personas = </span>
-                  <span className="font-bold">{formatCurrency(Math.round(totalExpenses / confirmed.length))}</span>
+                  <span className="text-gray-400"> ÷ {payersCount} personas{guests.length > 0 ? ` (sin ${guests.length} invitado${guests.length !== 1 ? "s" : ""})` : ""} = </span>
+                  <span className="font-bold">{formatCurrency(Math.round(totalExpenses / payersCount))}</span>
                   <span className="text-gray-400"> c/u</span>
                 </p>
               </div>
@@ -477,7 +507,7 @@ export default async function EventDetailPage({ params }: { params: { id: string
                 payment_proof_url: a.payment_proof_url,
                 combo_id: a.combo_id,
                 price: displayPrice,
-                priceFormatted: formatCurrency(displayPrice),
+                priceFormatted: isGuest(a) ? "Sin cargo" : formatCurrency(displayPrice),
                 paidViaCombo: paidViaCombo.has(a.id),
                 createdAtISO: a.created_at ? new Date(a.created_at).toISOString() : null,
                 createdAtFormatted: a.created_at ? shortDateFmt.format(new Date(a.created_at)) : null,
@@ -489,6 +519,7 @@ export default async function EventDetailPage({ params }: { params: { id: string
               }
             })}
             hasInferioresPrice={inferioresPrice !== null}
+            allowGuest={!event.is_3t}
           />
         )}
       </CollapsibleCard>

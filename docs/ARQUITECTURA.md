@@ -145,6 +145,17 @@ net = 0 → al día
 
 La distinción clave es `paidViaExpenses` (detectado via `coveredByExpensesIds`): si alguien fue marcado como "paid" por el auto-sync de gastos (sin `payment_proof_url`), `eventDebt` sigue siendo el precio del evento para que el gasto lo cubra y solo se devuelva la diferencia. Si pagó independientemente (con comprobante), `eventDebt = 0` y se le devuelve el total del gasto.
 
+### Invitados (`payment_status = "guest"`)
+
+Tercer estado de pago, además de `pending` y `paid` (migración 8). Se marca desde admin con el botón "Invitado" (`components/mark-guest-button.tsx`) en la lista de asistentes; en eventos 3T no se ofrece (`SortableAttendeeList allowGuest={!event.is_3t}`). Regla de negocio en CONTEXT.md. Dónde impacta:
+
+- `settleEvent`: `eventDebt = 0` (`PersonBalance.guest`), fuera de `toMarkPaid` y de `totalPending`. `isGuest()` es el helper canónico.
+- `syncExpensePayment`: no toca a invitados.
+- Queries con `payment_status = 'pending'` / `'paid'` (dashboard, Pendientes) los excluyen solas. **Ojo con `!== "paid"`**: no significa "debe" — usar `=== "pending"`.
+- Divisor de gastos (admin y `expense-settlement.tsx` público), "X pagaron de N" y "% pagaron": solo los que pagan.
+- `POST /api/attendees`: el precio por cantidad cuenta solo a los que pagan (el cupo sí cuenta invitados); en el selector de "subir comprobante" los invitados sí aparecen (`unpaidAttendeeNames` = no pagados) y al elegir su nombre ven "¡Estás invitado! … no debés nada" sin pedido de pago.
+- Página pública: chip con check azul. CSV: "Invitado". Panel de combo: un registro invitado cuenta como saldado y no suma plata.
+
 ### Precio para no-pagadores (`getOwedPrice`)
 
 Para asistentes que no pagaron se usa el **tramo más caro**, no el precio asignado al anotarse:

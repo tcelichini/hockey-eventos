@@ -1,7 +1,7 @@
 import { db } from "@/db"
 import { attendees, expenses, events } from "@/db/schema"
 import { eq, and } from "drizzle-orm"
-import { getOwedPrice, normalizeName } from "@/lib/settlement"
+import { getOwedPrice, normalizeName, isGuest } from "@/lib/settlement"
 
 /**
  * Sincroniza payment_status de un asistente según sus gastos adelantados.
@@ -20,7 +20,8 @@ export async function syncExpensePayment(eventId: string, responsibleName: strin
     .where(and(eq(attendees.event_id, eventId), eq(attendees.status, "confirmed")))
 
   const attendee = attendeeList.find(a => normalizeName(a.full_name) === key)
-  if (!attendee) return
+  // Invitado: no debe nada, sus gastos nunca cambian su estado
+  if (!attendee || isGuest(attendee)) return
 
   const expenseList = await db
     .select()

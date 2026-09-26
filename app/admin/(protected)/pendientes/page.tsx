@@ -5,7 +5,7 @@ import { eq, and, inArray } from "drizzle-orm"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ArrowLeftIcon } from "lucide-react"
-import { settleEvent } from "@/lib/settlement"
+import { settleEvent, isGuest } from "@/lib/settlement"
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("es-AR", {
@@ -30,12 +30,16 @@ function formatDate(date: Date | null) {
 }
 
 function getInitials(name: string) {
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0].toUpperCase())
-    .join("")
+  return (
+    name
+      .split(" ")
+      // Solo palabras que empiezan con letra (tiene mayúscula/minúscula): ignora emojis
+      // como "Enzo 🇮🇹", cuyo w[0] es medio emoji y rompe la hidratación
+      .filter((w) => w && w[0].toLowerCase() !== w[0].toUpperCase())
+      .slice(0, 2)
+      .map((w) => w[0].toUpperCase())
+      .join("") || "?"
+  )
 }
 
 export default async function PendientesPage() {
@@ -84,7 +88,8 @@ export default async function PendientesPage() {
       })
       if (debtors.length === 0) continue
 
-      confirmedCounts.set(ev.id, confirmed.length)
+      // Solo los que tienen que pagar: los invitados no entran en "X de N pagaron"
+      confirmedCounts.set(ev.id, confirmed.filter((a) => !isGuest(a)).length)
       totalCollected += confirmed
         .filter((a) => a.payment_status === "paid")
         .reduce((sum, a) => sum + (a.price_paid !== null ? Number(a.price_paid) : Number(ev.payment_amount)), 0)
@@ -236,7 +241,7 @@ function EventPendingGroup({
           )}
         </div>
         <Link
-          href={`/admin/events/${group.event_id}`}
+          href={`/admin/events/${group.event_id}?from=pendientes`}
           className="text-xs text-blue-500 hover:text-blue-700 shrink-0 ml-2"
         >
           Ver evento &rarr;

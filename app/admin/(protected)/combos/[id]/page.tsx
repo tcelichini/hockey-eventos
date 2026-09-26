@@ -58,8 +58,11 @@ export default async function ComboDetailPage({ params }: { params: { id: string
   const eventTitleMap = new Map(linkedEvents.map(e => [e.id, e.title]))
 
   const persons = Array.from(personMap.entries()).map(([, attendeeList]) => {
-    const totalPaid = attendeeList.reduce((sum, a) => sum + Number(a.price_paid || 0), 0)
-    const allPaid = attendeeList.every((a) => a.payment_status === "paid")
+    // Registros de invitado: no pagan ni deben — cuentan como saldados y no suman plata
+    const totalPaid = attendeeList
+      .filter((a) => a.payment_status !== "guest")
+      .reduce((sum, a) => sum + Number(a.price_paid || 0), 0)
+    const allPaid = attendeeList.every((a) => a.payment_status !== "pending")
     const proofUrl = attendeeList.find((a) => a.payment_proof_url)?.payment_proof_url
     const proofUploadedAt = attendeeList.find((a) => a.proof_uploaded_at)?.proof_uploaded_at
     const proofUrls = attendeeList.map(a => a.payment_proof_url).filter(Boolean)
@@ -91,7 +94,7 @@ export default async function ComboDetailPage({ params }: { params: { id: string
   const partialPaidMap = new Map<string, { paidEvents: { eventTitle: string; pricePaid: number }[]; unpaidEvents: string[] }>()
   Array.from(personMap.entries()).forEach(([key, attendeeGroup]) => {
     const paidEvents = attendeeGroup.filter((a: typeof comboAttendees[0]) => a.payment_status === "paid")
-    const unpaidEvents = attendeeGroup.filter((a: typeof comboAttendees[0]) => a.payment_status !== "paid")
+    const unpaidEvents = attendeeGroup.filter((a: typeof comboAttendees[0]) => a.payment_status === "pending")
     // Solo mostrar si tiene ALGUNOS pagados y ALGUNOS pendientes (pago parcial/individual)
     if (paidEvents.length > 0 && unpaidEvents.length > 0) {
       partialPaidMap.set(key, {
@@ -105,7 +108,7 @@ export default async function ComboDetailPage({ params }: { params: { id: string
   })
 
   const totalPersons = persons.length
-  const paidPersons = persons.filter((p) => p.allPaid).length
+  const paidPersons = persons.filter((p) => p.allPaid && p.attendees.some((a) => a.payment_status === "paid")).length
   const totalCollected = persons.filter((p) => p.allPaid).reduce((sum, p) => sum + p.totalPaid, 0)
   const totalPending = persons.filter((p) => !p.allPaid).reduce((sum, p) => sum + p.totalPaid, 0)
 
@@ -285,12 +288,12 @@ export default async function ComboDetailPage({ params }: { params: { id: string
                     {person.allPaid ? (
                       <>
                         <Badge className="bg-green-100 text-green-700 hover:bg-green-100">Pagó</Badge>
-                        <MarkComboPaidButton attendeeIds={person.attendees.map((a) => a.id)} isPaid={true} />
+                        <MarkComboPaidButton attendeeIds={person.attendees.filter((a) => a.payment_status === "paid").map((a) => a.id)} isPaid={true} />
                       </>
                     ) : (
                       <>
                         <Badge variant="secondary">Pendiente</Badge>
-                        <MarkComboPaidButton attendeeIds={person.attendees.filter((a) => a.payment_status !== "paid").map((a) => a.id)} isPaid={false} />
+                        <MarkComboPaidButton attendeeIds={person.attendees.filter((a) => a.payment_status === "pending").map((a) => a.id)} isPaid={false} />
                       </>
                     )}
                   </div>

@@ -37,6 +37,7 @@ export async function GET(_request: NextRequest, { params }: { params: { slug: s
   const confirmedCount = confirmedAttendeeRows.length
   const attendeeNames = confirmedAttendeeRows.map((a) => a.full_name)
   const unpaidAttendeeNames = confirmedAttendeeRows
+    // Incluye invitados: al elegir su nombre, el confirm les avisa que no deben nada
     .filter((a) => a.payment_status !== "paid")
     .map((a) => a.full_name)
     .sort((a, b) => a.localeCompare(b, "es"))

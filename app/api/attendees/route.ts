@@ -5,7 +5,7 @@ import { eq, and, inArray } from "drizzle-orm"
 import { notifyAdminWhatsApp } from "@/lib/whatsapp-notify"
 import { calculatePrice, calculateDatePrice } from "@/lib/pricing"
 import { syncExpensePayment } from "@/lib/sync-expense-payment"
-import { normalizeName } from "@/lib/settlement"
+import { normalizeName, isGuest } from "@/lib/settlement"
 
 /**
  * Total de gastos adelantados por una persona en un evento (misma normalización
@@ -47,6 +47,8 @@ export async function POST(request: NextRequest) {
     .where(and(eq(attendees.event_id, event_id), eq(attendees.status, "confirmed")))
 
   const confirmedCount = confirmedAttendees.length
+  // Precio por cantidad: los invitados no pagan, así que no bajan el precio del resto
+  const payingCount = confirmedAttendees.filter((a) => !isGuest(a)).length
 
   // Check for existing registration BEFORE is_open check,
   // so already-confirmed attendees can still access payment info and upload receipts
@@ -62,7 +64,7 @@ export async function POST(request: NextRequest) {
       let currentPaymentAmount = existing.price_paid || event.payment_amount
       if (existing.is_inferiores && event.inferiores_price) {
         currentPaymentAmount = event.inferiores_price
-      } else if (event.date_tiers && event.date_tiers.length > 0 && existing.payment_status !== "paid") {
+      } else if (event.date_tiers && event.date_tiers.length > 0 && existing.payment_status === "pending") {
         const recalculated = calculateDatePrice(event.date_tiers, event.payment_amount)
         currentPaymentAmount = String(recalculated)
         await db.update(attendees)
@@ -74,12 +76,12 @@ export async function POST(request: NextRequest) {
       // Si los gastos cubren el precio, el sync lo marca como pagado.
       const expensesTotal = await getExpensesTotal(event_id, full_name)
       let attendeeRow = existing
-      if (expensesTotal > 0 && existing.payment_status !== "paid") {
+      if (expensesTotal > 0 && existing.payment_status === "pending") {
         await syncExpensePayment(event_id, full_name)
         const [refreshed] = await db.select().from(attendees).where(eq(attendees.id, existing.id)).limit(1)
         if (refreshed) attendeeRow = refreshed
       }
-      const amountDue = Math.max(Number(currentPaymentAmount) - expensesTotal, 0)
+      const amountDue = isGuest(existing) ? 0 : Math.max(Number(currentPaymentAmount) - expensesTotal, 0)
 
       return NextResponse.json({
         attendee: attendeeRow,
@@ -114,7 +116,7 @@ export async function POST(request: NextRequest) {
       ? Number(event.inferiores_price)
       : event.date_tiers && event.date_tiers.length > 0
         ? calculateDatePrice(event.date_tiers, event.payment_amount)
-        : calculatePrice(event.pricing_tiers, event.payment_amount, confirmedCount)
+        : calculatePrice(event.pricing_tiers, event.payment_amount, payingCount)
     : 0
 
   const [attendee] = await db
