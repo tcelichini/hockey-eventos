@@ -309,10 +309,11 @@ export default async function EventDetailPage({
                       </div>
                     </div>
                   ))}
+                  {/* Link directo a subir el comprobante de ESTE evento (el recordatorio de cuenta corriente manda a /mi-cuenta) */}
                   <PaymentReminderButton
                     unpaidList={debtors.map(({ attendee: a, net }) => ({ name: a.full_name, amount: net }))}
                     eventTitle={event.title}
-                    publicLink={`${appUrl}/mi-cuenta`}
+                    publicLink={`${publicLink}/confirm?upload=1`}
                   />
                 </div>
               )}

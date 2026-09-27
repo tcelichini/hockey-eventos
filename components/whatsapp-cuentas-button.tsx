@@ -19,13 +19,14 @@ export default function WhatsAppCuentasButton({
   function handleClick() {
     const total = debtors.reduce((sum, d) => sum + d.amount, 0)
     const lines = [
-      "💰 *Cuentas pendientes*",
+      "📢 *Cuenta corriente* - Recordatorio de pago",
       "",
+      `Deben pagar (${debtors.length}):`,
       ...debtors.map((d) => `• ${d.name} - ${formatCurrency(d.amount)}`),
       "",
-      `Total pendiente: *${formatCurrency(total)}*`,
+      `💰 Total pendiente: *${formatCurrency(total)}*`,
       "",
-      "👉 Mirá cuánto debés y el alias para transferir acá:",
+      "👉 Elegí tu nombre, mirá qué eventos debés y subí el comprobante de cada uno acá:",
       publicLink,
     ]
     const message = lines.join("\n")
@@ -33,9 +34,14 @@ export default function WhatsAppCuentasButton({
   }
 
   return (
-    <Button variant="outline" size="sm" onClick={handleClick} className="text-green-600 border-green-200 hover:bg-green-50 hover:text-green-700">
-      <MessageCircleIcon className="w-4 h-4 mr-1" />
-      Enviar por WhatsApp
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={handleClick}
+      className="w-full text-green-600 border-green-200 hover:bg-green-50 hover:text-green-700"
+    >
+      <MessageCircleIcon className="w-4 h-4 mr-2" />
+      Enviar recordatorio por WhatsApp
     </Button>
   )
 }

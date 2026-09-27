@@ -12,8 +12,8 @@ Mapa de archivos clave y lógica de negocio del proyecto.
 | `lib/combo-payment.ts` | `classifyComboPayment`: detección de "pagó vía combo" (badge, display) |
 | `lib/cuenta-corriente.ts` | `consolidateAccounts` (puro, con tests): saldo por persona across eventos. Ver CONTEXT.md |
 | `lib/cuenta-corriente-query.ts` | Fetch + settleEvent por evento + consolidación (compartido por admin y API pública) |
-| `app/admin/(protected)/cuentas/page.tsx` | Página admin de cuenta corriente (deudores/acreedores consolidados + WhatsApp) |
-| `app/mi-cuenta/page.tsx` | Consulta pública: el jugador elige su nombre y ve solo su saldo |
+| `app/admin/(protected)/cuentas/page.tsx` | Página admin de cuenta corriente (deudores/acreedores consolidados + recordatorio WhatsApp con link a `/mi-cuenta`) |
+| `app/mi-cuenta/page.tsx` | Consulta pública: el jugador elige su nombre (o llega con `?nombre=`) y ve solo su saldo; cada evento que debe es una card que lleva a subir el comprobante de ese evento |
 | `app/api/cuenta/route.ts` | API pública de cuenta corriente (nombres / saldo por persona) |
 | `lib/pricing.ts` | Helpers: `todayArg`, `getTierLabel`, `calculatePrice`, `calculateDatePrice`, `getDateTierLabel`, `validateTiers` |
 | `lib/players.ts` | Lista estática del plantel (36 jugadores, formato "Apellido, Nombre") |
@@ -24,6 +24,8 @@ Mapa de archivos clave y lógica de negocio del proyecto.
 | `components/image-upload.tsx` | Upload con selector de posición (#top/#bottom en URL) |
 | `components/whatsapp-invite-button.tsx` | Botón WhatsApp con descripción |
 | `components/payment-proof-upload.tsx` | Componente para subir comprobante de pago |
+| `components/payment-reminder-button.tsx` | Recordatorio de pago por WhatsApp desde el evento: link directo a subir el comprobante de ese evento |
+| `components/whatsapp-cuentas-button.tsx` | Recordatorio de pago por WhatsApp desde cuenta corriente: link a `/mi-cuenta` |
 | `components/add-attendee-button.tsx` | Botón inline para agregar asistente manualmente desde admin |
 | `app/admin/(protected)/page.tsx` | Dashboard admin general (stats globales, eventos, combos, botón Actualizar) |
 | `app/admin/(protected)/events/[id]/page.tsx` | Panel admin del evento (Resumen, Gastos, Asistentes con fecha de comprobante) |
@@ -40,6 +42,7 @@ Mapa de archivos clave y lógica de negocio del proyecto.
 | `app/api/combos/by-slug/[slug]/route.ts` | API pública de combos |
 | `app/api/upload-proof/route.ts` | API de subida de comprobante (guarda `proof_uploaded_at`) |
 | `app/e/[slug]/page.tsx` | Página pública del evento (muestra precios por fecha, tramo o fijo) |
+| `app/e/[slug]/confirm/page.tsx` | Confirmar asistencia / subir comprobante (`?upload=1`). Con `?from=mi-cuenta&nombre=` preselecciona el nombre y "Volver" regresa a `/mi-cuenta` |
 | `app/e/[slug]/resumen/page.tsx` | Página pública de resumen de gastos |
 | `app/combo/[slug]/page.tsx` | Página pública del combo |
 

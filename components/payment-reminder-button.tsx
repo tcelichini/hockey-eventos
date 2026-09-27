@@ -28,7 +28,7 @@ export default function PaymentReminderButton({
       "",
       `💰 Total pendiente: *${formatCurrency(total)}*`,
       "",
-      `👉 Mirá cuánto debés y el alias para transferir acá:`,
+      `👉 Elegí tu nombre, mirá el monto y el alias y subí el comprobante acá:`,
       publicLink,
     ].join("\n")
 

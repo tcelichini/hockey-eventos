@@ -37,6 +37,30 @@ Cuando hay 3+ botones de acción en el header (Actualizar, Exportar, Editar, Eli
 
 El `flex-wrap` permite que en mobile los botones se acomoden en varias filas sin desbordar la pantalla.
 
+## Lo clickeable se tiene que ver clickeable
+
+Si un elemento lleva a otra página, tiene que notarse sin depender del hover (en el celu no existe). Lo informativo va sin chevron ni azul.
+
+- **Admin** (cards del dashboard): fondo `bg-blue-50/40`, borde azul, `ChevronRightIcon` arriba a la derecha y CTA en azul ("ver detalle →").
+- **Público** (listas para jugadores, ej. `/mi-cuenta`): card blanca con una barra inferior de acción — ícono + verbo + chevron — y `active:` para feedback al tocar:
+
+```tsx
+<Link href={href} className="block bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden hover:border-blue-300 active:bg-gray-50 transition-colors">
+  <div className="px-4 py-3">{/* info */}</div>
+  <div className="flex items-center justify-between px-4 py-2.5 bg-blue-50 border-t border-blue-100 text-sm font-medium text-blue-700">
+    <span className="flex items-center gap-2"><ReceiptIcon className="w-4 h-4" />Subir comprobante</span>
+    <ChevronRightIcon className="w-4 h-4" />
+  </div>
+</Link>
+```
+
+## "Volver" a la página de origen (`?from=`)
+
+Cuando una página se abre desde varios lugares, el link agrega `?from=<origen>` (más lo necesario para restaurar el estado de origen) y la página destino arma el href y el texto del botón "Volver". Sin `from`, vuelve al lugar por defecto.
+
+- Panel admin del evento: `?from=pendientes` / `?from=cuentas` (mapa `BACK_ORIGINS` en `events/[id]/page.tsx`).
+- Subir comprobante: `?from=mi-cuenta&nombre=X` → "Volver a mi cuenta" → `/mi-cuenta?nombre=X` (la persona sigue elegida).
+
 ## Manejo de zonas horarias
 
 La app opera en `America/Argentina/Buenos_Aires` (UTC−3). Vercel corre en UTC, así que cualquier formateo o parseo de fechas tiene que ser explícito sobre el timezone:

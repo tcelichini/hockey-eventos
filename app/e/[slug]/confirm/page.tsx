@@ -6,11 +6,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
-import { CheckCircleIcon, ArrowLeftIcon, CopyIcon, CheckIcon } from "lucide-react"
+import { CheckCircleIcon, ArrowLeftIcon, CopyIcon, CheckIcon, WalletIcon } from "lucide-react"
 import Link from "next/link"
 import PaymentProofUpload from "@/components/payment-proof-upload"
 import WhatsAppListButton from "@/components/whatsapp-list-button"
 import { getPlayersForTeams } from "@/lib/players"
+import { normalizeName } from "@/lib/settlement"
 
 type EventData = {
   id: string
@@ -40,6 +41,16 @@ type PaymentData = {
   attendee_name: string
 }
 
+// Nombres del selector: plantel completo en 3T; en "subir comprobante", los que faltan pagar
+function selectableNames(event: EventData, isUploadMode: boolean): string[] {
+  if (event.is_3t) {
+    const teamPlayers = getPlayersForTeams(event.teams)
+    const extra = (event.attendeeNames || []).filter((n) => !teamPlayers.includes(n))
+    return [...teamPlayers, ...extra].sort((a, b) => a.localeCompare(b, "es"))
+  }
+  return isUploadMode ? event.unpaidAttendeeNames || [] : []
+}
+
 function WhatsAppIcon() {
   return (
     <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current" xmlns="http://www.w3.org/2000/svg">
@@ -53,6 +64,12 @@ export default function ConfirmPage() {
   const searchParams = useSearchParams()
   const slug = params.slug as string
   const isUploadMode = searchParams.get("upload") === "1"
+  // Desde /mi-cuenta (?from=mi-cuenta&nombre=): el nombre viene elegido y "Volver" regresa a su cuenta
+  const prefillName = searchParams.get("nombre")
+  const accountHref =
+    searchParams.get("from") === "mi-cuenta" && prefillName
+      ? `/mi-cuenta?nombre=${encodeURIComponent(prefillName)}`
+      : null
 
   const [event, setEvent] = useState<EventData | null>(null)
   const [step, setStep] = useState<"form" | "payment">("form")
@@ -80,6 +97,13 @@ export default function ConfirmPage() {
       .then((r) => r.json())
       .then(setEvent)
   }, [slug])
+
+  // Preseleccionar el nombre que eligió en /mi-cuenta (si está en la lista de este evento)
+  useEffect(() => {
+    if (!event || !prefillName) return
+    const match = selectableNames(event, isUploadMode).find((n) => normalizeName(n) === normalizeName(prefillName))
+    if (match) setName((current) => current || match)
+  }, [event, prefillName, isUploadMode])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -154,10 +178,10 @@ export default function ConfirmPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-md mx-auto px-4 py-8 space-y-6">
         <div className="flex items-center gap-3">
-          <Link href={`/e/${slug}`}>
+          <Link href={accountHref ?? `/e/${slug}`}>
             <Button variant="ghost" size="sm">
               <ArrowLeftIcon className="w-4 h-4 mr-1" />
-              Volver
+              {accountHref ? "Volver a mi cuenta" : "Volver"}
             </Button>
           </Link>
           <h1 className="font-semibold text-gray-900 truncate">{event.title}</h1>
@@ -197,16 +221,11 @@ export default function ConfirmPage() {
                       className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     >
                       <option value="">— Seleccioná tu nombre —</option>
-                      {(() => {
-                        const teamPlayers = getPlayersForTeams(event.teams)
-                        const extra = (event.attendeeNames || []).filter((n) => !teamPlayers.includes(n))
-                        const allNames = [...teamPlayers, ...extra].sort((a, b) => a.localeCompare(b, "es"))
-                        return allNames.map((player) => (
-                          <option key={player} value={player}>
-                            {player}
-                          </option>
-                        ))
-                      })()}
+                      {selectableNames(event, isUploadMode).map((player) => (
+                        <option key={player} value={player}>
+                          {player}
+                        </option>
+                      ))}
                     </select>
                   ) : isUploadMode && (event.unpaidAttendeeNames || []).length > 0 ? (
                     <select
@@ -351,6 +370,16 @@ export default function ConfirmPage() {
 
             {!alreadyPaid && attendeeId && (
               <PaymentProofUpload attendeeId={attendeeId} onUploaded={(url) => setProofUrl(url)} />
+            )}
+
+            {/* Vino desde /mi-cuenta: una vez saldado este evento, volver a ver los otros que debe */}
+            {accountHref && (proofUrl || alreadyPaid) && (
+              <Link href={accountHref} className="block">
+                <Button className="w-full h-12 bg-[#002060] hover:bg-[#001840]">
+                  <WalletIcon className="w-4 h-4 mr-2" />
+                  Volver a mi cuenta corriente
+                </Button>
+              </Link>
             )}
 
             {!alreadyPaid && event.whatsapp_confirmation && (

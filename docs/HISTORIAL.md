@@ -523,3 +523,21 @@ Registro de todas las sesiones de trabajo. Cada entrada documenta cambios concre
   - `getInitials` tomaba `w[0]` de "🇮🇹" (medio par surrogate) → HTML distinto server/cliente. Ahora solo usa palabras que empiezan con letra (fallback "?").
   - Archivos: `app/admin/(protected)/pendientes/page.tsx`
 - **Tests: `vitest.config.ts` excluye `.claude/**`** (worktrees con copias del repo hacían fallar `npm run test` con ~100 archivos ajenos).
+
+## Sesión 49 (2026-09-27)
+
+- **Recordatorios de pago: el link depende de desde dónde se manda**
+  - Desde el evento (Resumen → "Enviar recordatorio por WhatsApp"): el link ahora va directo a subir el comprobante de ESE evento (`/e/{slug}/confirm?upload=1`), en vez de `/mi-cuenta` (sesión 47).
+  - Desde Cuenta corriente: el botón que ya existía ("Enviar por WhatsApp", arriba a la derecha) pasa a "Enviar recordatorio por WhatsApp" debajo de "Deben pagar", igual que en el evento. Mensaje "Cuenta corriente - Recordatorio de pago" con link a `/mi-cuenta` (cada uno ve todos los eventos que debe).
+  - Archivos: `components/payment-reminder-button.tsx`, `components/whatsapp-cuentas-button.tsx`, `app/admin/(protected)/events/[id]/page.tsx`, `app/admin/(protected)/cuentas/page.tsx`
+- **`/mi-cuenta`: los eventos que debe son cards clickeables que llevan a subir el comprobante**
+  - Antes el título del evento era un link que no se veía como link (sin hover en el celu). Ahora cada evento adeudado es una card con barra inferior "Subir comprobante ›" + texto "Tocá un evento para subir el comprobante de pago". Link: `/e/{slug}/confirm?upload=1&from=mi-cuenta&nombre={displayName}`.
+  - Los eventos donde se le debe plata (net < 0) quedan informativos, sin link (no hay nada que subir). Orden por fecha, el más viejo primero.
+  - `?nombre=` preselecciona la persona al entrar. Al elegir un nombre se guarda en la URL (`history.replaceState`, Next 14.2 lo sincroniza con el router) para que el "atrás" del celu también vuelva con la persona elegida. Si ya saldó todo (sale de la lista de nombres con saldo) sigue elegida y ve "Estás al día ✅".
+  - El fetch de la cuenta pasó a un `useEffect` sobre `selected` que descarta respuestas viejas si se cambia de nombre rápido.
+  - La página recibe `searchParams` → pasa de estática a dinámica.
+  - Archivos: `app/mi-cuenta/page.tsx`
+- **Subir comprobante desde `/mi-cuenta`: nombre preseleccionado + "Volver a mi cuenta"**
+  - Con `?from=mi-cuenta&nombre=`, `confirm/page.tsx` preselecciona el nombre (match con `normalizeName` contra la lista del evento; si no matchea, se elige a mano como siempre), el botón de arriba dice "Volver a mi cuenta" y, una vez subido el comprobante (o si ya estaba pagado), aparece "Volver a mi cuenta corriente" para seguir con los otros eventos que debe. Sin `from`, todo igual que antes.
+  - Refactor: `selectableNames()` arma la lista del selector (plantel en 3T / impagos en modo upload), la usan el `<select>` y la preselección.
+  - Archivos: `app/e/[slug]/confirm/page.tsx`

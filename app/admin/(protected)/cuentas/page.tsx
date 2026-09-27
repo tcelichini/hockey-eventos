@@ -31,17 +31,11 @@ export default async function CuentasPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <Link href="/admin" className="text-gray-400 hover:text-gray-600 transition">
-            <ArrowLeftIcon className="w-5 h-5" />
-          </Link>
-          <h2 className="text-xl font-semibold text-gray-900">Cuenta corriente</h2>
-        </div>
-        <WhatsAppCuentasButton
-          debtors={debtors.map((a) => ({ name: a.displayName, amount: a.total }))}
-          publicLink={`${appUrl}/mi-cuenta`}
-        />
+      <div className="flex items-center gap-3">
+        <Link href="/admin" className="text-gray-400 hover:text-gray-600 transition">
+          <ArrowLeftIcon className="w-5 h-5" />
+        </Link>
+        <h2 className="text-xl font-semibold text-gray-900">Cuenta corriente</h2>
       </div>
 
       {/* Empty state */}
@@ -77,7 +71,13 @@ export default async function CuentasPage() {
           </div>
 
           {debtors.length > 0 && (
-            <AccountSection title={`Deben pagar (${debtors.length})`} accounts={debtors} />
+            <AccountSection title={`Deben pagar (${debtors.length})`} accounts={debtors}>
+              {/* Link a /mi-cuenta: cada uno ve todos los eventos que debe (el recordatorio del evento manda a ese evento) */}
+              <WhatsAppCuentasButton
+                debtors={debtors.map((a) => ({ name: a.displayName, amount: a.total }))}
+                publicLink={`${appUrl}/mi-cuenta`}
+              />
+            </AccountSection>
           )}
           {creditors.length > 0 && (
             <AccountSection title={`Se les debe devolver (${creditors.length})`} accounts={creditors} />
@@ -88,7 +88,15 @@ export default async function CuentasPage() {
   )
 }
 
-function AccountSection({ title, accounts }: { title: string; accounts: PersonAccount[] }) {
+function AccountSection({
+  title,
+  accounts,
+  children,
+}: {
+  title: string
+  accounts: PersonAccount[]
+  children?: React.ReactNode
+}) {
   return (
     <div className="space-y-2">
       <p className="text-xs text-gray-400 uppercase tracking-wide">{title}</p>
@@ -138,6 +146,7 @@ function AccountSection({ title, accounts }: { title: string; accounts: PersonAc
           </details>
         ))}
       </div>
+      {children}
     </div>
   )
 }
