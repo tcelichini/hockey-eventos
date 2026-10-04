@@ -18,12 +18,15 @@ import PaymentReminderButton from "@/components/payment-reminder-button"
 import WhatsAppInviteButton from "@/components/whatsapp-invite-button"
 import RefreshButton from "@/components/refresh-button"
 import AddAttendeeButton from "@/components/add-attendee-button"
+import AddPersonAttendeeButton from "@/components/add-person-attendee-button"
 import SortableAttendeeList from "@/components/sortable-attendee-list"
 import ExpenseForm from "@/components/expense-form"
 import SettleCreditorButton from "@/components/settle-creditor-button"
 import { getTierLabel, getDateTierLabel, todayArg } from "@/lib/pricing"
 import { settleEvent, getOwedPrice, normalizeName, isGuest } from "@/lib/settlement"
 import { classifyComboPayment } from "@/lib/combo-payment"
+import { formatPhone, personLabel, proofOrigin } from "@/lib/people"
+import { getPeopleDirectory } from "@/lib/people-db"
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 0 }).format(value)
@@ -128,6 +131,37 @@ export default async function EventDetailPage({
   const payersCount = confirmed.length - guests.length
   const statCards = 2 + (coveredByExpenses.length > 0 ? 1 : 0) + (guests.length > 0 ? 1 : 0)
   const pendingCount = settlement.debtors.length
+
+  // Evento que pide celular: la Persona detrás de cada asistente y desde qué teléfono se subió cada comprobante
+  const directory = event.requires_phone ? await getPeopleDirectory() : []
+  const personById = new Map(directory.map((p) => [p.id, p]))
+  const personLineOf = (a: typeof confirmed[0]) => {
+    if (!event.requires_phone) return null
+    const person = a.person_id ? personById.get(a.person_id) : undefined
+    if (!person) return "Sin Persona asociada"
+    const phones = person.phones.length > 0 ? person.phones.map(formatPhone).join(" / ") : "sin celular"
+    return `${personLabel(person)} · ${phones}`
+  }
+  const proofNoteOf = (a: typeof confirmed[0]) => {
+    if (!event.requires_phone || !a.payment_proof_url) return null
+    const person = a.person_id ? personById.get(a.person_id) : undefined
+    const origin = proofOrigin(a.proof_uploaded_from, person?.phones ?? [])
+    if (origin === "own") return null
+    if (origin === "unidentified") return "Comprobante subido desde un teléfono sin identificar"
+    const owners = directory.filter((p) => p.phones.includes(a.proof_uploaded_from!))
+    return owners.length > 0
+      ? `Comprobante subido desde el teléfono de ${owners.map(personLabel).join(" / ")}`
+      : `Comprobante subido desde el ${formatPhone(a.proof_uploaded_from!)}`
+  }
+  const confirmedPersonIds = new Set(confirmed.map((a) => a.person_id))
+  const addablePeople = directory
+    .filter((p) => !confirmedPersonIds.has(p.id))
+    .map((p) => ({
+      id: p.id,
+      label: `${personLabel(p)}${p.phones.length > 0 ? ` · ${p.phones.map(formatPhone).join(" / ")}` : ""}`,
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label, "es"))
+
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").trim()
   const publicLink = `${appUrl}/e/${event.slug}`
 
@@ -164,6 +198,9 @@ export default async function EventDetailPage({
             </Badge>
           </div>
           <p className="text-gray-500 mt-1 capitalize">{formatDate(event.date)}</p>
+          {event.requires_phone && (
+            <p className="text-xs text-blue-600 mt-1">📱 Pide celular al anotarse</p>
+          )}
           {event.description && (
             <p className="text-gray-600 mt-2 text-sm">{event.description}</p>
           )}
@@ -484,7 +521,11 @@ export default async function EventDetailPage({
       {/* Attendees */}
       <CollapsibleCard title={`Asistentes (${confirmed.length})`}>
         <div className="pb-3">
-          <AddAttendeeButton eventId={params.id} />
+          {event.requires_phone ? (
+            <AddPersonAttendeeButton eventId={params.id} people={addablePeople} />
+          ) : (
+            <AddAttendeeButton eventId={params.id} />
+          )}
         </div>
         {confirmed.length === 0 ? (
           <p className="text-gray-400 text-sm text-center py-4">Nadie confirmó aún</p>
@@ -517,6 +558,8 @@ export default async function EventDetailPage({
                 isInferiores: a.is_inferiores,
                 coveredByExpenses: coveredByExpensesIds.has(a.id),
                 hasExpenses: (expenseByPerson.get(normalizeName(a.full_name)) || 0) > 0,
+                personLine: personLineOf(a),
+                proofNote: proofNoteOf(a),
               }
             })}
             hasInferioresPrice={inferioresPrice !== null}

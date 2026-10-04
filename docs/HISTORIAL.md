@@ -541,3 +541,28 @@ Registro de todas las sesiones de trabajo. Cada entrada documenta cambios concre
   - Con `?from=mi-cuenta&nombre=`, `confirm/page.tsx` preselecciona el nombre (match con `normalizeName` contra la lista del evento; si no matchea, se elige a mano como siempre), el botón de arriba dice "Volver a mi cuenta" y, una vez subido el comprobante (o si ya estaba pagado), aparece "Volver a mi cuenta corriente" para seguir con los otros eventos que debe. Sin `from`, todo igual que antes.
   - Refactor: `selectableNames()` arma la lista del selector (plantel en 3T / impagos en modo upload), la usan el `<select>` y la preselección.
   - Archivos: `app/e/[slug]/confirm/page.tsx`
+
+## Sesión 50 (2026-10-03)
+
+- **Diseño de Personas: identidad por celular (sin código de producción)**
+  - Sesión de diseño con Guillermo (conversado antes con Tomás). Problema: la única identidad es el nombre escrito en cada evento. Medido en la base: 28 eventos, 1.072 confirmados, 369 nombres distintos; en asados 265 de 607 anotaciones son un apodo suelto.
+  - Decisión: cada asistente es una **Persona** reconocida por su celular, declarado y sin verificar (`docs/adr/0001-celular-declarado-sin-verificar.md`). Nombre libre en cada evento, 3T como hoy, sección Personas en el admin (editar, fusionar, importar), interruptor por evento para probar, historial sin convertir, combos afuera de la primera versión, se quita "No voy".
+  - Glosario nuevo en `CONTEXT.md`: Persona, Asistente, Plantel, Jugador, Externo, Invitado. "Acreedor externo" pasa a llamarse **Acreedor no asistente** (en el código sigue `externalCreditors`).
+  - Reglas nuevas en `CONTEXT.md`: paga quien fue salvo en 3T; cada asistente se anota y paga por separado; el celular ordena, no autentica; todo evento que no es 3T está abierto a externos; un celular puede anotar a más de una Persona; inferiores se declara en cada evento.
+  - Diseño completo y notas técnicas en `docs/PENDIENTES.md` ("Personas: identidad por celular", aprobado). Migración 9 escrita en `docs/MIGRACIONES.md` como pendiente.
+  - Maqueta descartable con la lógica validada (seis casos): `docs/prototipos/personas-PROTOTIPO.html`, en la rama `prototipo/personas` (no en `main`).
+  - Archivos: `CONTEXT.md`, `docs/PENDIENTES.md`, `docs/MIGRACIONES.md`, `docs/adr/0001-celular-declarado-sin-verificar.md`
+- **Personas, primera parte: anotarse con celular + sección Personas del admin** (rama `feat/personas`)
+  - **Requiere la migración 9 aplicada ANTES de deployar**: `db/schema.ts` ya declara las columnas nuevas de `attendees` y `events`, y sin ellas en la base fallan todas las consultas a esas tablas.
+  - Interruptor "Pedir celular al anotarse" al crear el evento (`events.requires_phone`). Sin él, todo funciona como antes.
+  - Público: `components/phone-registration.tsx` (nombre + celular la primera vez; después el teléfono recuerda el número). La lógica vive en `lib/people.ts` (`decideRegistration`, puro, con tests) y la aplica `registerWithPhone` en `app/api/attendees/route.ts`. De esa ruta se extrajeron a `lib/attendee-registration.ts` el precio de un anotado nuevo y los datos de pago, sin cambiar el comportamiento de los eventos por nombre.
+  - 3T con el interruptor: el plantel se precarga desde `people`; el nombre viene elegido si el teléfono es conocido.
+  - Comprobantes: `attendees.proof_uploaded_from` + aviso en el panel del evento cuando no se subió desde el teléfono de la Persona.
+  - Admin: sección `/admin/personas` (filtros, editar, fusionar, crear, importar lista con vista previa), botón en el dashboard, y "Agregar asistente" con selector de Persona en eventos con el interruptor.
+  - Combos: un evento que pide celular no puede ir en un combo (400 al crear o editar el combo).
+  - Se quitó la página "No voy" (`/e/[slug]/decline`), que además creaba un registro con cada visita.
+  - Queda para la segunda parte: cuenta corriente y `/mi-cuenta` por Persona.
+  - Verificado: `npm run test` (69 tests), `npx tsc --noEmit`, `npx next build`, y el flujo público en mobile con respuestas simuladas. Con la migración 9 aplicada, Guillermo importó la lista inicial (74 Personas: 63 del plantel y 11 externos) y validó en local tres eventos de prueba: dos con el interruptor y uno sin él.
+  - La primera importación tardó 64 s (una consulta por fila contra la base remota): se cambió a un INSERT para todas las Personas y otro para todos los celulares.
+  - Los tests usan nombres y celulares inventados: los reales no van al repo.
+  - Archivos: `db/schema.ts`, `lib/people.ts`, `lib/people.test.ts`, `lib/people-db.ts`, `lib/attendee-registration.ts`, `lib/combo-events.ts`, `lib/device-phone.ts`, `lib/auth.ts`, `app/api/attendees/route.ts`, `app/api/people/` (5 rutas), `app/api/events/route.ts`, `app/api/events/[id]/route.ts`, `app/api/events/[id]/attendees/route.ts`, `app/api/events/by-slug/[slug]/route.ts`, `app/api/upload-proof/route.ts`, `app/api/combos/route.ts`, `app/api/combos/[id]/route.ts`, `app/e/[slug]/confirm/page.tsx`, `app/e/[slug]/decline/page.tsx` (borrado), `app/admin/(protected)/personas/page.tsx`, `app/admin/(protected)/events/new/page.tsx`, `app/admin/(protected)/events/[id]/page.tsx`, `app/admin/(protected)/page.tsx`, `components/phone-registration.tsx`, `components/people-manager.tsx`, `components/add-person-attendee-button.tsx`, `components/payment-proof-upload.tsx`, `components/sortable-attendee-list.tsx`, `docs/ARQUITECTURA.md`

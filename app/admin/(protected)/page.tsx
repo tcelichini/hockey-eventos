@@ -149,8 +149,14 @@ export default async function AdminPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h2 className="text-xl font-semibold text-gray-900">Dashboard</h2>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <RefreshButton />
+          <Link href="/admin/personas">
+            <Button size="sm" variant="outline">
+              <UsersIcon className="w-4 h-4 mr-1" />
+              Personas
+            </Button>
+          </Link>
           <Link href="/admin/combos/new">
             <Button size="sm" variant="outline">
               <PackageIcon className="w-4 h-4 mr-1" />

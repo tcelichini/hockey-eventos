@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/db"
-import { events, attendees } from "@/db/schema"
-import { eq, and } from "drizzle-orm"
+import { events, attendees, people } from "@/db/schema"
+import { eq, and, inArray } from "drizzle-orm"
 import { COOKIE_NAME, verifySession } from "@/lib/auth"
 import { getPlayersForTeams } from "@/lib/players"
 import { calculateDatePrice, calculatePrice } from "@/lib/pricing"
@@ -107,15 +107,26 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     const addedTeams = (updated.teams as string[]).filter((t) => !oldTeams.includes(t))
 
     if (addedTeams.length > 0) {
-      const newPlayers = getPlayersForTeams(addedTeams)
-
       // Evitar duplicar a alguien que ya esté como asistente (por ejemplo agregado a mano por el admin).
       const existingAttendees = await db
-        .select({ full_name: attendees.full_name })
+        .select({ full_name: attendees.full_name, person_id: attendees.person_id })
         .from(attendees)
         .where(eq(attendees.event_id, updated.id))
-      const existingNames = new Set(existingAttendees.map((a) => a.full_name))
-      const playersToAdd = newPlayers.filter((p) => !existingNames.has(p))
+
+      // Si el evento pide celular, el plantel sale de Personas; si no, de la lista fija.
+      let playersToAdd: { full_name: string; person_id: string | null }[]
+      if (updated.requires_phone) {
+        const existingPersonIds = new Set(existingAttendees.map((a) => a.person_id))
+        const roster = await db.select().from(people).where(inArray(people.team, addedTeams)).orderBy(people.real_name)
+        playersToAdd = roster
+          .filter((p) => !existingPersonIds.has(p.id))
+          .map((p) => ({ full_name: p.real_name ?? "Sin nombre", person_id: p.id }))
+      } else {
+        const existingNames = new Set(existingAttendees.map((a) => a.full_name))
+        playersToAdd = getPlayersForTeams(addedTeams)
+          .filter((p) => !existingNames.has(p))
+          .map((playerName) => ({ full_name: playerName, person_id: null }))
+      }
 
       if (playersToAdd.length > 0) {
         const price = updated.date_tiers && updated.date_tiers.length > 0
@@ -123,9 +134,10 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
           : calculatePrice(updated.pricing_tiers, updated.payment_amount, 0)
 
         await db.insert(attendees).values(
-          playersToAdd.map((playerName) => ({
+          playersToAdd.map((player) => ({
             event_id: updated.id,
-            full_name: playerName,
+            person_id: player.person_id,
+            full_name: player.full_name,
             status: "confirmed" as const,
             payment_status: "pending" as const,
             price_paid: String(price),

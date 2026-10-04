@@ -28,6 +28,10 @@ export type AttendeeItem = {
   isInferiores?: boolean
   coveredByExpenses?: boolean
   hasExpenses?: boolean
+  /** Eventos que piden celular: la Persona detrás del asistente (nombre real y celulares). */
+  personLine?: string | null
+  /** Eventos que piden celular: aviso si el comprobante no se subió desde el teléfono de la Persona. */
+  proofNote?: string | null
 }
 
 const SORT_OPTIONS: { value: SortField; label: string }[] = [
@@ -117,6 +121,12 @@ export default function SortableAttendeeList({
                   <> · <span className="text-green-600">Pagó {attendee.proofUploadedAtFormatted}</span></>
                 )}
               </p>
+              {attendee.personLine && (
+                <p className="text-xs text-gray-400 mt-0.5">{attendee.personLine}</p>
+              )}
+              {attendee.proofNote && (
+                <p className="text-xs text-amber-600 mt-0.5">{attendee.proofNote}</p>
+              )}
             </div>
             <div className="flex flex-wrap items-center gap-2 shrink-0">
               {hasInferioresPrice && (

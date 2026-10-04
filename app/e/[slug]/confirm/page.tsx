@@ -10,8 +10,10 @@ import { CheckCircleIcon, ArrowLeftIcon, CopyIcon, CheckIcon, WalletIcon } from 
 import Link from "next/link"
 import PaymentProofUpload from "@/components/payment-proof-upload"
 import WhatsAppListButton from "@/components/whatsapp-list-button"
+import PhoneRegistration, { type AttendeeResponse } from "@/components/phone-registration"
 import { getPlayersForTeams } from "@/lib/players"
 import { normalizeName } from "@/lib/settlement"
+import { getDevicePhone } from "@/lib/device-phone"
 
 type EventData = {
   id: string
@@ -29,6 +31,7 @@ type EventData = {
   attendeeNames: string[]
   unpaidAttendeeNames: string[]
   inferiores_price: string | null
+  requires_phone: boolean
 }
 
 type PaymentData = {
@@ -43,12 +46,21 @@ type PaymentData = {
 
 // Nombres del selector: plantel completo en 3T; en "subir comprobante", los que faltan pagar
 function selectableNames(event: EventData, isUploadMode: boolean): string[] {
+  if (event.is_3t && event.requires_phone) {
+    // El plantel de este 3T salió de Personas: la lista es la de sus asistentes
+    return [...(event.attendeeNames || [])].sort((a, b) => a.localeCompare(b, "es"))
+  }
   if (event.is_3t) {
     const teamPlayers = getPlayersForTeams(event.teams)
     const extra = (event.attendeeNames || []).filter((n) => !teamPlayers.includes(n))
     return [...teamPlayers, ...extra].sort((a, b) => a.localeCompare(b, "es"))
   }
   return isUploadMode ? event.unpaidAttendeeNames || [] : []
+}
+
+// "Campana, Guillermo" → "Guillermo"; "Guillote Campana" → "Guillote"
+function firstName(name: string): string {
+  return name.includes(",") ? name.split(",")[1].trim() : name.split(" ")[0]
 }
 
 function WhatsAppIcon() {
@@ -85,6 +97,9 @@ export default function ConfirmPage() {
   const [existingProofUrl, setExistingProofUrl] = useState<string | null>(null)
   const [copiedAlias, setCopiedAlias] = useState(false)
   const [isInferiores, setIsInferiores] = useState(false)
+  // Eventos que piden celular: el número que recuerda este teléfono y si volvió a anotar a otra persona
+  const [devicePhone, setDevicePhone] = useState<string | null>(null)
+  const [registeringOther, setRegisteringOther] = useState(false)
 
   function copyAlias(text: string) {
     navigator.clipboard.writeText(text)
@@ -105,6 +120,54 @@ export default function ConfirmPage() {
     if (match) setName((current) => current || match)
   }, [event, prefillName, isUploadMode])
 
+  // 3T que pide celular: si este teléfono ya es conocido, su nombre viene elegido
+  const eventId = event?.id
+  const is3tWithPhone = !!event?.is_3t && !!event?.requires_phone
+  useEffect(() => {
+    if (!eventId || !is3tWithPhone) return
+    const remembered = getDevicePhone()
+    if (!remembered) return
+    let stale = false
+    fetch("/api/people/lookup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ event_id: eventId, phone: remembered }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        const known = data?.people?.find((p: { attendee: { full_name: string } | null }) => p.attendee)
+        if (!stale && known) setName((current) => current || known.attendee.full_name)
+      })
+      .catch(() => {})
+    return () => { stale = true }
+  }, [eventId, is3tWithPhone])
+
+  // Pasa a los datos de pago del asistente que devolvió POST /api/attendees
+  function showPayment(data: AttendeeResponse, attendeeName: string) {
+    setAttendeeId(data.attendee.id)
+    setIsExisting(!!data.existing)
+    // Invitado: no tiene nada que pagar → misma vista que "ya pagaste", con otro texto
+    setIsGuest(data.attendee.payment_status === "guest")
+    setAlreadyPaid(data.attendee.payment_status === "paid" || data.attendee.payment_status === "guest")
+    setExistingProofUrl(data.attendee.payment_proof_url || null)
+    setProofUrl(null)
+    setPaymentData({
+      payment_account: data.payment_account,
+      payment_amount: data.payment_amount,
+      expenses_total: data.expenses_total ?? "0",
+      amount_due: data.amount_due ?? data.payment_amount,
+      whatsapp_number: data.whatsapp_number,
+      event_title: data.event_title,
+      attendee_name: attendeeName,
+    })
+    setDevicePhone(getDevicePhone())
+    // Re-fetch event to get updated attendee list
+    fetch(`/api/events/by-slug/${slug}`)
+      .then((r) => r.json())
+      .then(setEvent)
+    setStep("payment")
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!event) return
@@ -118,27 +181,7 @@ export default function ConfirmPage() {
     })
 
     if (res.ok) {
-      const data = await res.json()
-      setAttendeeId(data.attendee.id)
-      setIsExisting(!!data.existing)
-      // Invitado: no tiene nada que pagar → misma vista que "ya pagaste", con otro texto
-      setIsGuest(data.attendee.payment_status === "guest")
-      setAlreadyPaid(data.attendee.payment_status === "paid" || data.attendee.payment_status === "guest")
-      setExistingProofUrl(data.attendee.payment_proof_url || null)
-      setPaymentData({
-        payment_account: data.payment_account,
-        payment_amount: data.payment_amount,
-        expenses_total: data.expenses_total ?? "0",
-        amount_due: data.amount_due ?? data.payment_amount,
-        whatsapp_number: data.whatsapp_number,
-        event_title: data.event_title,
-        attendee_name: name,
-      })
-      // Re-fetch event to get updated attendee list
-      fetch(`/api/events/by-slug/${slug}`)
-        .then((r) => r.json())
-        .then(setEvent)
-      setStep("payment")
+      showPayment(await res.json(), name)
     } else {
       const err = await res.json()
       setError(err.error || "Error al confirmar")
@@ -167,6 +210,8 @@ export default function ConfirmPage() {
   }
 
   const is3t = event.is_3t
+  // Evento que pide celular: cada uno se anota como Persona (en 3T el plantel ya está cargado)
+  const asksPhone = event.requires_phone && !is3t
   const expensesTotal = paymentData ? Number(paymentData.expenses_total) : 0
   const hasExpenses = expensesTotal > 0
   // Pagado sin comprobante y con gastos >= precio = fue el gasto lo que cubrió el evento
@@ -199,14 +244,28 @@ export default function ConfirmPage() {
                   {is3t
                     ? "Seleccioná tu nombre de la lista y subí el comprobante."
                     : isUploadMode
-                      ? "Seleccioná tu nombre y subí el comprobante."
+                      ? asksPhone
+                        ? "Con tu celular encontramos tu anotación."
+                        : "Seleccioná tu nombre y subí el comprobante."
                       : "¡Qué bueno que venís!"}
                 </p>
-                {!is3t && !isUploadMode && (
+                {!is3t && !isUploadMode && !asksPhone && (
                   <p className="text-gray-400 text-xs mt-2">Si ya te anotaste, poné tu nombre para ver los datos de pago.</p>
                 )}
               </div>
 
+              {asksPhone ? (
+                <PhoneRegistration
+                  event={event}
+                  isUploadMode={isUploadMode}
+                  prefillName={prefillName}
+                  startWithOther={registeringOther}
+                  onDone={(data) => {
+                    setRegisteringOther(false)
+                    showPayment(data, data.attendee.full_name)
+                  }}
+                />
+              ) : (
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">
@@ -280,6 +339,7 @@ export default function ConfirmPage() {
                   {loading ? "Cargando..." : is3t ? "Continuar" : "Confirmar"}
                 </Button>
               </form>
+              )}
             </CardContent>
           </Card>
         ) : paymentData ? (
@@ -320,7 +380,7 @@ export default function ConfirmPage() {
                       <CheckCircleIcon className="w-12 h-12 text-green-500 mx-auto mb-2" />
                       <h2 className="text-xl font-bold text-gray-900">
                         {is3t
-                          ? `¡Hola, ${paymentData.attendee_name.split(",")[1].trim()}!`
+                          ? `¡Hola, ${firstName(paymentData.attendee_name)}!`
                           : isExisting
                             ? `¡Ya estás anotado, ${paymentData.attendee_name.split(" ")[0]}!`
                             : `¡Anotado, ${paymentData.attendee_name.split(" ")[0]}!`}
@@ -369,7 +429,26 @@ export default function ConfirmPage() {
             </Card>
 
             {!alreadyPaid && attendeeId && (
-              <PaymentProofUpload attendeeId={attendeeId} onUploaded={(url) => setProofUrl(url)} />
+              <PaymentProofUpload
+                key={attendeeId}
+                attendeeId={attendeeId}
+                phone={event.requires_phone ? devicePhone : null}
+                onUploaded={(url) => setProofUrl(url)}
+              />
+            )}
+
+            {/* Evento que pide celular: desde el mismo teléfono se puede anotar a alguien más */}
+            {asksPhone && devicePhone && (
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  setRegisteringOther(true)
+                  setStep("form")
+                }}
+              >
+                Anotar a otra persona con este celular
+              </Button>
             )}
 
             {/* Vino desde /mi-cuenta: una vez saldado este evento, volver a ver los otros que debe */}

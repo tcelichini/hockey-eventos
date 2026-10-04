@@ -5,6 +5,7 @@ import { COOKIE_NAME, verifySession } from "@/lib/auth"
 import { nanoid } from "nanoid"
 import { inArray, eq, and, isNull } from "drizzle-orm"
 import { calculateDatePrice } from "@/lib/pricing"
+import { eventsRequiringPhone, phoneEventsError } from "@/lib/combo-events"
 
 export async function POST(request: NextRequest) {
   const cookie = request.cookies.get(COOKIE_NAME)?.value
@@ -17,6 +18,11 @@ export async function POST(request: NextRequest) {
 
   if (!title || !event_ids?.length || !payment_account || !payment_amount || !whatsapp_number) {
     return NextResponse.json({ error: "Faltan campos requeridos" }, { status: 400 })
+  }
+
+  const phoneEvents = await eventsRequiringPhone(event_ids)
+  if (phoneEvents.length > 0) {
+    return NextResponse.json({ error: phoneEventsError(phoneEvents) }, { status: 400 })
   }
 
   const slug = nanoid(8)

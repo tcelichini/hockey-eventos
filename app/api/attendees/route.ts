@@ -1,30 +1,106 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/db"
-import { attendees, events, combos, expenses } from "@/db/schema"
+import { attendees, events, combos, people, personPhones, type Event, type Attendee } from "@/db/schema"
 import { eq, and, inArray } from "drizzle-orm"
 import { notifyAdminWhatsApp } from "@/lib/whatsapp-notify"
-import { calculatePrice, calculateDatePrice } from "@/lib/pricing"
-import { syncExpensePayment } from "@/lib/sync-expense-payment"
 import { normalizeName, isGuest } from "@/lib/settlement"
+import { normalizePhone, decideRegistration } from "@/lib/people"
+import { findPeopleByPhone } from "@/lib/people-db"
+import {
+  existingAttendeePayload,
+  newAttendeePayload,
+  priceForNewAttendee,
+  publicAttendee,
+} from "@/lib/attendee-registration"
+
+const CLOSED_ERROR = "Las inscripciones para este evento están cerradas"
+const FULL_ERROR = "El evento está completo, no hay más lugares disponibles"
 
 /**
- * Total de gastos adelantados por una persona en un evento (misma normalización
- * que lib/settlement.ts).
+ * Anotarse a un evento que pide celular (ver "Personas" en CONTEXT.md).
+ * Qué hacer lo decide lib/people.ts (decideRegistration); acá solo se lee y se aplica.
  */
-async function getExpensesTotal(eventId: string, fullName: string): Promise<number> {
-  const key = normalizeName(fullName)
-  const rows = await db
-    .select({ responsible: expenses.responsible, amount: expenses.amount })
-    .from(expenses)
-    .where(eq(expenses.event_id, eventId))
-  return rows
-    .filter((e) => normalizeName(e.responsible) === key)
-    .reduce((sum, e) => sum + Number(e.amount), 0)
+async function registerWithPhone({
+  event,
+  confirmedAttendees,
+  fullName,
+  phone,
+  personId,
+  isInferiores,
+}: {
+  event: Event
+  confirmedAttendees: Attendee[]
+  fullName: string
+  phone: unknown
+  personId: unknown
+  isInferiores: boolean
+}) {
+  const normalized = normalizePhone(typeof phone === "string" ? phone : null)
+  const peopleForPhone = normalized ? await findPeopleByPhone(normalized) : []
+  const decision = decideRegistration({
+    name: fullName,
+    phone: normalized,
+    personId: typeof personId === "string" ? personId : undefined,
+    peopleForPhone,
+    eventAttendees: confirmedAttendees,
+  })
+
+  switch (decision.kind) {
+    case "invalid":
+      return NextResponse.json({ error: decision.error }, { status: 400 })
+    case "name-taken":
+      return NextResponse.json({ error: decision.error }, { status: 409 })
+    case "choose":
+      return NextResponse.json({ choose: decision.options, phone: normalized }, { status: 200 })
+    case "already": {
+      const existing = confirmedAttendees.find((a) => a.id === decision.attendeeId)!
+      return NextResponse.json({ ...(await existingAttendeePayload(event, existing)), phone: normalized }, { status: 200 })
+    }
+  }
+
+  // Anotación nueva: mismas reglas de cierre y cupo que el resto de los eventos
+  if (!event.is_open) {
+    return NextResponse.json({ error: CLOSED_ERROR }, { status: 409 })
+  }
+  if (event.max_capacity && confirmedAttendees.length >= event.max_capacity) {
+    return NextResponse.json({ error: FULL_ERROR }, { status: 409 })
+  }
+
+  const payingCount = confirmedAttendees.filter((a) => !isGuest(a)).length
+  const price = priceForNewAttendee(event, payingCount, isInferiores)
+  const name = fullName.trim()
+
+  // Persona nueva + anotación en una sola transacción: si falla la anotación no queda una Persona suelta
+  const attendee = await db.transaction(async (tx) => {
+    let finalPersonId = decision.personId
+    if (!finalPersonId) {
+      const [person] = await tx.insert(people).values({ real_name: null }).returning()
+      await tx.insert(personPhones).values({ person_id: person.id, phone: normalized! })
+      finalPersonId = person.id
+    }
+    const [created] = await tx
+      .insert(attendees)
+      .values({
+        event_id: event.id,
+        person_id: finalPersonId,
+        full_name: name,
+        status: "confirmed",
+        payment_status: "pending",
+        price_paid: String(price),
+        is_inferiores: isInferiores,
+      })
+      .returning()
+    return created
+  })
+
+  await notifyAdminWhatsApp(`Nueva confirmacion! ${name} se anoto para "${event.title}"`)
+
+  return NextResponse.json({ ...(await newAttendeePayload(event, attendee, price)), phone: normalized }, { status: 201 })
 }
 
 export async function POST(request: NextRequest) {
   const body = await request.json()
-  const { event_id, full_name, status, is_inferiores } = body
+  const { event_id, full_name, status, is_inferiores, phone, person_id } = body
 
   if (!event_id || !status || !["confirmed", "declined"].includes(status)) {
     return NextResponse.json({ error: "Datos inválidos" }, { status: 400 })
@@ -50,74 +126,51 @@ export async function POST(request: NextRequest) {
   // Precio por cantidad: los invitados no pagan, así que no bajan el precio del resto
   const payingCount = confirmedAttendees.filter((a) => !isGuest(a)).length
 
+  // Evento que pide celular (no 3T: ahí el plantel ya está cargado y se elige el nombre de la lista)
+  const asksPhone = event.requires_phone && !event.is_3t
+  if (status === "confirmed" && asksPhone && phone) {
+    return registerWithPhone({
+      event,
+      confirmedAttendees,
+      fullName: full_name,
+      phone,
+      personId: person_id,
+      isInferiores: !!is_inferiores,
+    })
+  }
+
   // Check for existing registration BEFORE is_open check,
   // so already-confirmed attendees can still access payment info and upload receipts
   if (status === "confirmed") {
-    const normalize = (s: string) =>
-      s.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
-
     const existing = confirmedAttendees.find(
-      (a) => normalize(a.full_name) === normalize(full_name)
+      (a) => normalizeName(a.full_name) === normalizeName(full_name)
     )
 
     if (existing) {
-      let currentPaymentAmount = existing.price_paid || event.payment_amount
-      if (existing.is_inferiores && event.inferiores_price) {
-        currentPaymentAmount = event.inferiores_price
-      } else if (event.date_tiers && event.date_tiers.length > 0 && existing.payment_status === "pending") {
-        const recalculated = calculateDatePrice(event.date_tiers, event.payment_amount)
-        currentPaymentAmount = String(recalculated)
-        await db.update(attendees)
-          .set({ price_paid: String(recalculated) })
-          .where(eq(attendees.id, existing.id))
-      }
-
-      // Gastos adelantados: si aún no pagó, solo debe la diferencia (precio − gastos).
-      // Si los gastos cubren el precio, el sync lo marca como pagado.
-      const expensesTotal = await getExpensesTotal(event_id, full_name)
-      let attendeeRow = existing
-      if (expensesTotal > 0 && existing.payment_status === "pending") {
-        await syncExpensePayment(event_id, full_name)
-        const [refreshed] = await db.select().from(attendees).where(eq(attendees.id, existing.id)).limit(1)
-        if (refreshed) attendeeRow = refreshed
-      }
-      const amountDue = isGuest(existing) ? 0 : Math.max(Number(currentPaymentAmount) - expensesTotal, 0)
-
-      return NextResponse.json({
-        attendee: attendeeRow,
-        payment_account: event.payment_account,
-        payment_amount: currentPaymentAmount,
-        expenses_total: String(expensesTotal),
-        amount_due: String(amountDue),
-        whatsapp_number: event.whatsapp_number,
-        event_title: event.title,
-        existing: true,
-      }, { status: 200 })
+      return NextResponse.json(await existingAttendeePayload(event, existing), { status: 200 })
     }
+  }
+
+  // Sin celular solo se llega hasta acá: elegir un nombre de la lista para ver sus datos de pago
+  if (status === "confirmed" && asksPhone) {
+    return NextResponse.json({ error: "Para anotarte hace falta tu celular" }, { status: 400 })
   }
 
   // Block new registrations if event is closed
   if (status === "confirmed" && !event.is_open) {
-    return NextResponse.json({ error: "Las inscripciones para este evento están cerradas" }, { status: 409 })
+    return NextResponse.json({ error: CLOSED_ERROR }, { status: 409 })
   }
 
   // Check capacity
   if (status === "confirmed" && event.max_capacity) {
     if (confirmedCount >= event.max_capacity) {
-      return NextResponse.json({ error: "El evento está completo, no hay más lugares disponibles" }, { status: 409 })
+      return NextResponse.json({ error: FULL_ERROR }, { status: 409 })
     }
   }
 
   // Calculate price based on tiers (by quantity or by date)
   // Inferiores always pay the flat inferiores_price (only for non-3T events)
-  const useInferioresPrice = is_inferiores && !event.is_3t && event.inferiores_price
-  const price = status === "confirmed"
-    ? useInferioresPrice
-      ? Number(event.inferiores_price)
-      : event.date_tiers && event.date_tiers.length > 0
-        ? calculateDatePrice(event.date_tiers, event.payment_amount)
-        : calculatePrice(event.pricing_tiers, event.payment_amount, payingCount)
-    : 0
+  const price = status === "confirmed" ? priceForNewAttendee(event, payingCount, !!is_inferiores) : 0
 
   const [attendee] = await db
     .insert(attendees)
@@ -138,8 +191,6 @@ export async function POST(request: NextRequest) {
 
     // Auto-vincular al combo: si este evento pertenece a un combo y la persona
     // ya está inscripta en TODOS los otros eventos del combo, setear combo_id en todos sus registros.
-    const normalize = (s: string) =>
-      s.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
     const allCombos = await db.select().from(combos)
     const relevantCombos = allCombos.filter(c => c.event_ids.includes(event_id))
 
@@ -156,7 +207,7 @@ export async function POST(request: NextRequest) {
         ))
 
       const personOtherRecords = otherAttendees.filter(
-        a => normalize(a.full_name) === normalize(full_name)
+        a => normalizeName(a.full_name) === normalizeName(full_name)
       )
 
       const coveredEventIds = new Set(personOtherRecords.map(a => a.event_id))
@@ -170,27 +221,16 @@ export async function POST(request: NextRequest) {
           .where(inArray(attendees.id, idsToUpdate))
       }
     }
-  }
 
-  // Puede haber gastos cargados a su nombre antes de anotarse: descontarlos del monto a pagar
-  let attendeeRow = attendee
-  let expensesTotal = 0
-  if (status === "confirmed") {
-    expensesTotal = await getExpensesTotal(event_id, full_name)
-    if (expensesTotal > 0) {
-      await syncExpensePayment(event_id, full_name)
-      const [refreshed] = await db.select().from(attendees).where(eq(attendees.id, attendee.id)).limit(1)
-      if (refreshed) attendeeRow = refreshed
-    }
+    return NextResponse.json(await newAttendeePayload(event, attendee, price), { status: 201 })
   }
-  const amountDue = Math.max(price - expensesTotal, 0)
 
   return NextResponse.json({
-    attendee: attendeeRow,
+    attendee: publicAttendee(attendee),
     payment_account: event.payment_account,
     payment_amount: String(price),
-    expenses_total: String(expensesTotal),
-    amount_due: String(amountDue),
+    expenses_total: "0",
+    amount_due: "0",
     whatsapp_number: event.whatsapp_number,
     event_title: event.title,
   }, { status: 201 })

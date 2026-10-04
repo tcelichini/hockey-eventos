@@ -3,6 +3,7 @@ import { db } from "@/db"
 import { combos } from "@/db/schema"
 import { eq } from "drizzle-orm"
 import { COOKIE_NAME, verifySession } from "@/lib/auth"
+import { eventsRequiringPhone, phoneEventsError } from "@/lib/combo-events"
 
 async function authCheck(request: NextRequest) {
   const cookie = request.cookies.get(COOKIE_NAME)?.value
@@ -19,6 +20,11 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
   if (!title || !event_ids?.length || !payment_account || !payment_amount || !whatsapp_number) {
     return NextResponse.json({ error: "Faltan campos requeridos" }, { status: 400 })
+  }
+
+  const phoneEvents = await eventsRequiringPhone(event_ids)
+  if (phoneEvents.length > 0) {
+    return NextResponse.json({ error: phoneEventsError(phoneEvents) }, { status: 400 })
   }
 
   const [updated] = await db

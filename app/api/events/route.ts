@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/db"
-import { events, attendees } from "@/db/schema"
+import { events, attendees, people } from "@/db/schema"
 import { COOKIE_NAME, verifySession } from "@/lib/auth"
 import { nanoid } from "nanoid"
-import { sql } from "drizzle-orm"
+import { sql, inArray } from "drizzle-orm"
 import { getPlayersForTeams } from "@/lib/players"
 import { calculateDatePrice, calculatePrice } from "@/lib/pricing"
 
@@ -22,10 +22,25 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json()
-  const { title, description, date, payment_account, payment_amount, whatsapp_number, flyer_url, max_capacity, pricing_tiers, date_tiers, whatsapp_confirmation, is_3t, teams, inferiores_price } = body
+  const { title, description, date, payment_account, payment_amount, whatsapp_number, flyer_url, max_capacity, pricing_tiers, date_tiers, whatsapp_confirmation, is_3t, teams, inferiores_price, requires_phone } = body
 
   if (!title || !date || !payment_account || payment_amount == null || !whatsapp_number) {
     return NextResponse.json({ error: "Faltan campos requeridos" }, { status: 400 })
+  }
+
+  // 3T que pide celular: el plantel sale de Personas (no de lib/players.ts), así cada asistente queda ligado a su Persona.
+  const roster = is_3t && requires_phone
+    ? await db
+        .select()
+        .from(people)
+        .where(inArray(people.team, (teams as string[] | undefined) ?? ["A"]))
+        .orderBy(people.real_name)
+    : []
+  if (is_3t && requires_phone && roster.length === 0) {
+    return NextResponse.json(
+      { error: "No hay jugadores de ese plantel cargados en Personas. Importá la lista antes de crear el 3T." },
+      { status: 400 }
+    )
   }
 
   const slug = nanoid(8)
@@ -48,21 +63,25 @@ export async function POST(request: NextRequest) {
       is_3t: is_3t ?? false,
       teams: is_3t ? (teams ?? ["A"]) : null,
       inferiores_price: !is_3t && inferiores_price ? String(inferiores_price) : null,
+      requires_phone: Boolean(requires_phone),
     })
     .returning()
 
   // Si es evento 3T, pre-cargar los jugadores de los equipos seleccionados como asistentes confirmados.
   if (event.is_3t) {
-    const teamPlayers = getPlayersForTeams(event.teams)
-    if (teamPlayers.length > 0) {
+    const players: { full_name: string; person_id: string | null }[] = event.requires_phone
+      ? roster.map((p) => ({ full_name: p.real_name ?? "Sin nombre", person_id: p.id }))
+      : getPlayersForTeams(event.teams).map((playerName) => ({ full_name: playerName, person_id: null }))
+    if (players.length > 0) {
       const price = event.date_tiers && event.date_tiers.length > 0
         ? calculateDatePrice(event.date_tiers, event.payment_amount)
         : calculatePrice(event.pricing_tiers, event.payment_amount, 0)
 
       await db.insert(attendees).values(
-        teamPlayers.map((playerName) => ({
+        players.map((player) => ({
           event_id: event.id,
-          full_name: playerName,
+          person_id: player.person_id,
+          full_name: player.full_name,
           status: "confirmed" as const,
           payment_status: "pending" as const,
           price_paid: String(price),

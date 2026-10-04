@@ -3,7 +3,13 @@
 import { useState, useRef } from "react"
 import { CameraIcon, CheckCircleIcon, ClipboardPasteIcon } from "lucide-react"
 
-export default function PaymentProofUpload({ attendeeId, extraAttendeeIds, onUploaded }: { attendeeId: string; extraAttendeeIds?: string[]; onUploaded?: (url: string) => void }) {
+export default function PaymentProofUpload({ attendeeId, extraAttendeeIds, phone, onUploaded }: {
+  attendeeId: string
+  extraAttendeeIds?: string[]
+  /** Celular que recuerda este teléfono (eventos que piden celular): queda registrado desde dónde se subió. */
+  phone?: string | null
+  onUploaded?: (url: string) => void
+}) {
   const [uploading, setUploading] = useState(false)
   const [uploaded, setUploaded] = useState(false)
   const [error, setError] = useState("")
@@ -15,6 +21,7 @@ export default function PaymentProofUpload({ attendeeId, extraAttendeeIds, onUpl
     const form = new FormData()
     form.append("file", file)
     form.append("attendee_id", attendeeId)
+    if (phone) form.append("phone", phone)
 
     try {
       const res = await fetch("/api/upload-proof", { method: "POST", body: form })

@@ -31,6 +31,37 @@ ALTER TABLE "attendees" ADD COLUMN IF NOT EXISTS "is_inferiores" boolean NOT NUL
 -- Migración 8: estado de pago "invitado" (entrenadores, etc.) — aplicada 2026-09-26
 -- Nota: Postgres no permite quitar valores de un enum; si se deja de usar, queda inerte.
 ALTER TYPE payment_status ADD VALUE IF NOT EXISTS 'guest';
+
+-- Migración 9: Personas (identidad por celular) — aplicada 2026-10-03 (ver "Personas" en docs/ARQUITECTURA.md)
+-- Solo agrega tablas y columnas. Tiene que estar aplicada ANTES de deployar el código que la usa.
+CREATE TABLE IF NOT EXISTS "people" (
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  "real_name" text,                 -- lo carga un admin; null = sin nombre real
+  "team" text,                      -- 'A' | 'B' (plantel); null = externo
+  "created_at" timestamp with time zone DEFAULT now()
+);
+
+-- Una Persona puede tener varios números (fusiones) y un número varias Personas.
+CREATE TABLE IF NOT EXISTS "person_phones" (
+  "person_id" uuid NOT NULL REFERENCES "people"("id") ON DELETE CASCADE,
+  "phone" text NOT NULL,            -- 10 dígitos: código de área + número
+  "created_at" timestamp with time zone DEFAULT now(),
+  PRIMARY KEY ("person_id", "phone")
+);
+CREATE INDEX IF NOT EXISTS "person_phones_phone_idx" ON "person_phones" ("phone");
+
+-- Los celulares son datos personales: sin políticas, la API pública de Supabase no puede leer estas tablas.
+-- La app entra por DATABASE_URL (rol dueño de las tablas), que no pasa por RLS.
+ALTER TABLE "people" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "person_phones" ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE "attendees" ADD COLUMN IF NOT EXISTS "person_id" uuid REFERENCES "people"("id") ON DELETE SET NULL;
+ALTER TABLE "attendees" ADD COLUMN IF NOT EXISTS "proof_uploaded_from" text;  -- celular desde el que se subió el comprobante
+CREATE UNIQUE INDEX IF NOT EXISTS "attendees_event_person_unique"
+  ON "attendees" ("event_id", "person_id")
+  WHERE "person_id" IS NOT NULL AND "status" = 'confirmed';
+
+ALTER TABLE "events" ADD COLUMN IF NOT EXISTS "requires_phone" boolean NOT NULL DEFAULT false;  -- interruptor "pide celular"
 ```
 
 ## Buckets de Storage

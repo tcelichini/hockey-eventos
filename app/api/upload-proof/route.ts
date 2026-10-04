@@ -3,11 +3,14 @@ import { getStorageClient, BUCKET } from "@/lib/supabase-storage"
 import { db } from "@/db"
 import { attendees } from "@/db/schema"
 import { eq } from "drizzle-orm"
+import { normalizePhone } from "@/lib/people"
 
 export async function POST(request: NextRequest) {
   const formData = await request.formData()
   const file = formData.get("file") as File | null
   const attendeeId = formData.get("attendee_id") as string | null
+  // Celular que recuerda el teléfono que sube el comprobante (eventos que piden celular). Sin él queda "sin identificar".
+  const uploadedFrom = normalizePhone(formData.get("phone") as string | null)
 
   if (!file || !attendeeId) {
     return NextResponse.json({ error: "Faltan datos" }, { status: 400 })
@@ -55,7 +58,7 @@ export async function POST(request: NextRequest) {
 
   await db
     .update(attendees)
-    .set({ payment_proof_url: data.publicUrl, payment_status: "paid", proof_uploaded_at: new Date() })
+    .set({ payment_proof_url: data.publicUrl, payment_status: "paid", proof_uploaded_at: new Date(), proof_uploaded_from: uploadedFrom })
     .where(eq(attendees.id, attendeeId))
 
   return NextResponse.json({ url: data.publicUrl }, { status: 201 })

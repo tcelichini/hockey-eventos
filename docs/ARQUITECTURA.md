@@ -6,7 +6,7 @@ Mapa de archivos clave y lógica de negocio del proyecto.
 
 | Archivo | Qué hace |
 |---|---|
-| `db/schema.ts` | Tipos `PricingTier`, `DateTier` y tablas `events`, `attendees`, `expenses`, `combos` |
+| `db/schema.ts` | Tipos `PricingTier`, `DateTier` y tablas `events`, `attendees`, `expenses`, `combos`, `people`, `person_phones` |
 | `lib/settlement.ts` | **Módulo de Liquidación** (puro, con tests): `settleEvent`, `getOwedPrice`, `normalizeName`. Ver CONTEXT.md |
 | `lib/settlement.test.ts` | Tests de la liquidación (`npm run test`, Vitest) |
 | `lib/combo-payment.ts` | `classifyComboPayment`: detección de "pagó vía combo" (badge, display) |
@@ -15,6 +15,13 @@ Mapa de archivos clave y lógica de negocio del proyecto.
 | `app/admin/(protected)/cuentas/page.tsx` | Página admin de cuenta corriente (deudores/acreedores consolidados + recordatorio WhatsApp con link a `/mi-cuenta`) |
 | `app/mi-cuenta/page.tsx` | Consulta pública: el jugador elige su nombre (o llega con `?nombre=`) y ve solo su saldo; cada evento que debe es una card que lleva a subir el comprobante de ese evento |
 | `app/api/cuenta/route.ts` | API pública de cuenta corriente (nombres / saldo por persona) |
+| `lib/people.ts` | **Módulo de Personas** (puro, con tests): `normalizePhone`, `decideRegistration`, `proofOrigin`, `mergeConflicts`, `parseImportList`, `planImport`. Ver CONTEXT.md y la sección "Personas" más abajo |
+| `lib/people-db.ts` | Lecturas de Personas: `findPeopleByPhone`, `getPeopleDirectory` (admin) |
+| `lib/attendee-registration.ts` | Piezas compartidas al anotar (por nombre, por celular, desde admin): precio de un anotado nuevo y datos de pago |
+| `components/phone-registration.tsx` | Flujo público de anotarse con celular (eventos con `requires_phone`) |
+| `app/admin/(protected)/personas/page.tsx` | Sección Personas del admin (`components/people-manager.tsx`): listar, editar, fusionar, crear, importar |
+| `app/api/people/` | `lookup` (pública: quién se anotó con este celular) y admin: crear, editar/borrar, `merge`, `import` |
+| `app/api/events/[id]/attendees/route.ts` | Admin: agregar un asistente (Persona) a un evento que pide celular |
 | `lib/pricing.ts` | Helpers: `todayArg`, `getTierLabel`, `calculatePrice`, `calculateDatePrice`, `getDateTierLabel`, `validateTiers` |
 | `lib/players.ts` | Lista estática del plantel (36 jugadores, formato "Apellido, Nombre") |
 | `components/pricing-tiers-editor.tsx` | Editor de tramos por cantidad |
@@ -33,7 +40,7 @@ Mapa de archivos clave y lógica de negocio del proyecto.
 | `app/admin/(protected)/events/[id]/edit/page.tsx` | Formulario editar evento (con selector de tipo de precio) |
 | `app/admin/(protected)/combos/new/page.tsx` | Formulario nuevo combo |
 | `app/admin/(protected)/combos/[id]/page.tsx` | Panel admin del combo |
-| `app/api/attendees/route.ts` | API de registro: calcula precio por tramo, por fecha, o fijo; si es 3T encuentra al asistente ya pre-cargado |
+| `app/api/attendees/route.ts` | API de registro: calcula precio por tramo, por fecha, o fijo; si es 3T encuentra al asistente ya pre-cargado; si el evento pide celular, anota como Persona (`registerWithPhone`) |
 | `app/api/events/route.ts` | API POST eventos: guarda `pricing_tiers`, `date_tiers`, `is_3t`; si es 3T inserta todos los jugadores como asistentes confirmados |
 | `app/api/events/[id]/route.ts` | API PATCH eventos: actualiza `pricing_tiers`, `date_tiers`, `is_3t` |
 | `app/api/events/by-slug/[slug]/route.ts` | API pública: expone `pricing_tiers`, `date_tiers`, `is_3t` |
@@ -70,6 +77,50 @@ type DateTier = {
 ### Recálculo al volver a cargar comprobante
 
 Si un asistente ya confirmado (sin pagar) vuelve a la página de confirmación en un evento con `date_tiers`, el sistema **recalcula el precio según la fecha actual** y actualiza `price_paid` en la DB. Si ya pagó, respeta el precio original.
+
+---
+
+## Personas (eventos que piden celular)
+
+Glosario y reglas en `CONTEXT.md`; el porqué de no verificar el número, en `docs/adr/0001-celular-declarado-sin-verificar.md`. Primera versión detrás de un interruptor por evento (`events.requires_phone`), que se elige al crear el evento y no se cambia después. Los eventos sin el interruptor funcionan exactamente como antes.
+
+### Tablas
+
+- `people`: `real_name` (lo carga un admin; null = sin nombre real), `team` ("A" | "B" = plantel; null = externo).
+- `person_phones`: (`person_id`, `phone`). Una Persona puede tener varios celulares (fusiones) y un celular varias Personas. `phone` siempre son 10 dígitos (`normalizePhone`).
+- `attendees.person_id`: null en el historial y en eventos sin el interruptor. Índice único parcial (evento, persona) para confirmados.
+- `attendees.full_name` sigue siendo el nombre con el que figura en ESE evento, y es único dentro del evento. Por eso los gastos y la liquidación siguen cruzando por nombre sin cambios.
+- `attendees.proof_uploaded_from`: celular del teléfono que subió el comprobante (null = sin identificar).
+
+### Anotarse (no 3T)
+
+`POST /api/attendees` con `phone` → `registerWithPhone`. Qué hacer lo decide `decideRegistration` (puro, en `lib/people.ts`):
+
+| Decisión | Cuándo | Respuesta |
+|---|---|---|
+| `choose` | El celular ya tiene Personas y no se dijo quién es | 200 `{ choose: [{ id, name }] }`, sin crear nada |
+| `already` | Esa Persona ya está anotada en el evento | 200 con sus datos de pago (`existing: true`) |
+| `name-taken` | Otro anotado del evento ya usa ese nombre | 409 |
+| `register` | Se anota (creando la Persona si el celular es nuevo o si `person_id: "new"`) | 201 |
+
+Sin `phone`, la ruta solo sirve para elegir un nombre de la lista y ver sus datos de pago (comprobante de otro, o anotado agregado por admin sin celular); no crea anotaciones.
+
+El teléfono recuerda el celular en `localStorage` (`lib/device-phone.ts`). Al volver, `components/phone-registration.tsx` consulta `POST /api/people/lookup` y muestra "Hola de nuevo", "¿quién sos?" (varias Personas con ese celular) o "Ya estás anotado".
+
+### 3T con el interruptor
+
+El plantel se precarga desde `people` (por `team`), no desde `lib/players.ts`, y cada asistente queda ligado a su Persona. La pantalla pública es la de siempre (elegir el nombre de la lista); si el teléfono es conocido, el nombre viene elegido.
+
+### Comprobantes
+
+`upload-proof` guarda en `proof_uploaded_from` el celular que recuerda el teléfono. El panel del evento muestra un aviso cuando no coincide con los celulares de la Persona (`proofOrigin`: "desde el teléfono de X" / "sin identificar"). No se bloquea: se detecta.
+
+### Reglas para tocar este código
+
+- **Los celulares y `real_name` nunca salen en respuestas públicas.** `publicAttendee()` quita `proof_uploaded_from`; `lookup` solo devuelve el nombre con el que cada Persona figuró.
+- **Fusionar no borra anotaciones.** Si las dos Personas están anotadas en un mismo evento, `merge` devuelve 409 y el admin quita una a mano (cada anotación puede tener pago y gastos).
+- **Un evento con el interruptor no puede ir en un combo** (`lib/combo-events.ts`): los combos anotan por nombre.
+- **Pendiente (segunda parte):** la cuenta corriente y `/mi-cuenta` todavía consolidan por nombre también para estos eventos. Falta juntar por Persona (ver `docs/PENDIENTES.md`).
 
 ---
 

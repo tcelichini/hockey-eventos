@@ -34,6 +34,12 @@ export async function verifySession(cookie: string): Promise<boolean> {
   }
 }
 
+/** true si el request trae una cookie de sesión de admin válida. */
+export async function isAdminRequest(request: { cookies: { get(name: string): { value: string } | undefined } }): Promise<boolean> {
+  const cookie = request.cookies.get(COOKIE_NAME)?.value
+  return cookie ? verifySession(cookie) : false
+}
+
 export function checkAdminPassword(input: string): boolean {
   const password = (process.env.ADMIN_PASSWORD || "").trim()
   return input.trim() === password && password.length > 0
