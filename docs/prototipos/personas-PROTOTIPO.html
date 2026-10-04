@@ -1,0 +1,769 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROTOTIPO · Personas</title>
+<!--
+  PROTOTIPO DESCARTABLE. No es código de producción y no toca la base de datos.
+  Responde una pregunta de diseño (ver el texto de arriba de la página).
+  Lo único que vale la pena conservar es el módulo "Modelo" (primer <script>).
+-->
+<style>
+  :root {
+    --acento: #002060; --acento-suave: #e8edf7; --borde: #d9dde5; --texto: #1c2330;
+    --gris: #667085; --fondo: #f6f7f9; --ok: #0a7a3d; --ok-suave: #e6f4ec;
+    --atencion: #8a5200; --atencion-suave: #fdf3e0; --error-suave: #fdecec;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--texto); background: var(--fondo); }
+  header { background: var(--acento); color: #fff; padding: 20px 24px; }
+  .cinta { display: inline-block; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; background: rgba(255,255,255,.16); padding: 2px 8px; border-radius: 4px; margin: 0 0 8px; }
+  h1 { font-size: 22px; margin: 0 0 6px; }
+  .intro { margin: 0; max-width: 75ch; opacity: .92; }
+  main { max-width: 1180px; margin: 0 auto; padding: 16px; }
+  #aviso { position: sticky; top: 0; z-index: 5; padding-top: 8px; background: var(--fondo); }
+  .aviso { padding: 10px 14px; border-radius: 8px; border: 1px solid var(--borde); background: #fff; margin-bottom: 14px; }
+  .aviso.ok { background: var(--ok-suave); border-color: #b7dfc6; }
+  .aviso.atencion { background: var(--atencion-suave); border-color: #f1d9a6; }
+  .aviso.error { background: var(--error-suave); border-color: #f3b9b9; }
+  .columnas { display: grid; grid-template-columns: minmax(300px, 400px) 1fr; gap: 16px; align-items: start; }
+  @media (max-width: 860px) { .columnas { grid-template-columns: 1fr; } }
+  .caja { background: #fff; border: 1px solid var(--borde); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+  h2 { font-size: 16px; margin: 0 0 4px; }
+  h3 { font-size: 14px; margin: 18px 0 6px; }
+  p { margin: 0 0 10px; }
+  .ayuda { color: var(--gris); font-size: 13px; }
+  .detalle { color: var(--gris); font-size: 13px; }
+  button { font: inherit; cursor: pointer; border: 1px solid var(--borde); background: #fff; border-radius: 6px; padding: 6px 10px; color: var(--texto); }
+  button.principal { background: var(--acento); color: #fff; border-color: var(--acento); padding: 10px 12px; width: 100%; font-weight: 600; margin-top: 12px; }
+  button.activo { background: var(--acento-suave); border-color: var(--acento); color: var(--acento); font-weight: 600; }
+  button.enlace { border: none; background: none; color: var(--acento); padding: 4px 0; text-decoration: underline; font-size: 13px; }
+  button.bloque { display: block; width: 100%; text-align: left; margin-top: 8px; padding: 10px 12px; }
+  button:disabled { opacity: .45; cursor: default; }
+  input[type=text], select { font: inherit; padding: 8px 10px; border: 1px solid var(--borde); border-radius: 6px; width: 100%; background: #fff; color: var(--texto); }
+  label { display: block; font-size: 13px; color: var(--gris); margin: 10px 0 4px; }
+  label.casilla { display: flex; gap: 8px; align-items: center; color: var(--texto); font-size: 14px; }
+  .selector { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 8px 0; }
+  .selector > span { font-size: 13px; color: var(--gris); min-width: 62px; }
+  .pantalla { border: 2px solid var(--texto); border-radius: 18px; padding: 16px; margin-top: 12px; }
+  .pantalla h3 { margin-top: 0; font-size: 16px; }
+  .insignia { display: inline-block; font-size: 11.5px; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--borde); color: var(--gris); white-space: nowrap; }
+  .insignia.plantel { background: var(--acento-suave); color: var(--acento); border-color: #c4d0ea; }
+  .insignia.ok { background: var(--ok-suave); color: var(--ok); border-color: #b7dfc6; }
+  .insignia.atencion { background: var(--atencion-suave); color: var(--atencion); border-color: #f1d9a6; }
+  .persona { border: 1px solid var(--borde); border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+  .persona.resaltada { border-color: var(--acento); box-shadow: 0 0 0 3px var(--acento-suave); }
+  .persona .cabecera { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .persona .cabecera button { margin-left: auto; font-size: 12px; padding: 3px 8px; }
+  .fila-accion { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; align-items: center; }
+  .fila-accion input, .fila-accion select { flex: 1 1 150px; min-width: 0; width: auto; }
+  .lista { list-style: none; padding: 0; margin: 0; }
+  .lista li { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 7px 0; border-top: 1px solid #eef0f3; }
+  .lista .nombre { font-weight: 600; }
+  .lista button { margin-left: auto; font-size: 12px; padding: 3px 8px; }
+  .evento { border: 1px solid var(--borde); border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+  .pasos { list-style: none; padding: 0; margin: 10px 0; }
+  .pasos li { margin-bottom: 8px; }
+  .pasos button { width: 100%; text-align: left; padding: 10px 12px; }
+  .pasos button.siguiente { border-color: var(--acento); background: var(--acento-suave); opacity: 1; }
+  .mirar { background: var(--acento-suave); border-radius: 8px; padding: 10px 12px; font-size: 14px; }
+  .publico { margin-top: 14px; padding-top: 10px; border-top: 1px solid #eef0f3; font-size: 13px; color: var(--gris); }
+</style>
+</head>
+<body>
+
+<header>
+  <p class="cinta">Prototipo · descartable · no toca la base de datos</p>
+  <h1>Personas: nombre libre + celular</h1>
+  <p class="intro">
+    La pregunta: si cada uno se anota con el nombre que quiera, pero deja su celular, ¿la app logra saber que es la
+    misma Persona de un evento a otro sin duplicarla, y el admin puede ordenar lo que quede suelto?
+    Todo pasa en la memoria de esta página: al recargarla, vuelve a cero.
+  </p>
+</header>
+
+<main>
+  <div id="aviso"></div>
+  <div class="columnas">
+    <div>
+      <section class="caja" id="telefono"></section>
+      <section class="caja" id="recorridos"></section>
+    </div>
+    <section class="caja" id="estado"></section>
+  </div>
+</main>
+
+<!-- =====================================================================
+     MODELO: la lógica que se está probando. Puro: sin DOM, sin document.
+     Cada acción recibe el estado y devuelve { estado, resultado }.
+     ===================================================================== -->
+<script id="modelo">
+const Modelo = (() => {
+  const clon = (x) => JSON.parse(JSON.stringify(x))
+
+  // Lleva cualquier forma de escribir un celular argentino a 10 dígitos (área + número).
+  // "+54 9 11 5555-1234", "011 15 5555-1234", "15 5555 1234" y "5555-1234" son el mismo número.
+  function normalizarCelular(texto) {
+    let d = String(texto == null ? '' : texto).replace(/\D/g, '')
+    if (d.length > 10 && d.startsWith('54')) d = d.slice(2)
+    if (d.length > 10 && d.startsWith('9')) d = d.slice(1)
+    if (d.startsWith('0')) d = d.slice(1)
+    if (d.length === 12) {
+      for (const area of [2, 3, 4]) {
+        if (d.substr(area, 2) === '15') { d = d.slice(0, area) + d.slice(area + 2); break }
+      }
+    }
+    if (d.length === 10 && d.startsWith('15')) d = '11' + d.slice(2)
+    if (d.length === 8) d = '11' + d
+    return d.length === 10 ? d : null
+  }
+
+  function formatearCelular(c) {
+    return c.startsWith('11') ? `11 ${c.slice(2, 6)}-${c.slice(6)}` : `${c.slice(0, 3)} ${c.slice(3, 6)}-${c.slice(6)}`
+  }
+
+  // Arranca con el plantel cargado (Personas sin celular) y un 3T con el Plantel A precargado.
+  // El historial viejo no se convierte: las Personas empiezan desde acá.
+  function estadoInicial() {
+    const plantel = [
+      ['j1', 'Campana, Guillermo', 'A'], ['j2', 'Campana, Fernando', 'A'],
+      ['j3', 'Celichini, Tomás', 'A'], ['j4', 'Cocina, Fausto', 'A'],
+      ['j5', 'Ledesma, Tom', 'B'], ['j6', 'Tapia, Lucas', 'B'],
+    ]
+    const personas = plantel.map(([id, nombreReal, p]) => ({ id, nombreReal, plantel: p, celulares: [] }))
+    const eventos = [
+      { id: 'asado1', titulo: 'Asado 10/10', es3T: false },
+      { id: 'asado2', titulo: 'Asado 24/10', es3T: false },
+      { id: '3t', titulo: '3T vs. Ferro (Plantel A)', es3T: true },
+    ]
+    const asistentes = personas
+      .filter((p) => p.plantel === 'A')
+      .map((p, i) => ({ id: 't' + (i + 1), eventoId: '3t', personaId: p.id, nombre: p.nombreReal, inferiores: false, pago: false, comprobante: null }))
+    return { seq: 1, eventos, personas, asistentes, telefonos: {} }
+  }
+
+  function personasDeCelular(estado, celular) {
+    return estado.personas.filter((p) => p.celulares.includes(celular))
+  }
+
+  // Nombres con los que una Persona figuró en eventos (sin repetir, en orden).
+  function nombresUsados(estado, personaId) {
+    const vistos = []
+    for (const a of estado.asistentes) if (a.personaId === personaId && !vistos.includes(a.nombre)) vistos.push(a.nombre)
+    return vistos
+  }
+
+  function ultimoNombre(estado, personaId) {
+    const propios = estado.asistentes.filter((a) => a.personaId === personaId)
+    if (propios.length) return propios[propios.length - 1].nombre
+    const p = estado.personas.find((x) => x.id === personaId)
+    return (p && p.nombreReal) || 'sin nombre'
+  }
+
+  const error = (estado, mensaje) => ({ estado, resultado: { tipo: 'error', tono: 'error', mensaje } })
+
+  // Anotarse a un evento abierto (no 3T): nombre libre + celular.
+  // personaId: undefined = que la app resuelva (y pregunte si el número ya existe),
+  //            'nueva'   = otra Persona con el mismo número,
+  //            un id     = una Persona que ya tiene ese número.
+  function anotar(estado, { eventoId, telefonoId, celularTexto, nombre, inferiores, personaId }) {
+    const evento = estado.eventos.find((e) => e.id === eventoId)
+    if (!evento) return error(estado, 'Ese evento no existe.')
+    if (evento.es3T) return error(estado, 'En 3T no se anota nadie: el plantel ya está cargado.')
+    const nombreLimpio = String(nombre || '').trim()
+    if (!nombreLimpio) return error(estado, 'Falta el nombre. Puede ser el que quieras.')
+    const celular = normalizarCelular(celularTexto)
+    if (!celular) return error(estado, 'Ese celular no parece válido. Escribilo con código de área, por ejemplo 11 5555-1234.')
+
+    const conocidas = personasDeCelular(estado, celular)
+    if (personaId === undefined && conocidas.length > 0) {
+      return {
+        estado,
+        resultado: {
+          tipo: 'elegir', tono: 'atencion', celular,
+          opciones: conocidas.map((p) => ({ personaId: p.id, nombre: ultimoNombre(estado, p.id) })),
+          mensaje: `El ${formatearCelular(celular)} ya se anotó antes. La app pregunta quién es antes de crear nada.`,
+        },
+      }
+    }
+
+    const s = clon(estado)
+    let persona
+    let creada = false
+    if (personaId === 'nueva' || conocidas.length === 0) {
+      persona = { id: 'p' + s.seq++, nombreReal: null, plantel: null, celulares: [celular] }
+      s.personas.push(persona)
+      creada = true
+    } else {
+      persona = s.personas.find((p) => p.id === personaId)
+      if (!persona || !persona.celulares.includes(celular)) return error(estado, 'Esa Persona no tiene ese celular.')
+    }
+    s.telefonos[telefonoId] = { celular }
+
+    const ya = s.asistentes.find((a) => a.eventoId === eventoId && a.personaId === persona.id)
+    if (ya) {
+      return {
+        estado: s,
+        resultado: {
+          tipo: 'ya-anotado', tono: 'atencion', personaId: persona.id, asistenteId: ya.id,
+          mensaje: `Esa Persona ya estaba anotada en «${evento.titulo}» como «${ya.nombre}». No se crea otra anotación.`,
+        },
+      }
+    }
+
+    const asistente = { id: 'a' + s.seq++, eventoId, personaId: persona.id, nombre: nombreLimpio, inferiores: !!inferiores, pago: false, comprobante: null }
+    s.asistentes.push(asistente)
+    const fmt = formatearCelular(celular)
+    let mensaje
+    if (creada && conocidas.length === 0) mensaje = `Número nuevo: se creó una Persona para el ${fmt}. En «${evento.titulo}» figura como «${nombreLimpio}».`
+    else if (creada) mensaje = `Se creó otra Persona con el mismo número (${fmt}). En «${evento.titulo}» figura como «${nombreLimpio}».`
+    else mensaje = `Es la misma Persona de antes (${fmt}). En «${evento.titulo}» figura como «${nombreLimpio}».`
+    return { estado: s, resultado: { tipo: 'anotado', tono: 'ok', personaId: persona.id, asistenteId: asistente.id, mensaje } }
+  }
+
+  // Subir comprobante: marca pagado y deja registrado desde qué teléfono se subió.
+  function subirComprobante(estado, { asistenteId, telefonoId }) {
+    const s = clon(estado)
+    const a = s.asistentes.find((x) => x.id === asistenteId)
+    if (!a) return error(estado, 'Esa anotación no existe.')
+    if (a.pago) return { estado, resultado: { tipo: 'ya-pago', tono: 'atencion', personaId: a.personaId, mensaje: `El pago de «${a.nombre}» ya estaba registrado.` } }
+    const persona = s.personas.find((p) => p.id === a.personaId)
+    const mem = s.telefonos[telefonoId]
+    const propio = !!mem && persona.celulares.includes(mem.celular)
+    a.pago = true
+    a.comprobante = { celular: mem ? mem.celular : null, propio }
+    let mensaje
+    if (propio) mensaje = `Comprobante cargado para «${a.nombre}» desde su propio teléfono.`
+    else if (mem) mensaje = `Comprobante cargado para «${a.nombre}» desde el ${formatearCelular(mem.celular)}, que no es su número. El admin lo ve marcado.`
+    else mensaje = `Comprobante cargado para «${a.nombre}» desde un teléfono sin identificar. El admin lo ve marcado.`
+    return { estado: s, resultado: { tipo: 'pago', tono: propio ? 'ok' : 'atencion', personaId: a.personaId, mensaje } }
+  }
+
+  function olvidarTelefono(estado, telefonoId) {
+    const s = clon(estado)
+    delete s.telefonos[telefonoId]
+    return { estado: s, resultado: { tipo: 'admin', tono: 'info', mensaje: 'Ese teléfono ya no recuerda nada (como un teléfono nuevo o una ventana de incógnito).' } }
+  }
+
+  // --- Acciones del admin ---
+
+  // Agrega a alguien que fue sin anotarse. Sin personaId crea una Persona sin celular.
+  function agregarPorAdmin(estado, { eventoId, personaId, nombre }) {
+    const evento = estado.eventos.find((e) => e.id === eventoId)
+    if (!evento) return error(estado, 'Ese evento no existe.')
+    const s = clon(estado)
+    let persona
+    let nombreFinal = String(nombre || '').trim()
+    if (personaId) {
+      persona = s.personas.find((p) => p.id === personaId)
+      if (!persona) return error(estado, 'Esa Persona no existe.')
+      if (s.asistentes.some((a) => a.eventoId === eventoId && a.personaId === personaId)) return error(estado, 'Esa Persona ya está en el evento.')
+      if (!nombreFinal) nombreFinal = persona.nombreReal || ultimoNombre(s, persona.id)
+    } else {
+      if (!nombreFinal) return error(estado, 'Para una Persona nueva hace falta al menos un nombre.')
+      persona = { id: 'p' + s.seq++, nombreReal: null, plantel: null, celulares: [] }
+      s.personas.push(persona)
+    }
+    s.asistentes.push({ id: 'a' + s.seq++, eventoId, personaId: persona.id, nombre: nombreFinal, inferiores: false, pago: false, comprobante: null })
+    return {
+      estado: s,
+      resultado: {
+        tipo: 'admin', tono: 'info', personaId: persona.id,
+        mensaje: personaId
+          ? `El admin agregó a «${nombreFinal}» a «${evento.titulo}».`
+          : `El admin agregó a «${nombreFinal}» a «${evento.titulo}» como Persona nueva, sin celular.`,
+      },
+    }
+  }
+
+  // Quita a quien se anotó y no fue. La Persona sigue existiendo.
+  function quitarAsistente(estado, asistenteId) {
+    const a = estado.asistentes.find((x) => x.id === asistenteId)
+    if (!a) return error(estado, 'Esa anotación no existe.')
+    const s = clon(estado)
+    s.asistentes = s.asistentes.filter((x) => x.id !== asistenteId)
+    const evento = s.eventos.find((e) => e.id === a.eventoId)
+    return { estado: s, resultado: { tipo: 'admin', tono: 'info', personaId: a.personaId, mensaje: `El admin quitó a «${a.nombre}» de «${evento.titulo}». La Persona sigue existiendo.` } }
+  }
+
+  function editarPersona(estado, personaId, cambios) {
+    const s = clon(estado)
+    const p = s.personas.find((x) => x.id === personaId)
+    if (!p) return error(estado, 'Esa Persona no existe.')
+    if ('nombreReal' in cambios) p.nombreReal = String(cambios.nombreReal || '').trim() || null
+    if ('plantel' in cambios) p.plantel = cambios.plantel || null
+    const partes = []
+    if ('nombreReal' in cambios) partes.push(p.nombreReal ? `nombre real «${p.nombreReal}»` : 'sin nombre real')
+    if ('plantel' in cambios) partes.push(p.plantel ? `Plantel ${p.plantel}` : 'Externo')
+    return { estado: s, resultado: { tipo: 'admin', tono: 'info', personaId, mensaje: `El admin actualizó la Persona: ${partes.join(', ')}.` } }
+  }
+
+  // Fusiona "origen" dentro de "destino": destino se queda con los celulares y las anotaciones de los dos.
+  function fusionar(estado, origenId, destinoId) {
+    if (!destinoId || origenId === destinoId) return error(estado, 'Elegí con qué otra Persona fusionarla.')
+    const s = clon(estado)
+    const o = s.personas.find((p) => p.id === origenId)
+    const d = s.personas.find((p) => p.id === destinoId)
+    if (!o || !d) return error(estado, 'Alguna de las dos Personas no existe.')
+    for (const c of o.celulares) if (!d.celulares.includes(c)) d.celulares.push(c)
+    d.nombreReal = d.nombreReal || o.nombreReal
+    d.plantel = d.plantel || o.plantel
+    let repetidas = 0
+    for (const a of s.asistentes.filter((x) => x.personaId === o.id)) {
+      const ya = s.asistentes.find((x) => x.personaId === d.id && x.eventoId === a.eventoId)
+      if (ya) {
+        // Estaba dos veces en el mismo evento: queda una sola anotación (y el pago, si alguna lo tenía).
+        if (a.pago && !ya.pago) { ya.pago = true; ya.comprobante = a.comprobante }
+        s.asistentes = s.asistentes.filter((x) => x.id !== a.id)
+        repetidas++
+      } else {
+        a.personaId = d.id
+      }
+    }
+    s.personas = s.personas.filter((p) => p.id !== o.id)
+    const nombre = d.nombreReal || `«${ultimoNombre(s, d.id)}»`
+    return {
+      estado: s,
+      resultado: {
+        tipo: 'admin', tono: 'info', personaId: d.id,
+        mensaje: `El admin fusionó dos Personas en una: ${nombre}.` + (repetidas ? ` Estaba ${repetidas === 1 ? 'una vez' : repetidas + ' veces'} repetida en un mismo evento: quedó una sola anotación.` : ''),
+      },
+    }
+  }
+
+  return {
+    normalizarCelular, formatearCelular, estadoInicial, personasDeCelular, nombresUsados, ultimoNombre,
+    anotar, subirComprobante, olvidarTelefono, agregarPorAdmin, quitarAsistente, editarPersona, fusionar,
+  }
+})()
+</script>
+
+<!-- =====================================================================
+     PÁGINA: cáscara descartable. Solo llama al Modelo y dibuja el estado.
+     ===================================================================== -->
+<script>
+const M = Modelo
+let estado = M.estadoInicial()
+
+const TELEFONOS = [{ id: 'tel1', nombre: 'Teléfono 1' }, { id: 'tel2', nombre: 'Teléfono 2' }]
+const ui = {
+  telefono: 'tel1', evento: 'asado1',
+  eleccion: null,   // la app preguntó "¿quién sos?" después de escribir un número conocido
+  otra: false,      // "anotar a otra persona con este número"
+  manual: false,    // "no soy yo": formulario completo
+  quien: null,      // Persona elegida cuando el número tiene más de una
+  borrador: null,   // lo último que se escribió en el formulario
+  mensaje: null, resaltar: null, filtro: 'todas', editando: null,
+  recorrido: null, paso: 0,
+}
+
+const esc = (t) => String(t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+const $ = (id) => document.getElementById(id)
+const fmt = M.formatearCelular
+const celularesDe = (p) => (p.celulares.length ? p.celulares.map(fmt).join(' / ') : 'sin celular')
+const etiquetaAdmin = (p) => `${p.nombreReal || '«' + M.ultimoNombre(estado, p.id) + '»'} · ${celularesDe(p)}`
+
+function limpiarSubestado() { ui.eleccion = null; ui.otra = false; ui.manual = false; ui.borrador = null }
+
+function aplicar(res, borrador) {
+  estado = res.estado
+  const r = res.resultado
+  ui.mensaje = r
+  ui.resaltar = r.personaId || null
+  if (r.tipo === 'elegir') {
+    ui.eleccion = { ...borrador, opciones: r.opciones }
+  } else if (r.tipo === 'error') {
+    ui.borrador = borrador || ui.borrador
+  } else {
+    limpiarSubestado()
+    if (r.tipo === 'anotado' || r.tipo === 'ya-anotado') ui.quien = r.personaId
+  }
+  render()
+}
+
+// ---------- Teléfono (lo que ve quien abre el link) ----------
+
+function renderTelefono() {
+  const ev = estado.eventos.find((e) => e.id === ui.evento)
+  const mem = estado.telefonos[ui.telefono]
+  const conocidas = mem ? M.personasDeCelular(estado, mem.celular) : []
+  let h = `<h2>Probar a mano</h2>
+    <p class="ayuda">Esto es lo que ve alguien al abrir el link de un evento. Elegí desde qué teléfono entra y a qué evento.</p>
+    <div class="selector"><span>Teléfono</span>${TELEFONOS.map((t) => `<button data-accion="telefono" data-id="${t.id}" class="${t.id === ui.telefono ? 'activo' : ''}">${t.nombre}</button>`).join('')}</div>
+    <p class="ayuda">${mem
+      ? `Este teléfono recuerda el ${fmt(mem.celular)}. <button class="enlace" data-accion="olvidar">Borrar su memoria</button>`
+      : 'Este teléfono no recuerda nada (primera vez, incógnito o datos borrados).'}</p>
+    <div class="selector"><span>Evento</span>${estado.eventos.map((e) => `<button data-accion="evento" data-id="${e.id}" class="${e.id === ui.evento ? 'activo' : ''}">${esc(e.titulo)}</button>`).join('')}</div>
+    <div class="pantalla"><h3>${esc(ev.titulo)}</h3>${ev.es3T ? pantalla3T(ev, mem, conocidas) : pantallaAbierto(ev, mem, conocidas)}${listaPublica(ev)}</div>`
+  $('telefono').innerHTML = h
+}
+
+function listaPublica(ev) {
+  const lista = estado.asistentes.filter((a) => a.eventoId === ev.id)
+  return `<p class="publico"><strong>¿Quiénes van?</strong> (lista pública) ${lista.length ? lista.map((a) => esc(a.nombre)).join(' · ') : 'Nadie todavía.'}</p>`
+}
+
+function campoInferiores(marcado) {
+  return `<label class="casilla" style="margin-top:12px"><input type="checkbox" id="f-inferiores" ${marcado ? 'checked' : ''}> Soy de inferiores</label>`
+}
+
+function pantallaAbierto(ev, mem, conocidas) {
+  const b = ui.borrador || {}
+
+  // A. Escribió un número que ya existe: la app pregunta quién es.
+  if (ui.eleccion) {
+    return `<p><strong>Ese número ya se anotó antes.</strong> ¿Quién se está anotando ahora?</p>
+      ${ui.eleccion.opciones.map((o) => `<button class="bloque" data-accion="elegir-persona" data-persona="${o.personaId}">Soy «${esc(o.nombre)}»</button>`).join('')}
+      <button class="bloque" data-accion="elegir-nueva">Es otra persona, con el mismo número</button>
+      <button class="enlace" data-accion="cancelar">Cancelar</button>`
+  }
+
+  if (mem && conocidas.length && !ui.manual) {
+    // B1. Anotar a otra persona con el número de este teléfono.
+    if (ui.otra) {
+      return `<p>Vas a anotar a <strong>otra persona</strong> con el ${fmt(mem.celular)}.</p>
+        <label for="f-nombre">Su nombre (el que quiera)</label><input type="text" id="f-nombre" value="${esc(b.nombre || '')}">
+        ${campoInferiores(b.inferiores)}
+        <button class="principal" data-accion="anotar-otra">Confirmar asistencia</button>
+        <button class="enlace" data-accion="cancelar">Cancelar</button>`
+    }
+    // B2. El número tiene más de una Persona: hay que decir quién se anota.
+    const persona = conocidas.length === 1 ? conocidas[0] : conocidas.find((p) => p.id === ui.quien)
+    if (!persona) {
+      return `<p><strong>Desde este número se anotó más de una persona.</strong> ¿Quién se anota ahora?</p>
+        ${conocidas.map((p) => `<button class="bloque" data-accion="quien" data-persona="${p.id}">«${esc(M.ultimoNombre(estado, p.id))}»</button>`).join('')}
+        <button class="bloque" data-accion="otra">Otra persona</button>`
+    }
+    // B3. Reconocido.
+    const ultimo = M.ultimoNombre(estado, persona.id)
+    const cambiar = conocidas.length > 1 ? `<button class="enlace" data-accion="cambiar-quien">Cambiar de persona</button> · ` : ''
+    const yaAnotado = estado.asistentes.find((a) => a.eventoId === ev.id && a.personaId === persona.id)
+    if (yaAnotado) {
+      return `<p><strong>Ya estás anotado</strong> como «${esc(yaAnotado.nombre)}».</p>
+        ${yaAnotado.pago ? '<p><span class="insignia ok">Pago registrado</span></p>' : `<button class="principal" data-accion="comprobante" data-asistente="${yaAnotado.id}">Subir comprobante</button>`}
+        <p style="margin-top:10px">${cambiar}<button class="enlace" data-accion="otra">Anotar a otra persona con este número</button></p>`
+    }
+    return `<p><strong>Hola de nuevo.</strong> La última vez figuraste como «${esc(ultimo)}». Podés cambiar el nombre si querés.</p>
+      <label for="f-nombre">Tu nombre (el que quieras)</label><input type="text" id="f-nombre" value="${esc(b.nombre != null ? b.nombre : ultimo)}">
+      ${campoInferiores(b.inferiores)}
+      <button class="principal" data-accion="anotar-reconocido" data-persona="${persona.id}">Confirmar asistencia</button>
+      <p style="margin-top:10px">${cambiar}<button class="enlace" data-accion="no-soy-yo">No soy yo</button> · <button class="enlace" data-accion="otra">Anotar a otra persona con este número</button></p>`
+  }
+
+  // C. Primera vez (o "no soy yo"): nombre + celular.
+  return `<label for="f-nombre">Tu nombre (el que quieras)</label><input type="text" id="f-nombre" placeholder="Ej: Guillote" value="${esc(b.nombre || '')}">
+    <label for="f-celular">Tu celular</label><input type="text" id="f-celular" inputmode="tel" placeholder="Ej: 11 5555-1234" value="${esc(b.celularTexto || '')}">
+    ${campoInferiores(b.inferiores)}
+    <button class="principal" data-accion="anotar">Confirmar asistencia</button>
+    ${ui.manual ? '<button class="enlace" data-accion="cancelar">Cancelar</button>' : ''}`
+}
+
+function pantalla3T(ev, mem, conocidas) {
+  const lista = estado.asistentes.filter((a) => a.eventoId === ev.id).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+  const reconocido = lista.find((a) => conocidas.some((p) => p.id === a.personaId))
+  return `<p class="ayuda">Asistencia obligatoria para todo el plantel. Elegí tu nombre y subí el comprobante.</p>
+    ${reconocido
+      ? `<p><span class="insignia ok">Reconocido</span> La app sabe que este teléfono es de <strong>${esc(reconocido.nombre)}</strong>.</p>`
+      : '<p class="ayuda">Este teléfono no está asociado a nadie del plantel: hay que elegir el nombre de la lista, como hoy.</p>'}
+    <label for="sel-3t">Tu nombre</label>
+    <select id="sel-3t"><option value="">Seleccioná tu nombre</option>${lista.map((a) => `<option value="${a.id}" ${reconocido && reconocido.id === a.id ? 'selected' : ''}>${esc(a.nombre)}${a.pago ? ' (pagó)' : ''}</option>`).join('')}</select>
+    <button class="principal" data-accion="comprobante-3t">Subir comprobante</button>`
+}
+
+// ---------- Recorridos guiados ----------
+
+const NUM = '11 5555-1234'
+const NUM_LARGO = '+54 9 11 5555-1234'
+const NUM_MAL = '11 5555-1243'
+const personaDe = (s, texto) => M.personasDeCelular(s, M.normalizarCelular(texto))
+const pasoGuillote = {
+  texto: 'Guillermo abre el link del Asado 10/10 en su teléfono y se anota como «Guillote», con el celular 11 5555-1234.',
+  telefono: 'tel1', evento: 'asado1',
+  correr: (s) => M.anotar(s, { eventoId: 'asado1', telefonoId: 'tel1', celularTexto: NUM, nombre: 'Guillote' }),
+}
+
+const RECORRIDOS = [
+  {
+    id: 'r1', titulo: '1. Mismo teléfono, otro nombre',
+    descripcion: 'El caso de todos los días: la misma persona se anota a dos asados con nombres distintos.',
+    mirar: 'En Personas hay una sola Persona nueva, que figuró con dos nombres. La segunda vez no tuvo que escribir el celular.',
+    pasos: [
+      pasoGuillote,
+      {
+        texto: 'Dos semanas después abre el Asado 24/10 en el mismo teléfono. La app lo recuerda. Esta vez pone «Guille C.».',
+        telefono: 'tel1', evento: 'asado2',
+        correr: (s) => M.anotar(s, { eventoId: 'asado2', telefonoId: 'tel1', celularTexto: NUM, nombre: 'Guille C.', personaId: personaDe(s, NUM)[0].id }),
+      },
+    ],
+  },
+  {
+    id: 'r2', titulo: '2. Teléfono nuevo',
+    descripcion: 'Cambia de teléfono (o entra de incógnito) y escribe su número con otro formato.',
+    mirar: 'La app lo reconoce por el número aunque esté escrito distinto, y pregunta antes de crear nada. Sigue siendo una sola Persona.',
+    pasos: [
+      pasoGuillote,
+      {
+        texto: 'Con otro teléfono abre el Asado 24/10 y escribe «Guillermo» y el celular como +54 9 11 5555-1234.',
+        telefono: 'tel2', evento: 'asado2',
+        borrador: { celularTexto: NUM_LARGO, nombre: 'Guillermo', inferiores: false },
+        correr: (s) => M.anotar(s, { eventoId: 'asado2', telefonoId: 'tel2', celularTexto: NUM_LARGO, nombre: 'Guillermo' }),
+      },
+      {
+        texto: 'La app pregunta si es «Guillote». Responde «Soy Guillote».',
+        telefono: 'tel2', evento: 'asado2',
+        correr: (s) => M.anotar(s, { eventoId: 'asado2', telefonoId: 'tel2', celularTexto: NUM_LARGO, nombre: 'Guillermo', personaId: personaDe(s, NUM)[0].id }),
+      },
+    ],
+  },
+  {
+    id: 'r3', titulo: '3. Dos veces en el mismo evento',
+    descripcion: 'No se acuerda si se anotó y lo hace de nuevo, desde otro teléfono y con otro nombre.',
+    mirar: 'El Asado 10/10 sigue con un solo asistente. Hoy esto habría creado un segundo anotado.',
+    pasos: [
+      pasoGuillote,
+      {
+        texto: 'Desde otro teléfono se anota otra vez al Asado 10/10, ahora como «Guillermo Campana», con su mismo número.',
+        telefono: 'tel2', evento: 'asado1',
+        borrador: { celularTexto: NUM, nombre: 'Guillermo Campana', inferiores: false },
+        correr: (s) => M.anotar(s, { eventoId: 'asado1', telefonoId: 'tel2', celularTexto: NUM, nombre: 'Guillermo Campana' }),
+      },
+      {
+        texto: 'La app pregunta si es «Guillote». Responde «Soy Guillote».',
+        telefono: 'tel2', evento: 'asado1',
+        correr: (s) => M.anotar(s, { eventoId: 'asado1', telefonoId: 'tel2', celularTexto: NUM, nombre: 'Guillermo Campana', personaId: personaDe(s, NUM)[0].id }),
+      },
+    ],
+  },
+  {
+    id: 'r4', titulo: '4. Anota a la novia con su número',
+    descripcion: 'Desde su teléfono, y sin saberse el número de ella, anota a otra persona.',
+    mirar: 'Hay dos Personas con el mismo número, marcadas con «Comparte número». En el asado siguiente la app pregunta quién se anota.',
+    pasos: [
+      pasoGuillote,
+      {
+        texto: 'En el mismo teléfono toca «Anotar a otra persona con este número» y anota a «Sofi».',
+        telefono: 'tel1', evento: 'asado1',
+        correr: (s) => M.anotar(s, { eventoId: 'asado1', telefonoId: 'tel1', celularTexto: NUM, nombre: 'Sofi', personaId: 'nueva' }),
+      },
+      {
+        texto: 'En el Asado 24/10, desde ese teléfono, la app pregunta quién se anota. Elige «Sofi».',
+        telefono: 'tel1', evento: 'asado2',
+        correr: (s) => M.anotar(s, { eventoId: 'asado2', telefonoId: 'tel1', celularTexto: NUM, nombre: 'Sofi', personaId: personaDe(s, NUM).find((p) => M.ultimoNombre(s, p.id) === 'Sofi').id }),
+      },
+    ],
+  },
+  {
+    id: 'r5', titulo: '5. El admin lo une con el plantel',
+    descripcion: '«Guillote» entra como Persona suelta. Un admin lo fusiona con el jugador del plantel, y después el 3T lo reconoce solo.',
+    mirar: '«Campana, Guillermo» queda con celular y con el nombre «Guillote» entre los que usó. En el 3T el comprobante figura subido desde su propio teléfono.',
+    pasos: [
+      pasoGuillote,
+      {
+        texto: 'Un admin ve a «Guillote» en Personas, sin nombre real, y lo fusiona con «Campana, Guillermo» del Plantel A.',
+        telefono: 'tel1', evento: 'asado1',
+        correr: (s) => M.fusionar(s, personaDe(s, NUM)[0].id, 'j1'),
+      },
+      {
+        texto: 'Guillermo abre el 3T en su teléfono. La app ya sabe quién es. Sube el comprobante.',
+        telefono: 'tel1', evento: '3t',
+        correr: (s) => M.subirComprobante(s, { asistenteId: s.asistentes.find((a) => a.eventoId === '3t' && a.personaId === 'j1').id, telefonoId: 'tel1' }),
+      },
+    ],
+  },
+  {
+    id: 'r6', titulo: '6. Número mal escrito',
+    descripcion: 'El punto débil: si alguien escribe mal su número en un teléfono que no lo recuerda, la app no tiene cómo saberlo.',
+    mirar: 'Se crea una Persona duplicada hasta que un admin la fusiona. Después de fusionar, la Persona queda con los dos números.',
+    pasos: [
+      pasoGuillote,
+      {
+        texto: 'Desde otro teléfono se anota al Asado 24/10 como «Guillote», pero escribe 11 5555-1243 (dos dígitos cambiados).',
+        telefono: 'tel2', evento: 'asado2',
+        correr: (s) => M.anotar(s, { eventoId: 'asado2', telefonoId: 'tel2', celularTexto: NUM_MAL, nombre: 'Guillote' }),
+      },
+      {
+        texto: 'Un admin ve dos «Guillote» en Personas y los fusiona.',
+        telefono: 'tel2', evento: 'asado2',
+        correr: (s) => M.fusionar(s, personaDe(s, NUM_MAL)[0].id, personaDe(s, NUM)[0].id),
+      },
+    ],
+  },
+]
+
+function renderRecorridos() {
+  const r = RECORRIDOS.find((x) => x.id === ui.recorrido)
+  let h = `<h2>Recorridos guiados</h2>
+    <p class="ayuda">Cada recorrido arranca de cero y muestra un caso difícil. Tocá los pasos en orden y mirá cómo cambia lo que ve el admin.</p>
+    <div class="selector">${RECORRIDOS.map((x) => `<button data-accion="recorrido" data-id="${x.id}" class="${x.id === ui.recorrido ? 'activo' : ''}">${esc(x.titulo)}</button>`).join('')}</div>`
+  if (r) {
+    h += `<p>${esc(r.descripcion)}</p><ol class="pasos">${r.pasos.map((p, i) =>
+      `<li><button data-accion="paso" ${i === ui.paso ? '' : 'disabled'} class="${i === ui.paso ? 'siguiente' : ''}">${i < ui.paso ? '✓ ' : ''}${i + 1}. ${esc(p.texto)}</button></li>`).join('')}</ol>
+      <p class="mirar"><strong>Qué mirar:</strong> ${esc(r.mirar)}</p>`
+  }
+  h += `<button class="enlace" data-accion="reiniciar">Reiniciar todo y probar a mano</button>`
+  $('recorridos').innerHTML = h
+}
+
+// ---------- Estado (lo que ve el admin) ----------
+
+function filaAsistente(a) {
+  const p = estado.personas.find((x) => x.id === a.personaId)
+  let insignias = ''
+  if (a.inferiores) insignias += ' <span class="insignia">Inferiores</span>'
+  if (a.pago) insignias += ' <span class="insignia ok">Pagó</span>'
+  if (a.comprobante && !a.comprobante.propio) {
+    insignias += ` <span class="insignia atencion">Comprobante desde ${a.comprobante.celular ? 'el ' + fmt(a.comprobante.celular) : 'un teléfono sin identificar'}</span>`
+  }
+  return `<li><span class="nombre">${esc(a.nombre)}</span>
+    <span class="detalle">${p.nombreReal ? esc(p.nombreReal) : 'sin nombre real'} · ${celularesDe(p)}</span>${insignias}
+    <button data-accion="quitar" data-asistente="${a.id}">Quitar</button></li>`
+}
+
+function cajaEvento(ev) {
+  const lista = estado.asistentes.filter((a) => a.eventoId === ev.id)
+  const otras = estado.personas.filter((p) => !lista.some((a) => a.personaId === p.id))
+  return `<div class="evento"><p><strong>${esc(ev.titulo)}</strong> <span class="detalle">· ${lista.length} ${lista.length === 1 ? 'asistente' : 'asistentes'}</span></p>
+    ${lista.length ? `<ul class="lista">${lista.map(filaAsistente).join('')}</ul>` : '<p class="ayuda">Nadie anotado todavía.</p>'}
+    <div class="fila-accion">
+      <select id="ag-sel-${ev.id}"><option value="">Persona nueva (sin celular)</option>${otras.map((p) => `<option value="${p.id}">${esc(etiquetaAdmin(p))}</option>`).join('')}</select>
+      <input type="text" id="ag-nom-${ev.id}" placeholder="Nombre con el que figura">
+      <button data-accion="agregar-admin" data-evento="${ev.id}">Agregar</button>
+    </div></div>`
+}
+
+const FILTROS = [
+  { id: 'todas', nombre: 'Todas', pasa: () => true },
+  { id: 'A', nombre: 'Plantel A', pasa: (p) => p.plantel === 'A' },
+  { id: 'B', nombre: 'Plantel B', pasa: (p) => p.plantel === 'B' },
+  { id: 'externos', nombre: 'Externos', pasa: (p) => !p.plantel },
+  { id: 'sin', nombre: 'Sin nombre real', pasa: (p) => !p.nombreReal },
+]
+
+function tarjetaPersona(p) {
+  const nombres = M.nombresUsados(estado, p.id)
+  const nEventos = estado.asistentes.filter((a) => a.personaId === p.id).length
+  const comparten = estado.personas.filter((o) => o.id !== p.id && o.celulares.some((c) => p.celulares.includes(c)))
+  const titulo = p.nombreReal ? esc(p.nombreReal) : `«${esc(M.ultimoNombre(estado, p.id))}»`
+  let h = `<div class="persona ${ui.resaltar === p.id ? 'resaltada' : ''}">
+    <div class="cabecera"><strong>${titulo}</strong>
+      ${p.plantel ? `<span class="insignia plantel">Plantel ${p.plantel}</span>` : '<span class="insignia">Externo</span>'}
+      ${p.nombreReal ? '' : '<span class="insignia atencion">Sin nombre real</span>'}
+      ${comparten.length ? `<span class="insignia atencion">Comparte número con ${comparten.map((o) => esc(o.nombreReal || '«' + M.ultimoNombre(estado, o.id) + '»')).join(', ')}</span>` : ''}
+      <button data-accion="editar" data-persona="${p.id}">${ui.editando === p.id ? 'Cerrar' : 'Editar o fusionar'}</button></div>
+    <div class="detalle">Celular: ${celularesDe(p)}</div>
+    <div class="detalle">Figuró como: ${nombres.length ? nombres.map((n) => '«' + esc(n) + '»').join(', ') : 'todavía no se anotó a nada'} · ${nEventos} ${nEventos === 1 ? 'evento' : 'eventos'}</div>`
+  if (ui.editando === p.id) {
+    const otras = estado.personas.filter((o) => o.id !== p.id)
+    h += `<div class="fila-accion"><input type="text" id="nr-${p.id}" placeholder="Nombre real (Apellido, Nombre)" value="${esc(p.nombreReal || '')}"><button data-accion="nombre-real" data-persona="${p.id}">Guardar nombre</button></div>
+      <div class="fila-accion"><select data-cambio="plantel" data-persona="${p.id}">
+        <option value="" ${!p.plantel ? 'selected' : ''}>Externo (ningún plantel)</option>
+        <option value="A" ${p.plantel === 'A' ? 'selected' : ''}>Plantel A</option>
+        <option value="B" ${p.plantel === 'B' ? 'selected' : ''}>Plantel B</option></select></div>
+      <div class="fila-accion"><select id="fu-${p.id}"><option value="">Es la misma persona que…</option>${otras.map((o) => `<option value="${o.id}">${esc(etiquetaAdmin(o))}</option>`).join('')}</select>
+        <button data-accion="fusionar" data-persona="${p.id}">Fusionar</button></div>`
+  }
+  return h + '</div>'
+}
+
+function renderEstado() {
+  const filtro = FILTROS.find((f) => f.id === ui.filtro)
+  const visibles = estado.personas.filter(filtro.pasa).sort((a, b) => {
+    if (!a.nombreReal !== !b.nombreReal) return a.nombreReal ? 1 : -1
+    return (a.nombreReal || '').localeCompare(b.nombreReal || '', 'es')
+  })
+  $('estado').innerHTML = `<h2>Lo que ve el admin</h2>
+    <p class="ayuda">Se actualiza después de cada acción. El celular y el nombre real no son públicos: en las listas públicas solo aparece el nombre con el que cada uno se anotó.</p>
+    <h3>Personas</h3>
+    <div class="selector">${FILTROS.map((f) => `<button data-accion="filtro" data-id="${f.id}" class="${f.id === ui.filtro ? 'activo' : ''}">${f.nombre} (${estado.personas.filter(f.pasa).length})</button>`).join('')}</div>
+    ${visibles.length ? visibles.map(tarjetaPersona).join('') : '<p class="ayuda">Ninguna Persona en este filtro.</p>'}
+    <h3>Eventos</h3>
+    ${estado.eventos.map(cajaEvento).join('')}
+    <h3>Lo que recuerda cada teléfono</h3>
+    <ul class="lista">${TELEFONOS.map((t) => `<li><span class="nombre">${t.nombre}</span> <span class="detalle">${estado.telefonos[t.id] ? fmt(estado.telefonos[t.id].celular) : 'nada'}</span></li>`).join('')}</ul>`
+}
+
+function renderAviso() {
+  const m = ui.mensaje
+  $('aviso').innerHTML = `<div class="aviso ${m && m.tono !== 'info' ? m.tono : ''}"><strong>Qué acaba de pasar:</strong> ${m ? esc(m.mensaje) : 'nada todavía. Anotate a un evento o empezá un recorrido guiado.'}</div>`
+}
+
+function render() { renderAviso(); renderTelefono(); renderRecorridos(); renderEstado() }
+
+// ---------- Clics ----------
+
+function leerFormulario() {
+  return {
+    nombre: $('f-nombre') ? $('f-nombre').value : '',
+    celularTexto: $('f-celular') ? $('f-celular').value : '',
+    inferiores: $('f-inferiores') ? $('f-inferiores').checked : false,
+  }
+}
+
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-accion]')
+  if (!el || el.disabled) return
+  const d = el.dataset
+  const mem = estado.telefonos[ui.telefono]
+  const base = { eventoId: ui.evento, telefonoId: ui.telefono }
+  switch (d.accion) {
+    case 'telefono': ui.telefono = d.id; ui.quien = null; limpiarSubestado(); render(); break
+    case 'evento': ui.evento = d.id; limpiarSubestado(); render(); break
+    case 'olvidar': ui.quien = null; aplicar(M.olvidarTelefono(estado, ui.telefono)); break
+    case 'anotar': { const b = leerFormulario(); aplicar(M.anotar(estado, { ...base, ...b }), b); break }
+    case 'elegir-persona': aplicar(M.anotar(estado, { ...base, ...ui.eleccion, personaId: d.persona }), ui.eleccion); break
+    case 'elegir-nueva': aplicar(M.anotar(estado, { ...base, ...ui.eleccion, personaId: 'nueva' }), ui.eleccion); break
+    case 'anotar-reconocido': { const b = leerFormulario(); aplicar(M.anotar(estado, { ...base, ...b, celularTexto: mem.celular, personaId: d.persona }), b); break }
+    case 'anotar-otra': { const b = leerFormulario(); aplicar(M.anotar(estado, { ...base, ...b, celularTexto: mem.celular, personaId: 'nueva' }), b); break }
+    case 'comprobante': aplicar(M.subirComprobante(estado, { asistenteId: d.asistente, telefonoId: ui.telefono })); break
+    case 'comprobante-3t': {
+      const id = $('sel-3t').value
+      if (!id) { ui.mensaje = { tono: 'error', mensaje: 'Elegí tu nombre de la lista.' }; render(); break }
+      aplicar(M.subirComprobante(estado, { asistenteId: id, telefonoId: ui.telefono })); break
+    }
+    case 'quien': ui.quien = d.persona; render(); break
+    case 'cambiar-quien': ui.quien = null; render(); break
+    case 'otra': ui.otra = true; ui.borrador = null; render(); break
+    case 'no-soy-yo': ui.manual = true; ui.borrador = null; render(); break
+    case 'cancelar': limpiarSubestado(); render(); break
+    case 'quitar': aplicar(M.quitarAsistente(estado, d.asistente)); break
+    case 'agregar-admin': aplicar(M.agregarPorAdmin(estado, { eventoId: d.evento, personaId: $('ag-sel-' + d.evento).value || null, nombre: $('ag-nom-' + d.evento).value })); break
+    case 'editar': ui.editando = ui.editando === d.persona ? null : d.persona; render(); break
+    case 'nombre-real': aplicar(M.editarPersona(estado, d.persona, { nombreReal: $('nr-' + d.persona).value })); break
+    case 'fusionar': ui.editando = null; aplicar(M.fusionar(estado, d.persona, $('fu-' + d.persona).value)); break
+    case 'filtro': ui.filtro = d.id; render(); break
+    case 'recorrido':
+      estado = M.estadoInicial(); ui.recorrido = d.id; ui.paso = 0; ui.quien = null; ui.editando = null; ui.filtro = 'todas'
+      ui.telefono = 'tel1'; ui.evento = 'asado1'; limpiarSubestado()
+      ui.mensaje = { tono: 'info', mensaje: 'el recorrido arrancó de cero. Tocá el paso 1.' }; ui.resaltar = null
+      render(); break
+    case 'paso': {
+      const r = RECORRIDOS.find((x) => x.id === ui.recorrido)
+      const p = r.pasos[ui.paso]
+      ui.telefono = p.telefono; ui.evento = p.evento; ui.paso++
+      aplicar(p.correr(estado), p.borrador)
+      break
+    }
+    case 'reiniciar':
+      estado = M.estadoInicial(); ui.recorrido = null; ui.paso = 0; ui.quien = null; ui.editando = null; ui.filtro = 'todas'
+      ui.telefono = 'tel1'; ui.evento = 'asado1'; limpiarSubestado(); ui.mensaje = null; ui.resaltar = null
+      render(); break
+  }
+})
+
+document.addEventListener('change', (e) => {
+  const el = e.target.closest('[data-cambio="plantel"]')
+  if (el) aplicar(M.editarPersona(estado, el.dataset.persona, { plantel: el.value }))
+})
+
+// Enter en un campo del teléfono = tocar el botón principal
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' || !e.target.closest('.pantalla input[type=text]')) return
+  const boton = document.querySelector('.pantalla button.principal')
+  if (boton) boton.click()
+})
+
+render()
+</script>
+</body>
+</html>
