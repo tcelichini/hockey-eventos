@@ -4,6 +4,9 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
 import { ChevronRightIcon, ReceiptIcon, WalletIcon } from "lucide-react"
+import { normalizeName } from "@/lib/settlement"
+import { personKey } from "@/lib/cuenta-corriente"
+import { getDevicePhone } from "@/lib/device-phone"
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 0 }).format(value)
@@ -23,6 +26,8 @@ type EventDetail = {
   title: string
   date: string | null
   slug: string
+  /** Nombre con el que figura en ese evento. */
+  name: string
   net: number
   owed: number
   expPaid: number
@@ -31,40 +36,72 @@ type EventDetail = {
 }
 
 type Account = {
-  displayName: string
+  key: string
+  displayName: string | null
   total: number
   events: EventDetail[]
 }
+
+type AccountOption = { key: string; name: string }
 
 // Estado de cuenta: el evento más viejo primero
 function byDate(a: EventDetail, b: EventDetail) {
   return (a.date ?? "").localeCompare(b.date ?? "")
 }
 
-export default function MiCuentaPage({ searchParams }: { searchParams: { nombre?: string } }) {
-  const [names, setNames] = useState<string[]>([])
-  // ?nombre= llega al volver de subir un comprobante: la cuenta de esa persona se abre sola
-  const [selected, setSelected] = useState(typeof searchParams.nombre === "string" ? searchParams.nombre : "")
+export default function MiCuentaPage({ searchParams }: { searchParams: { cuenta?: string; nombre?: string } }) {
+  const [accounts, setAccounts] = useState<AccountOption[]>([])
+  // ?cuenta= llega al volver de subir un comprobante: esa cuenta se abre sola. ?nombre= son los links viejos, por nombre.
+  const initialName = typeof searchParams.nombre === "string" ? searchParams.nombre : null
+  const [selected, setSelected] = useState(
+    typeof searchParams.cuenta === "string" ? searchParams.cuenta : initialName ? normalizeName(initialName) : ""
+  )
   const [account, setAccount] = useState<Account | null>(null)
   const [loading, setLoading] = useState(false)
+  // Nombre de la Persona que este teléfono recuerda, por si su cuenta no tiene saldo y no está en la lista
+  const [knownName, setKnownName] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch("/api/cuenta")
-      .then((res) => res.json())
-      .then((data) => setNames(data.names || []))
-      .catch(() => setNames([]))
+    let stale = false
+    async function load() {
+      const data = await fetch("/api/cuenta").then((res) => res.json()).catch(() => null)
+      if (stale) return
+      const list: AccountOption[] = data?.accounts || []
+      setAccounts(list)
+
+      // Si este teléfono recuerda un celular (eventos que piden celular), su cuenta viene elegida
+      const phone = getDevicePhone()
+      if (!phone) return
+      const found = await fetch("/api/people/lookup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone }),
+      }).then((res) => (res.ok ? res.json() : null)).catch(() => null)
+      if (stale || !found) return
+      const known: { id: string; name: string }[] = found.people
+      const withBalance = known.filter((p) => list.some((o) => o.key === personKey(p.id)))
+      // Una sola Persona con saldo, o una sola Persona a secas (verá "Estás al día")
+      const me = withBalance.length === 1 ? withBalance[0] : known.length === 1 ? known[0] : null
+      if (!me) return
+      setKnownName(me.name)
+      setSelected((current) => current || personKey(me.id))
+    }
+    load()
+    return () => { stale = true }
   }, [])
 
   useEffect(() => {
     setAccount(null)
+    // La cuenta elegida queda en la URL: al volver de un evento (botón "Volver" o el atrás del celu) sigue elegida
+    window.history.replaceState(null, "", selected ? `?cuenta=${encodeURIComponent(selected)}` : window.location.pathname)
     if (!selected) {
       setLoading(false)
       return
     }
-    // Si cambian de nombre antes de que llegue la respuesta, la vieja se descarta
+    // Si cambian de cuenta antes de que llegue la respuesta, la vieja se descarta
     let stale = false
     setLoading(true)
-    fetch(`/api/cuenta?name=${encodeURIComponent(selected)}`)
+    fetch(`/api/cuenta?key=${encodeURIComponent(selected)}`)
       .then((res) => res.json())
       .then((data) => { if (!stale) setAccount(data) })
       .catch(() => { if (!stale) setAccount(null) })
@@ -72,16 +109,10 @@ export default function MiCuentaPage({ searchParams }: { searchParams: { nombre?
     return () => { stale = true }
   }, [selected])
 
-  function handleSelect(name: string) {
-    setSelected(name)
-    // El nombre queda en la URL: al volver de un evento (botón "Volver" o el atrás del celu) sigue elegido
-    window.history.replaceState(null, "", name ? `?nombre=${encodeURIComponent(name)}` : window.location.pathname)
-  }
-
-  // Quien ya saldó todo sale de la lista de nombres con saldo: que siga elegido igual
-  const options = selected && !names.includes(selected)
-    ? [...names, selected].sort((a, b) => a.localeCompare(b, "es"))
-    : names
+  // Quien ya saldó todo sale de la lista de cuentas con saldo: que siga elegido igual
+  const options = selected && !accounts.some((o) => o.key === selected)
+    ? [...accounts, { key: selected, name: account?.displayName ?? initialName ?? knownName ?? "Mi cuenta" }].sort((a, b) => a.name.localeCompare(b.name, "es"))
+    : accounts
   const owedEvents = account ? account.events.filter((d) => d.net > 0).sort(byDate) : []
   const creditEvents = account ? account.events.filter((d) => d.net < 0).sort(byDate) : []
 
@@ -98,12 +129,12 @@ export default function MiCuentaPage({ searchParams }: { searchParams: { nombre?
 
         <select
           value={selected}
-          onChange={(e) => handleSelect(e.target.value)}
+          onChange={(e) => setSelected(e.target.value)}
           className="w-full h-11 px-3 rounded-lg border border-gray-300 bg-white text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="">Elegí tu nombre...</option>
-          {options.map((name) => (
-            <option key={name} value={name}>{name}</option>
+          {options.map((o) => (
+            <option key={o.key} value={o.key}>{o.name}</option>
           ))}
         </select>
 
@@ -132,14 +163,14 @@ export default function MiCuentaPage({ searchParams }: { searchParams: { nombre?
               </CardContent>
             </Card>
 
-            {/* Eventos que debe: cada uno lleva a subir el comprobante, con el nombre ya elegido */}
+            {/* Eventos que debe: cada uno lleva a subir el comprobante, con el nombre de ese evento ya elegido */}
             {owedEvents.length > 0 && (
               <div className="space-y-2">
                 <p className="text-xs text-gray-500 text-center">Tocá un evento para subir el comprobante de pago</p>
                 {owedEvents.map((detail, i) => (
                   <Link
                     key={i}
-                    href={`/e/${detail.slug}/confirm?upload=1&from=mi-cuenta&nombre=${encodeURIComponent(account.displayName)}`}
+                    href={`/e/${detail.slug}/confirm?upload=1&from=mi-cuenta&nombre=${encodeURIComponent(detail.name)}&cuenta=${encodeURIComponent(account.key)}`}
                     className="block bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden hover:border-blue-300 active:bg-gray-50 transition-colors"
                   >
                     <div className="px-4 py-3 space-y-0.5">

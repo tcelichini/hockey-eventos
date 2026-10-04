@@ -566,3 +566,14 @@ Registro de todas las sesiones de trabajo. Cada entrada documenta cambios concre
   - La primera importación tardó 64 s (una consulta por fila contra la base remota): se cambió a un INSERT para todas las Personas y otro para todos los celulares.
   - Los tests usan nombres y celulares inventados: los reales no van al repo.
   - Archivos: `db/schema.ts`, `lib/people.ts`, `lib/people.test.ts`, `lib/people-db.ts`, `lib/attendee-registration.ts`, `lib/combo-events.ts`, `lib/device-phone.ts`, `lib/auth.ts`, `app/api/attendees/route.ts`, `app/api/people/` (5 rutas), `app/api/events/route.ts`, `app/api/events/[id]/route.ts`, `app/api/events/[id]/attendees/route.ts`, `app/api/events/by-slug/[slug]/route.ts`, `app/api/upload-proof/route.ts`, `app/api/combos/route.ts`, `app/api/combos/[id]/route.ts`, `app/e/[slug]/confirm/page.tsx`, `app/e/[slug]/decline/page.tsx` (borrado), `app/admin/(protected)/personas/page.tsx`, `app/admin/(protected)/events/new/page.tsx`, `app/admin/(protected)/events/[id]/page.tsx`, `app/admin/(protected)/page.tsx`, `components/phone-registration.tsx`, `components/people-manager.tsx`, `components/add-person-attendee-button.tsx`, `components/payment-proof-upload.tsx`, `components/sortable-attendee-list.tsx`, `docs/ARQUITECTURA.md`
+
+## Sesión 51 (2026-10-04)
+
+- **Cuenta corriente por Persona** (segunda parte de Personas)
+  - Probando en producción, la misma Persona anotada como "Santi" en un evento y "Santi Fernandez" en otro figuraba como dos cuentas. Ahora `consolidateAccounts` junta por Persona cuando el asistente tiene una (`personKey`), y sigue por `normalizeName` para el historial, los eventos que no piden celular y quien adelantó gastos sin ser asistente. Los montos por evento no cambian: solo cómo se agrupan.
+  - `SettlementAttendee` suma `person_id` opcional; `settleEvent` no lo usa.
+  - Admin (`/admin/cuentas` y el recordatorio de WhatsApp): la Persona figura con su nombre real si lo tiene cargado, con "figura como «…»" debajo. `/mi-cuenta` (pública): con el último nombre con el que figuró; nunca el nombre real.
+  - `/api/cuenta` devuelve `accounts: [{ key, name }]` y busca por `?key=` (`?name=` queda para links viejos). `/mi-cuenta` elige sola la cuenta si el teléfono recuerda el celular, cada evento lleva a subir el comprobante con el nombre de ESE evento, y "Volver a mi cuenta" regresa con `?cuenta=<key>`.
+  - En incógnito el teléfono no recuerda el celular (el navegador borra todo): la persona lo escribe de nuevo y la app la reconoce por el número. Es lo esperado.
+  - 5 tests nuevos (74 en total).
+  - Archivos: `lib/cuenta-corriente.ts`, `lib/cuenta-corriente.test.ts`, `lib/cuenta-corriente-query.ts`, `lib/settlement.ts`, `app/api/cuenta/route.ts`, `app/mi-cuenta/page.tsx`, `app/admin/(protected)/cuentas/page.tsx`, `app/e/[slug]/confirm/page.tsx`, `CONTEXT.md`, `docs/ARQUITECTURA.md`, `docs/PENDIENTES.md`

@@ -63,6 +63,68 @@ describe("consolidateAccounts", () => {
     expect(accounts[0].displayName).toBe("José García")
   })
 
+  it("junta a la misma Persona aunque se anote con nombres distintos", () => {
+    const accounts = consolidateAccounts([
+      {
+        event: makeAccountEvent({ date: new Date("2026-10-10") }),
+        settlement: settle([makeAttendee({ full_name: "Santi", person_id: "p-santi" })]),
+      },
+      {
+        event: makeAccountEvent({ date: new Date("2026-10-24") }),
+        settlement: settle([makeAttendee({ full_name: "Santi Fernandez", person_id: "p-santi" })]),
+      },
+    ])
+    expect(accounts).toHaveLength(1)
+    expect(accounts[0]).toMatchObject({ key: "persona:p-santi", personId: "p-santi", total: 20000 })
+    expect(accounts[0].events.map((d) => d.name)).toEqual(["Santi", "Santi Fernandez"])
+  })
+
+  it("a una Persona se la muestra con el nombre de su evento más reciente", () => {
+    const accounts = consolidateAccounts([
+      {
+        event: makeAccountEvent({ date: new Date("2026-10-24") }),
+        settlement: settle([makeAttendee({ full_name: "Santi Fernandez", person_id: "p-santi" })]),
+      },
+      {
+        event: makeAccountEvent({ date: new Date("2026-10-10") }),
+        settlement: settle([makeAttendee({ full_name: "Santi", person_id: "p-santi" })]),
+      },
+    ])
+    expect(accounts[0].displayName).toBe("Santi Fernandez")
+  })
+
+  it("dos Personas distintas con el mismo nombre no se mezclan", () => {
+    const accounts = consolidateAccounts([
+      { event: makeAccountEvent(), settlement: settle([makeAttendee({ full_name: "Juan", person_id: "p-1" })]) },
+      { event: makeAccountEvent(), settlement: settle([makeAttendee({ full_name: "Juan", person_id: "p-2" })]) },
+    ])
+    expect(accounts).toHaveLength(2)
+  })
+
+  it("un anotado sin Persona (historial) no se junta con la Persona del mismo nombre", () => {
+    const accounts = consolidateAccounts([
+      { event: makeAccountEvent(), settlement: settle([makeAttendee({ full_name: "Guillote" })]) },
+      { event: makeAccountEvent(), settlement: settle([makeAttendee({ full_name: "Guillote", person_id: "p-g" })]) },
+    ])
+    expect(accounts.map((a) => a.personId).sort()).toEqual(["p-g", null].sort())
+    expect(accounts.every((a) => a.total === 10000)).toBe(true)
+  })
+
+  it("la Persona netea lo que debe con lo que le deben, aunque cambie de nombre", () => {
+    const accounts = consolidateAccounts([
+      { event: makeAccountEvent(), settlement: settle([makeAttendee({ full_name: "Ana", person_id: "p-ana" })]) },
+      {
+        event: makeAccountEvent(),
+        settlement: settle(
+          [makeAttendee({ full_name: "Anita", person_id: "p-ana", payment_status: "paid", payment_proof_url: "https://p" })],
+          [makeExpense({ responsible: "Anita", amount: "4000" })],
+        ),
+      },
+    ])
+    expect(accounts).toHaveLength(1)
+    expect(accounts[0].total).toBe(6000)
+  })
+
   it("netea deudor en un evento con acreedor en otro", () => {
     const accounts = consolidateAccounts([
       // Debe 10000 (pending, sin gastos)

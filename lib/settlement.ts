@@ -49,6 +49,8 @@ export type SettlementAttendee = {
   proof_uploaded_at?: Date | string | null
   price_paid: string | null
   is_inferiores: boolean
+  /** Persona del asistente, si tiene. La liquidación no la usa: la cuenta corriente consolida por ella. */
+  person_id?: string | null
 }
 
 export type SettlementExpense = {

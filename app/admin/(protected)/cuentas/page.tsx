@@ -20,8 +20,13 @@ function formatDate(date: Date | null) {
 }
 
 export default async function CuentasPage() {
-  const { accounts } = await getCuentasCorrientes()
+  const { accounts, realNameByPerson } = await getCuentasCorrientes()
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").trim()
+
+  // En admin, una Persona se muestra con su nombre real si lo tiene cargado; si no, con el último nombre que usó
+  const shownNames = new Map(
+    accounts.map((a) => [a.key, (a.personId && realNameByPerson.get(a.personId)) || a.displayName])
+  )
 
   const debtors = accounts.filter((a) => a.total > 0)
   const creditors = accounts.filter((a) => a.total < 0)
@@ -71,16 +76,16 @@ export default async function CuentasPage() {
           </div>
 
           {debtors.length > 0 && (
-            <AccountSection title={`Deben pagar (${debtors.length})`} accounts={debtors}>
+            <AccountSection title={`Deben pagar (${debtors.length})`} accounts={debtors} shownNames={shownNames}>
               {/* Link a /mi-cuenta: cada uno ve todos los eventos que debe (el recordatorio del evento manda a ese evento) */}
               <WhatsAppCuentasButton
-                debtors={debtors.map((a) => ({ name: a.displayName, amount: a.total }))}
+                debtors={debtors.map((a) => ({ name: shownNames.get(a.key) ?? a.displayName, amount: a.total }))}
                 publicLink={`${appUrl}/mi-cuenta`}
               />
             </AccountSection>
           )}
           {creditors.length > 0 && (
-            <AccountSection title={`Se les debe devolver (${creditors.length})`} accounts={creditors} />
+            <AccountSection title={`Se les debe devolver (${creditors.length})`} accounts={creditors} shownNames={shownNames} />
           )}
         </>
       )}
@@ -91,22 +96,34 @@ export default async function CuentasPage() {
 function AccountSection({
   title,
   accounts,
+  shownNames,
   children,
 }: {
   title: string
   accounts: PersonAccount[]
+  /** Nombre con el que se muestra cada cuenta, por clave. */
+  shownNames: Map<string, string>
   children?: React.ReactNode
 }) {
   return (
     <div className="space-y-2">
       <p className="text-xs text-gray-400 uppercase tracking-wide">{title}</p>
       <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
-        {accounts.map((account) => (
+        {accounts.map((account) => {
+          const shownName = shownNames.get(account.key) ?? account.displayName
+          // Una Persona puede figurar con un nombre distinto en cada evento
+          const aliases = Array.from(new Set(account.events.map((d) => d.name))).filter((n) => n !== shownName)
+          return (
           <details key={account.key} className="group">
             <summary className="px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-3 cursor-pointer list-none">
               <div className="flex items-center gap-2 min-w-0">
                 <ChevronDownIcon className="w-4 h-4 text-gray-300 shrink-0 transition-transform group-open:rotate-180" />
-                <span className="text-sm text-gray-700">{account.displayName}</span>
+                <div className="min-w-0">
+                  <span className="text-sm text-gray-700">{shownName}</span>
+                  {account.personId && aliases.length > 0 && (
+                    <p className="text-xs text-gray-400">figura como {aliases.map((n) => `«${n}»`).join(", ")}</p>
+                  )}
+                </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <span className={`text-sm font-medium ${account.total > 0 ? "text-orange-500" : "text-green-600"}`}>
@@ -144,7 +161,8 @@ function AccountSection({
               ))}
             </div>
           </details>
-        ))}
+          )
+        })}
       </div>
       {children}
     </div>

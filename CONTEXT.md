@@ -51,7 +51,7 @@ El cálculo de plata de un evento: quién debe, a quién se le debe, y los total
 
 ## Cuenta corriente
 
-Saldo consolidado de una persona across eventos: suma de sus `net` por evento (deudas de eventos impagos − gastos adelantados). **Solo entra lo que falta mover de plata**: eventos ya pagados y gastos ya devueltos (`settled`) no suman. Vive en `lib/cuenta-corriente.ts` (`consolidateAccounts`, función pura sobre los outputs de `settleEvent`). La consolidación de personas usa `normalizeName` — dos escrituras del mismo nombre con/sin tildes son la misma persona, pero apodos o formatos distintos ("Guillote Campana" vs "Campana, Guillermo") NO se unifican.
+Saldo consolidado de una persona across eventos: suma de sus `net` por evento (deudas de eventos impagos − gastos adelantados). **Solo entra lo que falta mover de plata**: eventos ya pagados y gastos ya devueltos (`settled`) no suman. Vive en `lib/cuenta-corriente.ts` (`consolidateAccounts`, función pura sobre los outputs de `settleEvent`). Se consolida **por Persona** cuando el asistente tiene una: aunque figure con un nombre distinto en cada evento, es una sola cuenta. Sin Persona (historial, eventos que no piden celular, quien adelantó gastos sin ser asistente) se consolida por `normalizeName` — dos escrituras del mismo nombre con/sin tildes son la misma persona, pero apodos o formatos distintos ("Guillote Campana" vs "Campana, Guillermo") NO se unifican. Una cuenta por Persona y una por nombre nunca se juntan entre sí. En admin la cuenta de una Persona se muestra con su nombre real; en `/mi-cuenta`, que es pública, con el último nombre con el que figuró.
 
 ## Combos
 

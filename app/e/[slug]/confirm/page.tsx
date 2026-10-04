@@ -78,10 +78,16 @@ export default function ConfirmPage() {
   const isUploadMode = searchParams.get("upload") === "1"
   // Desde /mi-cuenta (?from=mi-cuenta&nombre=): el nombre viene elegido y "Volver" regresa a su cuenta
   const prefillName = searchParams.get("nombre")
+  // ?cuenta= es la cuenta que tenía abierta (una Persona puede figurar con otro nombre en cada evento)
+  const accountKey = searchParams.get("cuenta")
   const accountHref =
-    searchParams.get("from") === "mi-cuenta" && prefillName
-      ? `/mi-cuenta?nombre=${encodeURIComponent(prefillName)}`
-      : null
+    searchParams.get("from") !== "mi-cuenta"
+      ? null
+      : accountKey
+        ? `/mi-cuenta?cuenta=${encodeURIComponent(accountKey)}`
+        : prefillName
+          ? `/mi-cuenta?nombre=${encodeURIComponent(prefillName)}`
+          : null
 
   const [event, setEvent] = useState<EventData | null>(null)
   const [step, setStep] = useState<"form" | "payment">("form")

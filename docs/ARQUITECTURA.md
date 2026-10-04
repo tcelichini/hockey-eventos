@@ -10,11 +10,11 @@ Mapa de archivos clave y lógica de negocio del proyecto.
 | `lib/settlement.ts` | **Módulo de Liquidación** (puro, con tests): `settleEvent`, `getOwedPrice`, `normalizeName`. Ver CONTEXT.md |
 | `lib/settlement.test.ts` | Tests de la liquidación (`npm run test`, Vitest) |
 | `lib/combo-payment.ts` | `classifyComboPayment`: detección de "pagó vía combo" (badge, display) |
-| `lib/cuenta-corriente.ts` | `consolidateAccounts` (puro, con tests): saldo por persona across eventos. Ver CONTEXT.md |
+| `lib/cuenta-corriente.ts` | `consolidateAccounts` (puro, con tests): saldo across eventos, por Persona si el asistente tiene una (`personKey`) y por nombre si no. Ver CONTEXT.md |
 | `lib/cuenta-corriente-query.ts` | Fetch + settleEvent por evento + consolidación (compartido por admin y API pública) |
 | `app/admin/(protected)/cuentas/page.tsx` | Página admin de cuenta corriente (deudores/acreedores consolidados + recordatorio WhatsApp con link a `/mi-cuenta`) |
 | `app/mi-cuenta/page.tsx` | Consulta pública: el jugador elige su nombre (o llega con `?nombre=`) y ve solo su saldo; cada evento que debe es una card que lleva a subir el comprobante de ese evento |
-| `app/api/cuenta/route.ts` | API pública de cuenta corriente (nombres / saldo por persona) |
+| `app/api/cuenta/route.ts` | API pública de cuenta corriente: lista de cuentas (`key` + nombre) y saldo de una cuenta (`?key=`; `?name=` para links viejos) |
 | `lib/people.ts` | **Módulo de Personas** (puro, con tests): `normalizePhone`, `decideRegistration`, `proofOrigin`, `mergeConflicts`, `parseImportList`, `planImport`. Ver CONTEXT.md y la sección "Personas" más abajo |
 | `lib/people-db.ts` | Lecturas de Personas: `findPeopleByPhone`, `getPeopleDirectory` (admin) |
 | `lib/attendee-registration.ts` | Piezas compartidas al anotar (por nombre, por celular, desde admin): precio de un anotado nuevo y datos de pago |
@@ -120,7 +120,7 @@ El plantel se precarga desde `people` (por `team`), no desde `lib/players.ts`, y
 - **Los celulares y `real_name` nunca salen en respuestas públicas.** `publicAttendee()` quita `proof_uploaded_from`; `lookup` solo devuelve el nombre con el que cada Persona figuró.
 - **Fusionar no borra anotaciones.** Si las dos Personas están anotadas en un mismo evento, `merge` devuelve 409 y el admin quita una a mano (cada anotación puede tener pago y gastos).
 - **Un evento con el interruptor no puede ir en un combo** (`lib/combo-events.ts`): los combos anotan por nombre.
-- **Pendiente (segunda parte):** la cuenta corriente y `/mi-cuenta` todavía consolidan por nombre también para estos eventos. Falta juntar por Persona (ver `docs/PENDIENTES.md`).
+- **La cuenta corriente junta por Persona** (sesión 51): `consolidateAccounts` usa `personKey(person_id)` cuando el asistente tiene Persona, así que quien figura como "Santi" en un evento y "Santi Fernandez" en otro es una sola cuenta. Cada detalle guarda el nombre de ese evento (`name`), que es el que se usa para subir el comprobante. `/mi-cuenta` elige sola la cuenta si el teléfono recuerda el celular, y vuelve con `?cuenta=<key>`.
 
 ---
 
