@@ -120,7 +120,7 @@ El plantel se precarga desde `people` (por `team`), no desde `lib/players.ts`, y
 - **Los celulares y `real_name` nunca salen en respuestas públicas.** `publicAttendee()` quita `proof_uploaded_from`; `lookup` solo devuelve el nombre con el que cada Persona figuró.
 - **Fusionar no borra anotaciones.** Si las dos Personas están anotadas en un mismo evento, `merge` devuelve 409 y el admin quita una a mano (cada anotación puede tener pago y gastos).
 - **Un evento con el interruptor no puede ir en un combo** (`lib/combo-events.ts`): los combos anotan por nombre.
-- **La cuenta corriente junta por Persona** (sesión 51): `consolidateAccounts` usa `personKey(person_id)` cuando el asistente tiene Persona, así que quien figura como "Santi" en un evento y "Santi Fernandez" en otro es una sola cuenta. Cada detalle guarda el nombre de ese evento (`name`), que es el que se usa para subir el comprobante. `/mi-cuenta` elige sola la cuenta si el teléfono recuerda el celular, y vuelve con `?cuenta=<key>`.
+- **La cuenta corriente junta por Persona** (sesión 51): `consolidateAccounts` usa `personKey(person_id)` cuando el asistente tiene Persona, así que quien figura como "Santi" en un evento y "Santi Fernandez" en otro es una sola cuenta. Un anotado sin Persona (3T sin celular, historial) o un acreedor no asistente se suma a la Persona cuyo `real_name` coincide con su nombre (solo si ese nombre real no se repite). Cada detalle guarda el nombre de ese evento (`name`), que es el que se usa para subir el comprobante. `/mi-cuenta` elige sola la cuenta si el teléfono recuerda el celular, y vuelve con `?cuenta=<key>`.
 
 ---
 

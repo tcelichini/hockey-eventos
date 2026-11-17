@@ -110,6 +110,61 @@ describe("consolidateAccounts", () => {
     expect(accounts.every((a) => a.total === 10000)).toBe(true)
   })
 
+  it("un anotado sin Persona se junta con la Persona cuyo nombre real coincide", () => {
+    // 3T sin celular (precarga "Apellido, Nombre") + evento con celular donde se anotó con apodo
+    const accounts = consolidateAccounts(
+      [
+        {
+          event: makeAccountEvent({ date: new Date("2026-10-10") }),
+          settlement: settle([makeAttendee({ full_name: "Perez, Juan" })]),
+        },
+        {
+          event: makeAccountEvent({ date: new Date("2026-11-13") }),
+          settlement: settle([makeAttendee({ full_name: "Juancho", person_id: "p-juan" })]),
+        },
+      ],
+      [{ id: "p-juan", real_name: "Pérez, Juan" }],
+    )
+    expect(accounts).toHaveLength(1)
+    expect(accounts[0]).toMatchObject({ key: "persona:p-juan", personId: "p-juan", total: 20000 })
+    expect(accounts[0].events.map((d) => d.name)).toEqual(["Perez, Juan", "Juancho"])
+  })
+
+  it("un nombre sin Persona que coincide con un nombre real queda en la cuenta de esa Persona aunque sea su único evento", () => {
+    const accounts = consolidateAccounts(
+      [{ event: makeAccountEvent(), settlement: settle([makeAttendee({ full_name: "Perez, Juan" })]) }],
+      [{ id: "p-juan", real_name: "Perez, Juan" }],
+    )
+    expect(accounts[0]).toMatchObject({ key: "persona:p-juan", displayName: "Perez, Juan" })
+  })
+
+  it("el acreedor no asistente también se junta por nombre real", () => {
+    const accounts = consolidateAccounts(
+      [
+        { event: makeAccountEvent(), settlement: settle([], [makeExpense({ responsible: "Perez, Juan", amount: "4000" })]) },
+        { event: makeAccountEvent(), settlement: settle([makeAttendee({ full_name: "Juancho", person_id: "p-juan" })]) },
+      ],
+      [{ id: "p-juan", real_name: "Perez, Juan" }],
+    )
+    expect(accounts).toHaveLength(1)
+    expect(accounts[0].total).toBe(6000)
+  })
+
+  it("si dos Personas comparten nombre real, el anotado sin Persona queda aparte", () => {
+    const accounts = consolidateAccounts(
+      [
+        { event: makeAccountEvent(), settlement: settle([makeAttendee({ full_name: "Perez, Juan" })]) },
+        { event: makeAccountEvent(), settlement: settle([makeAttendee({ full_name: "Juancho", person_id: "p-1" })]) },
+      ],
+      [
+        { id: "p-1", real_name: "Perez, Juan" },
+        { id: "p-2", real_name: "Pérez, Juan" },
+      ],
+    )
+    expect(accounts).toHaveLength(2)
+    expect(accounts.find((a) => a.personId === null)?.key).toBe("perez, juan")
+  })
+
   it("la Persona netea lo que debe con lo que le deben, aunque cambie de nombre", () => {
     const accounts = consolidateAccounts([
       { event: makeAccountEvent(), settlement: settle([makeAttendee({ full_name: "Ana", person_id: "p-ana" })]) },

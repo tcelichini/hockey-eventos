@@ -41,5 +41,5 @@ export async function getCuentasCorrientes(): Promise<{
     if (p.real_name) realNameByPerson.set(p.id, p.real_name)
   }
 
-  return { accounts: consolidateAccounts(items), paymentAccountByEvent, realNameByPerson }
+  return { accounts: consolidateAccounts(items, peopleRows), paymentAccountByEvent, realNameByPerson }
 }

@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { ArrowLeftIcon, ChevronDownIcon } from "lucide-react"
 import { getCuentasCorrientes } from "@/lib/cuenta-corriente-query"
 import type { PersonAccount } from "@/lib/cuenta-corriente"
+import { normalizeName } from "@/lib/settlement"
 import WhatsAppCuentasButton from "@/components/whatsapp-cuentas-button"
 
 function formatCurrency(value: number) {
@@ -112,7 +113,10 @@ function AccountSection({
         {accounts.map((account) => {
           const shownName = shownNames.get(account.key) ?? account.displayName
           // Una Persona puede figurar con un nombre distinto en cada evento
-          const aliases = Array.from(new Set(account.events.map((d) => d.name))).filter((n) => n !== shownName)
+          const seen = new Set([normalizeName(shownName)])
+          const aliases = account.events
+            .map((d) => d.name)
+            .filter((n) => !seen.has(normalizeName(n)) && seen.add(normalizeName(n)))
           return (
           <details key={account.key} className="group">
             <summary className="px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-3 cursor-pointer list-none">

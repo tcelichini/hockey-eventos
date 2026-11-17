@@ -577,3 +577,12 @@ Registro de todas las sesiones de trabajo. Cada entrada documenta cambios concre
   - En incógnito el teléfono no recuerda el celular (el navegador borra todo): la persona lo escribe de nuevo y la app la reconoce por el número. Es lo esperado.
   - 5 tests nuevos (74 en total).
   - Archivos: `lib/cuenta-corriente.ts`, `lib/cuenta-corriente.test.ts`, `lib/cuenta-corriente-query.ts`, `lib/settlement.ts`, `app/api/cuenta/route.ts`, `app/mi-cuenta/page.tsx`, `app/admin/(protected)/cuentas/page.tsx`, `app/e/[slug]/confirm/page.tsx`, `CONTEXT.md`, `docs/ARQUITECTURA.md`, `docs/PENDIENTES.md`
+
+## Sesión 52 (2026-11-17)
+
+- **Cuenta corriente: el 3T sin celular se junta con la Persona**
+  - En `/admin/cuentas` aparecían dos veces la misma persona (ej: "Cavalieri, Santino" por el 3T de Octubre y "Cavalieri, Santino — figura como «Tino»" por el Asado). Causa: el 3T de Octubre no pedía celular, así que precargó el plantel por nombre (`lib/players.ts`) sin `person_id`, y `consolidateAccounts` nunca juntaba una cuenta por nombre con una por Persona.
+  - Ahora `consolidateAccounts(items, people)` suma un nombre sin Persona a la Persona cuyo `real_name` coincide (`normalizeName`). Si dos Personas comparten nombre real, queda aparte. Aplica también a quien adelantó gastos sin ser asistente.
+  - Admin: "figura como" ya no repite el nombre real con otra tilde. `/api/cuenta?name=` (links viejos) busca también entre los eventos de las cuentas de Personas.
+  - No toca la base: es solo cómo se agrupan los saldos. 4 tests nuevos (78 en total).
+  - Archivos: `lib/cuenta-corriente.ts`, `lib/cuenta-corriente.test.ts`, `lib/cuenta-corriente-query.ts`, `app/admin/(protected)/cuentas/page.tsx`, `app/api/cuenta/route.ts`, `CONTEXT.md`, `docs/ARQUITECTURA.md`

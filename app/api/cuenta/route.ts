@@ -27,7 +27,11 @@ export async function GET(request: Request) {
     })
   }
 
-  const account = accounts.find((a) => a.key === (key ?? normalizeName(name!)))
+  // Por nombre: la cuenta puede ser de una Persona (si ese nombre es su nombre real), así que se busca entre sus eventos
+  const account = key
+    ? accounts.find((a) => a.key === key)
+    : accounts.find((a) => a.key === normalizeName(name!)) ??
+      accounts.find((a) => a.events.some((d) => normalizeName(d.name) === normalizeName(name!)))
   if (!account) {
     return NextResponse.json({ key: key ?? normalizeName(name!), displayName: name ?? null, total: 0, events: [] })
   }
