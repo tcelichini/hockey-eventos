@@ -42,25 +42,31 @@ const linkClass = "text-sm text-blue-600 underline underline-offset-2"
 const optionClass =
   "w-full text-left rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-800 hover:border-gray-300 active:bg-gray-50 transition-colors disabled:opacity-50"
 
+/** A qué se anota: un evento (POST /api/attendees) o un combo (POST /api/combo-attendees, una anotación por evento). */
+export type RegistrationTarget =
+  | { kind: "event"; id: string; inferiores_price: string | null; unpaidAttendeeNames: string[] }
+  | { kind: "combo"; id: string }
+
 /**
- * Anotarse a un evento que pide celular (ver "Personas" en CONTEXT.md): nombre libre + celular
+ * Anotarse a un evento (o combo) que pide celular (ver "Personas" en CONTEXT.md): nombre libre + celular
  * la primera vez; después el teléfono recuerda el número y solo se confirma el nombre.
  * Qué pasa con cada anotación lo decide el servidor (lib/people.ts); acá solo se pregunta y se muestra.
+ * onDone recibe la respuesta de la ruta correspondiente: AttendeeResponse para un evento.
  */
-export default function PhoneRegistration({
-  event,
-  isUploadMode,
-  prefillName,
+export default function PhoneRegistration<T = AttendeeResponse>({
+  target,
+  isUploadMode = false,
+  prefillName = null,
   startWithOther = false,
   onDone,
 }: {
-  event: { id: string; inferiores_price: string | null; unpaidAttendeeNames: string[] }
-  isUploadMode: boolean
+  target: RegistrationTarget
+  isUploadMode?: boolean
   /** Nombre que llega en la URL (desde /mi-cuenta o un recordatorio). */
-  prefillName: string | null
+  prefillName?: string | null
   /** Volvió desde los datos de pago para anotar a otra persona. */
   startWithOther?: boolean
-  onDone: (data: AttendeeResponse) => void
+  onDone: (data: T) => void
 }) {
   const [view, setView] = useState<View>("loading")
   const [phone, setPhone] = useState("")
@@ -75,14 +81,16 @@ export default function PhoneRegistration({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
-  const unpaidNames = event.unpaidAttendeeNames || []
+  const unpaidNames = target.kind === "event" ? target.unpaidAttendeeNames : []
+  const inferioresPrice = target.kind === "event" ? target.inferiores_price : null
+  const targetField = target.kind === "event" ? { event_id: target.id } : { combo_id: target.id }
   const firstView: View = isUploadMode ? "phone" : "form"
 
   async function lookup(phoneText: string): Promise<{ phone: string; people: LookupPerson[] } | null> {
     const res = await fetch("/api/people/lookup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ event_id: event.id, phone: phoneText }),
+      body: JSON.stringify({ ...targetField, phone: phoneText }),
     })
     const data = await res.json()
     if (!res.ok) {
@@ -95,10 +103,10 @@ export default function PhoneRegistration({
   async function post(body: Record<string, unknown>) {
     setLoading(true)
     setError("")
-    const res = await fetch("/api/attendees", {
+    const res = await fetch(target.kind === "event" ? "/api/attendees" : "/api/combo-attendees", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ event_id: event.id, status: "confirmed", ...body }),
+      body: JSON.stringify({ ...targetField, status: "confirmed", ...body }),
     })
     const data = await res.json()
     setLoading(false)
@@ -212,7 +220,7 @@ export default function PhoneRegistration({
     else setView(firstView)
   }
 
-  const inferioresCheckbox = event.inferiores_price && (
+  const inferioresCheckbox = inferioresPrice && (
     <div className="flex items-center gap-3">
       <input
         type="checkbox"

@@ -27,6 +27,7 @@ import { settleEvent, getOwedPrice, normalizeName, isGuest } from "@/lib/settlem
 import { classifyComboPayment } from "@/lib/combo-payment"
 import { formatPhone, personLabel, proofOrigin } from "@/lib/people"
 import { getPeopleDirectory } from "@/lib/people-db"
+import { getPlayersForTeams } from "@/lib/players"
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 0 }).format(value)
@@ -161,6 +162,18 @@ export default async function EventDetailPage({
       label: `${personLabel(p)}${p.phones.length > 0 ? ` · ${p.phones.map(formatPhone).join(" / ")}` : ""}`,
     }))
     .sort((a, b) => a.label.localeCompare(b.label, "es"))
+
+  // 3T con celular: el plantel se precarga desde Personas. Los de la lista fija que no están
+  // (no tienen Persona con ese nombre real en el plantel) se avisan para cargarlos o agregarlos a mano.
+  const attendingNames = new Set(
+    confirmed.flatMap((a) => {
+      const realName = a.person_id ? personById.get(a.person_id)?.realName : null
+      return [normalizeName(a.full_name), ...(realName ? [normalizeName(realName)] : [])]
+    })
+  )
+  const missingPlayers = event.is_3t && event.requires_phone
+    ? getPlayersForTeams(event.teams).filter((n) => !attendingNames.has(normalizeName(n)))
+    : []
 
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").trim()
   const publicLink = `${appUrl}/e/${event.slug}`
@@ -527,6 +540,12 @@ export default async function EventDetailPage({
             <AddAttendeeButton eventId={params.id} />
           )}
         </div>
+        {missingPlayers.length > 0 && (
+          <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2 mb-3">
+            De la lista del plantel no están en este 3T: {missingPlayers.join(", ")}. No tienen una Persona con ese
+            nombre real y plantel: cargalos en Personas y agregalos con «Agregar asistente».
+          </p>
+        )}
         {confirmed.length === 0 ? (
           <p className="text-gray-400 text-sm text-center py-4">Nadie confirmó aún</p>
         ) : (

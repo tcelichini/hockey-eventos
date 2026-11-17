@@ -28,7 +28,6 @@ export default function NewEventPage() {
   const [is3t, setIs3t] = useState(false)
   const [teams, setTeams] = useState<string[]>(["A"])
   const [inferioresEnabled, setInferioresEnabled] = useState(false)
-  const [requiresPhone, setRequiresPhone] = useState(false)
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -55,7 +54,6 @@ export default function NewEventPage() {
         const val = (form.elements.namedItem("inferiores_price") as HTMLInputElement | null)?.value
         return val ? parseCurrencyInput(val) : null
       })() : null,
-      requires_phone: requiresPhone,
     }
 
     const res = await fetch("/api/events", {
@@ -157,33 +155,14 @@ export default function NewEventPage() {
                   })}
                 </div>
                 <p className="text-xs text-gray-400">
-                  Plantel que se carga automáticamente:{" "}
+                  Plantel que se carga automáticamente desde la sección Personas:{" "}
                   {teams.includes("A") && teams.includes("B")
                     ? "ambos equipos"
                     : `Equipo ${teams[0]}`}
-                  .
+                  . Cada jugador queda ligado a su Persona.
                 </p>
               </div>
             )}
-
-            <div className="flex items-center gap-3 pb-1">
-              <input
-                type="checkbox"
-                id="requires_phone"
-                checked={requiresPhone}
-                onChange={(e) => setRequiresPhone(e.target.checked)}
-                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />
-              <div>
-                <Label htmlFor="requires_phone" className="cursor-pointer">📱 Pedir celular al anotarse (en prueba)</Label>
-                <p className="text-xs text-gray-400">
-                  {is3t
-                    ? "El plantel se carga desde la sección Personas, y cada jugador queda ligado a su celular."
-                    : "Cada uno se anota con el nombre que quiera y su celular; la app lo reconoce en los próximos eventos."}
-                  {" "}Se elige al crear el evento y no se puede cambiar después. Un evento así todavía no puede ir en un combo.
-                </p>
-              </div>
-            </div>
 
             <div className="space-y-2">
               <Label>Imagen del evento (opcional)</Label>

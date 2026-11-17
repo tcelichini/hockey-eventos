@@ -3,6 +3,8 @@ import {
   normalizePhone,
   formatPhone,
   decideRegistration,
+  decideComboRegistration,
+  type ComboEventRef,
   proofOrigin,
   mergeConflicts,
   parseImportList,
@@ -218,5 +220,81 @@ describe("planImport", () => {
   it("las filas con error no hacen nada", () => {
     const [row] = plan("López, Luis;;11155551234")
     expect(row.action).toBe("error")
+  })
+})
+
+// ── decideComboRegistration ─────────────────────────────────────────────────
+
+describe("decideComboRegistration", () => {
+  const COMBO = "combo-1"
+  const comboAtt = (o: Partial<EventAttendeeRef> & { combo_id: string | null }) => ({ ...attendee(o), combo_id: o.combo_id })
+  const ev = (id: string, attendees: ComboEventRef["attendees"] = []): ComboEventRef => ({ id, title: `Evento ${id}`, attendees })
+  const base = {
+    name: "Guillote",
+    phone: PHONE,
+    personId: undefined,
+    peopleForPhone: [],
+    comboId: COMBO,
+    events: [ev("e1"), ev("e2")],
+  }
+
+  it("celular nuevo: anota en el combo creando una Persona", () => {
+    expect(decideComboRegistration(base)).toEqual({ kind: "register", personId: null })
+  })
+
+  it("celular inválido: no anota", () => {
+    expect(decideComboRegistration({ ...base, phone: null }).kind).toBe("invalid")
+  })
+
+  it("celular conocido sin decir quién es: pregunta antes de crear nada", () => {
+    expect(decideComboRegistration({ ...base, peopleForPhone: [GUILLOTE] })).toEqual({ kind: "choose", options: [GUILLOTE] })
+  })
+
+  it("Persona ya anotada al combo: devuelve sus anotaciones aunque haya cambiado de nombre", () => {
+    const decision = decideComboRegistration({
+      ...base,
+      name: "Guille",
+      personId: GUILLOTE.id,
+      peopleForPhone: [GUILLOTE],
+      events: [
+        ev("e1", [comboAtt({ id: "a1", person_id: GUILLOTE.id, full_name: "Guillote", combo_id: COMBO })]),
+        ev("e2", [comboAtt({ id: "a2", person_id: GUILLOTE.id, full_name: "Guillote", combo_id: COMBO })]),
+      ],
+    })
+    expect(decision).toEqual({ kind: "already", attendeeIds: ["a1", "a2"], personId: GUILLOTE.id })
+  })
+
+  it("Persona anotada por separado a un evento del combo (aunque con otro nombre): no la anota de nuevo", () => {
+    const decision = decideComboRegistration({
+      ...base,
+      personId: GUILLOTE.id,
+      peopleForPhone: [GUILLOTE],
+      events: [ev("e1"), ev("e2", [comboAtt({ id: "a2", person_id: GUILLOTE.id, full_name: "Guille C.", combo_id: null })])],
+    })
+    expect(decision.kind).toBe("separate")
+    if (decision.kind === "separate") expect(decision.error).toContain("Evento e2")
+  })
+
+  it("otra Persona con el mismo celular: se anota aparte", () => {
+    const decision = decideComboRegistration({
+      ...base,
+      name: "Sofi",
+      personId: "new",
+      peopleForPhone: [GUILLOTE],
+      events: [ev("e1", [comboAtt({ id: "a1", person_id: GUILLOTE.id, full_name: "Guillote", combo_id: COMBO })]), ev("e2")],
+    })
+    expect(decision).toEqual({ kind: "register", personId: null })
+  })
+
+  it("nombre usado por otro en alguno de los eventos: pide distinguirse", () => {
+    const decision = decideComboRegistration({
+      ...base,
+      events: [ev("e1"), ev("e2", [comboAtt({ id: "a9", person_id: SOFI.id, full_name: "guillote", combo_id: null })])],
+    })
+    expect(decision.kind).toBe("name-taken")
+  })
+
+  it("una Persona que no corresponde al celular: no anota", () => {
+    expect(decideComboRegistration({ ...base, personId: SOFI.id, peopleForPhone: [GUILLOTE] }).kind).toBe("invalid")
   })
 })

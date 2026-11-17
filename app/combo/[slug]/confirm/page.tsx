@@ -9,6 +9,8 @@ import { Card, CardContent } from "@/components/ui/card"
 import { CheckCircleIcon, ArrowLeftIcon, CopyIcon, CheckIcon } from "lucide-react"
 import Link from "next/link"
 import PaymentProofUpload from "@/components/payment-proof-upload"
+import PhoneRegistration from "@/components/phone-registration"
+import { getDevicePhone } from "@/lib/device-phone"
 
 type ComboData = {
   id: string
@@ -18,8 +20,20 @@ type ComboData = {
   whatsapp_number: string
   whatsapp_confirmation: boolean
   is_3t?: boolean
+  requires_phone?: boolean
   players?: string[]
   events: { id: string; title: string; date: string }[]
+}
+
+/** Respuesta de POST /api/combo-attendees cuando hay anotaciones (nuevas o que ya estaban). */
+type ComboAttendeeResponse = {
+  attendees: { id: string; full_name: string }[]
+  payment_account: string
+  payment_amount: string
+  whatsapp_number: string
+  combo_title: string
+  existing?: boolean
+  already_paid?: boolean
 }
 
 type PaymentData = {
@@ -53,6 +67,7 @@ export default function ComboConfirmPage() {
   const [isExisting, setIsExisting] = useState(false)
   const [alreadyPaid, setAlreadyPaid] = useState(false)
   const [copiedAlias, setCopiedAlias] = useState(false)
+  const [devicePhone, setDevicePhoneState] = useState<string | null>(null)
 
   function copyAlias(text: string) {
     navigator.clipboard.writeText(text)
@@ -65,6 +80,22 @@ export default function ComboConfirmPage() {
       .then((r) => r.json())
       .then(setCombo)
   }, [slug])
+
+  function showPayment(data: ComboAttendeeResponse, attendeeName: string) {
+    setAttendeeIds(data.attendees.map((a) => a.id))
+    setIsExisting(!!data.existing)
+    setAlreadyPaid(!!data.already_paid)
+    setPaymentData({
+      payment_account: data.payment_account,
+      payment_amount: data.payment_amount,
+      whatsapp_number: data.whatsapp_number,
+      combo_title: data.combo_title,
+      attendee_name: attendeeName,
+    })
+    // Con celular, el teléfono lo recuerda: el comprobante queda marcado como subido desde acá
+    setDevicePhoneState(getDevicePhone())
+    setStep("payment")
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -79,19 +110,7 @@ export default function ComboConfirmPage() {
     })
 
     if (res.ok) {
-      const data = await res.json()
-      const ids = (data.attendees as { id: string }[]).map((a) => a.id)
-      setAttendeeIds(ids)
-      setIsExisting(!!data.existing)
-      setAlreadyPaid(!!data.already_paid)
-      setPaymentData({
-        payment_account: data.payment_account,
-        payment_amount: data.payment_amount,
-        whatsapp_number: data.whatsapp_number,
-        combo_title: data.combo_title,
-        attendee_name: name,
-      })
-      setStep("payment")
+      showPayment(await res.json(), name)
     } else {
       const err = await res.json()
       setError(err.error || "Error al confirmar")
@@ -128,6 +147,7 @@ export default function ComboConfirmPage() {
   }
 
   const is3t = combo.is_3t && combo.players && combo.players.length > 0
+  const asksPhone = !is3t && !!combo.requires_phone
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -164,11 +184,17 @@ export default function ComboConfirmPage() {
                 )}
                 {is3t ? (
                   <p className="text-gray-400 text-xs mt-3">Ya estás pre-inscripto. Seleccioná tu nombre y subí el comprobante.</p>
-                ) : (
+                ) : asksPhone ? null : (
                   <p className="text-gray-400 text-xs mt-3">Si ya te anotaste al combo, pon tu nombre para ver los datos de pago.</p>
                 )}
               </div>
 
+              {asksPhone ? (
+                <PhoneRegistration<ComboAttendeeResponse>
+                  target={{ kind: "combo", id: combo.id }}
+                  onDone={(data) => showPayment(data, data.attendees[0]?.full_name ?? "")}
+                />
+              ) : (
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
                   {is3t ? (
@@ -209,6 +235,7 @@ export default function ComboConfirmPage() {
                   {loading ? "Confirmando..." : is3t ? "Ver datos de pago" : "Confirmar"}
                 </Button>
               </form>
+              )}
             </CardContent>
           </Card>
         ) : paymentData ? (
@@ -270,6 +297,7 @@ export default function ComboConfirmPage() {
               <PaymentProofUpload
                 attendeeId={attendeeIds[0]}
                 extraAttendeeIds={attendeeIds.slice(1)}
+                phone={devicePhone}
                 onUploaded={(url) => setProofUrl(url)}
               />
             )}

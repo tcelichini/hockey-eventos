@@ -116,6 +116,88 @@ export function decideRegistration({
   return { kind: "register", personId: isNewPerson ? null : personId! }
 }
 
+// ── Anotarse a un combo con celular ─────────────────────────────────────────
+
+export type ComboEventRef = {
+  id: string
+  title: string
+  /** Asistentes confirmados del evento. */
+  attendees: (EventAttendeeRef & { combo_id: string | null })[]
+}
+
+export type ComboRegistrationDecision =
+  | { kind: "invalid"; error: string }
+  | { kind: "choose"; options: PersonRef[] }
+  /** Esa Persona ya está anotada al combo: se devuelven sus anotaciones, sin crear nada. */
+  | { kind: "already"; attendeeIds: string[]; personId: string }
+  /** Esa Persona ya está anotada por separado a algún evento del combo: lo resuelve un admin. */
+  | { kind: "separate"; error: string }
+  | { kind: "name-taken"; error: string }
+  /** Anotar en todos los eventos del combo. personId null = crear una Persona nueva con ese celular. */
+  | { kind: "register"; personId: string | null }
+
+/**
+ * Lo mismo que decideRegistration, pero para un combo: una anotación por evento, todas
+ * ligadas a la misma Persona. Quién está anotado se reconoce por Persona, no por nombre.
+ */
+export function decideComboRegistration({
+  name,
+  phone,
+  personId,
+  peopleForPhone,
+  comboId,
+  events,
+}: {
+  name: string | null | undefined
+  /** Ya normalizado con normalizePhone (null = inválido). */
+  phone: string | null
+  personId: string | undefined
+  peopleForPhone: PersonRef[]
+  comboId: string
+  events: ComboEventRef[]
+}): ComboRegistrationDecision {
+  if (!phone) {
+    return { kind: "invalid", error: "Ese celular no parece válido. Escribilo con código de área, por ejemplo 11 5555-1234." }
+  }
+
+  if (personId === undefined && peopleForPhone.length > 0) {
+    return { kind: "choose", options: peopleForPhone }
+  }
+
+  const isNewPerson = personId === "new" || peopleForPhone.length === 0
+  if (!isNewPerson) {
+    if (!peopleForPhone.some((p) => p.id === personId)) {
+      return { kind: "invalid", error: "Esa persona no corresponde a ese celular." }
+    }
+    const own = events.flatMap((ev) => ev.attendees.filter((a) => a.person_id === personId).map((a) => ({ ev, a })))
+    const inCombo = own.filter(({ a }) => a.combo_id === comboId)
+    if (inCombo.length > 0) {
+      return { kind: "already", attendeeIds: inCombo.map(({ a }) => a.id), personId: personId! }
+    }
+    if (own.length > 0) {
+      return {
+        kind: "separate",
+        error: `Ya estás anotado a "${own[0].ev.title}" por separado. Contactá a un admin para pasarte al combo.`,
+      }
+    }
+  }
+
+  const cleanName = (name ?? "").trim()
+  if (!cleanName) return { kind: "invalid", error: "Falta el nombre. Puede ser el que quieras." }
+
+  // El nombre es único dentro de cada evento: los gastos y la liquidación cruzan por nombre.
+  const key = normalizeName(cleanName)
+  const taken = events.find((ev) => ev.attendees.some((a) => normalizeName(a.full_name) === key))
+  if (taken) {
+    return {
+      kind: "name-taken",
+      error: `Ya hay un «${cleanName}» anotado en "${taken.title}". Agregá algo para distinguirte (por ejemplo, tu apellido).`,
+    }
+  }
+
+  return { kind: "register", personId: isNewPerson ? null : personId! }
+}
+
 // ── Comprobantes ────────────────────────────────────────────────────────────
 
 export type ProofOrigin = "own" | "other" | "unidentified"

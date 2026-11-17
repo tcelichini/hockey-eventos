@@ -48,6 +48,8 @@ El cálculo de plata de un evento: quién debe, a quién se le debe, y los total
 - **Todo evento que no es 3T está abierto a Externos.** (2026-10-01) Si un evento es solo para el plantel, simplemente no se comparte el link afuera; la app no lo restringe.
 - **Un celular puede anotar a más de una Persona.** (2026-10-03) No debería, pero se permite: quien anota a otro desde su teléfono usa su propio número, y así al menos se sabe quién lo anotó.
 - **Inferiores se declara en cada evento.** (2026-10-03) Depende de la edad: quien hoy es de inferiores el año que viene puede no serlo, así que no es un dato fijo de la Persona.
+- **Todo evento nuevo pide celular.** (2026-11-17) Ya no es un interruptor: cada evento creado desde ahora anota con celular y cada asistente queda ligado a su Persona. En 3T el plantel se precarga desde Personas (las que tienen plantel A/B); quien no esté cargado ahí no se precarga, y el panel del 3T avisa quiénes de la lista del plantel faltan. Los eventos viejos siguen como estaban.
+- **Los combos también anotan con celular.** (2026-11-17) Si el combo tiene algún evento que pide celular (y no es un combo 3T), anotarse al combo es como anotarse a un evento con celular: una anotación por evento, todas ligadas a la misma Persona. Quién ya está anotado se reconoce por Persona, no por nombre.
 
 ## Cuenta corriente
 

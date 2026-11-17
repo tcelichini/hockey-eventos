@@ -30,9 +30,7 @@ Cada idea va con:
   - `attendees.full_name` sigue siendo el nombre con el que figura en ese evento.
   - Los celulares son datos personales: no van al repo ni a ninguna API pública; se cargan por el panel de admin.
   - La lógica validada está en el módulo `Modelo` de la maqueta (`docs/prototipos/personas-PROTOTIPO.html`, en la rama `prototipo/personas`): `normalizarCelular`, `anotar`, `fusionar`, `subirComprobante`.
-- **Estado**: implementado detrás del interruptor por evento (sesiones 50 y 51; detalle en `docs/ARQUITECTURA.md`). Falta:
-  1. Validar con eventos reales y quitar el interruptor para que quede fijo.
-  2. Lo que quedó afuera: combos con celular, verificación por WhatsApp, fusionar el historial.
+- **Estado**: implementado (sesiones 50 a 52; detalle en `docs/ARQUITECTURA.md`). Validado con eventos reales; desde la sesión 52 es fijo para todo evento nuevo y los combos también anotan con celular. Falta lo que quedó afuera: verificación por WhatsApp y fusionar el historial.
 
 ### Monto adeudado en eventos "por cantidad": cuenta corriente vs página de pago
 

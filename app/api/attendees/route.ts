@@ -13,6 +13,40 @@ import {
   publicAttendee,
 } from "@/lib/attendee-registration"
 
+/**
+ * Auto-vincular al combo: si el evento pertenece a un combo y la persona ya está inscripta
+ * en TODOS los otros eventos del combo, setear combo_id en todos sus registros.
+ * Con Persona se la reconoce por Persona (aunque use otro nombre); sin Persona, por nombre.
+ */
+async function linkToCombos(attendee: Attendee) {
+  const allCombos = await db.select().from(combos)
+  const relevantCombos = allCombos.filter((c) => c.event_ids.includes(attendee.event_id))
+
+  for (const combo of relevantCombos) {
+    const otherEventIds = combo.event_ids.filter((eid) => eid !== attendee.event_id)
+    if (otherEventIds.length === 0) continue
+
+    const otherAttendees = await db
+      .select()
+      .from(attendees)
+      .where(and(inArray(attendees.event_id, otherEventIds), eq(attendees.status, "confirmed")))
+
+    const personOtherRecords = otherAttendees.filter((a) =>
+      attendee.person_id
+        ? a.person_id === attendee.person_id
+        : normalizeName(a.full_name) === normalizeName(attendee.full_name)
+    )
+
+    const coveredEventIds = new Set(personOtherRecords.map((a) => a.event_id))
+    const allCovered = otherEventIds.every((eid) => coveredEventIds.has(eid))
+
+    if (allCovered) {
+      const idsToUpdate = [attendee.id, ...personOtherRecords.map((a) => a.id)]
+      await db.update(attendees).set({ combo_id: combo.id }).where(inArray(attendees.id, idsToUpdate))
+    }
+  }
+}
+
 const CLOSED_ERROR = "Las inscripciones para este evento están cerradas"
 const FULL_ERROR = "El evento está completo, no hay más lugares disponibles"
 
@@ -94,6 +128,7 @@ async function registerWithPhone({
   })
 
   await notifyAdminWhatsApp(`Nueva confirmacion! ${name} se anoto para "${event.title}"`)
+  await linkToCombos(attendee)
 
   return NextResponse.json({ ...(await newAttendeePayload(event, attendee, price)), phone: normalized }, { status: 201 })
 }
@@ -189,38 +224,7 @@ export async function POST(request: NextRequest) {
       `Nueva confirmacion! ${full_name.trim()} se anoto para "${event.title}"`
     )
 
-    // Auto-vincular al combo: si este evento pertenece a un combo y la persona
-    // ya está inscripta en TODOS los otros eventos del combo, setear combo_id en todos sus registros.
-    const allCombos = await db.select().from(combos)
-    const relevantCombos = allCombos.filter(c => c.event_ids.includes(event_id))
-
-    for (const combo of relevantCombos) {
-      const otherEventIds = combo.event_ids.filter(eid => eid !== event_id)
-      if (otherEventIds.length === 0) continue
-
-      const otherAttendees = await db
-        .select()
-        .from(attendees)
-        .where(and(
-          inArray(attendees.event_id, otherEventIds),
-          eq(attendees.status, "confirmed"),
-        ))
-
-      const personOtherRecords = otherAttendees.filter(
-        a => normalizeName(a.full_name) === normalizeName(full_name)
-      )
-
-      const coveredEventIds = new Set(personOtherRecords.map(a => a.event_id))
-      const allCovered = otherEventIds.every(eid => coveredEventIds.has(eid))
-
-      if (allCovered) {
-        const idsToUpdate = [attendee.id, ...personOtherRecords.map(a => a.id)]
-        await db
-          .update(attendees)
-          .set({ combo_id: combo.id })
-          .where(inArray(attendees.id, idsToUpdate))
-      }
-    }
+    await linkToCombos(attendee)
 
     return NextResponse.json(await newAttendeePayload(event, attendee, price), { status: 201 })
   }

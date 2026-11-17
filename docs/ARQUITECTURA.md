@@ -82,13 +82,13 @@ Si un asistente ya confirmado (sin pagar) vuelve a la página de confirmación e
 
 ## Personas (eventos que piden celular)
 
-Glosario y reglas en `CONTEXT.md`; el porqué de no verificar el número, en `docs/adr/0001-celular-declarado-sin-verificar.md`. Primera versión detrás de un interruptor por evento (`events.requires_phone`), que se elige al crear el evento y no se cambia después. Los eventos sin el interruptor funcionan exactamente como antes.
+Glosario y reglas en `CONTEXT.md`; el porqué de no verificar el número, en `docs/adr/0001-celular-declarado-sin-verificar.md`. Desde la sesión 52 **todo evento nuevo pide celular**: `POST /api/events` guarda siempre `requires_phone = true` y el formulario ya no tiene el interruptor. Los eventos viejos (`requires_phone = false`) funcionan exactamente como antes.
 
 ### Tablas
 
 - `people`: `real_name` (lo carga un admin; null = sin nombre real), `team` ("A" | "B" = plantel; null = externo).
 - `person_phones`: (`person_id`, `phone`). Una Persona puede tener varios celulares (fusiones) y un celular varias Personas. `phone` siempre son 10 dígitos (`normalizePhone`).
-- `attendees.person_id`: null en el historial y en eventos sin el interruptor. Índice único parcial (evento, persona) para confirmados.
+- `attendees.person_id`: null en el historial y en eventos viejos que no pedían celular. Índice único parcial (evento, persona) para confirmados.
 - `attendees.full_name` sigue siendo el nombre con el que figura en ESE evento, y es único dentro del evento. Por eso los gastos y la liquidación siguen cruzando por nombre sin cambios.
 - `attendees.proof_uploaded_from`: celular del teléfono que subió el comprobante (null = sin identificar).
 
@@ -107,9 +107,15 @@ Sin `phone`, la ruta solo sirve para elegir un nombre de la lista y ver sus dato
 
 El teléfono recuerda el celular en `localStorage` (`lib/device-phone.ts`). Al volver, `components/phone-registration.tsx` consulta `POST /api/people/lookup` y muestra "Hola de nuevo", "¿quién sos?" (varias Personas con ese celular) o "Ya estás anotado".
 
-### 3T con el interruptor
+### 3T
 
-El plantel se precarga desde `people` (por `team`), no desde `lib/players.ts`, y cada asistente queda ligado a su Persona. La pantalla pública es la de siempre (elegir el nombre de la lista); si el teléfono es conocido, el nombre viene elegido.
+El plantel se precarga desde `people` (por `team`), no desde `lib/players.ts`, y cada asistente queda ligado a su Persona. La pantalla pública es la de siempre (elegir el nombre de la lista); si el teléfono es conocido, el nombre viene elegido. El panel del evento avisa qué jugadores de `lib/players.ts` no están en el 3T (no tienen Persona con ese nombre real en el plantel), para cargarlos en Personas y agregarlos a mano.
+
+### Combos
+
+`POST /api/combo-attendees` con `phone` → `registerComboWithPhone`, cuando algún evento del combo pide celular y el combo no es 3T (`by-slug` expone `requires_phone`). Lo decide `decideComboRegistration` (puro, en `lib/people.ts`): mismas decisiones que un evento, más `separate` (la Persona ya está anotada por separado a algún evento del combo → 409, lo resuelve un admin). `already` se reconoce por Persona entre las anotaciones con ese `combo_id`. La Persona nueva y las N anotaciones se crean en una transacción.
+
+La pantalla del combo usa el mismo `components/phone-registration.tsx` con `target={{ kind: "combo", id }}`; `lookup` acepta `combo_id`. Al anotarse a un evento suelto, `linkToCombos` (en `app/api/attendees/route.ts`) pasa al combo a quien ya está en todos los otros eventos: por Persona si tiene, por nombre si no.
 
 ### Comprobantes
 
@@ -119,7 +125,6 @@ El plantel se precarga desde `people` (por `team`), no desde `lib/players.ts`, y
 
 - **Los celulares y `real_name` nunca salen en respuestas públicas.** `publicAttendee()` quita `proof_uploaded_from`; `lookup` solo devuelve el nombre con el que cada Persona figuró.
 - **Fusionar no borra anotaciones.** Si las dos Personas están anotadas en un mismo evento, `merge` devuelve 409 y el admin quita una a mano (cada anotación puede tener pago y gastos).
-- **Un evento con el interruptor no puede ir en un combo** (`lib/combo-events.ts`): los combos anotan por nombre.
 - **La cuenta corriente junta por Persona** (sesión 51): `consolidateAccounts` usa `personKey(person_id)` cuando el asistente tiene Persona, así que quien figura como "Santi" en un evento y "Santi Fernandez" en otro es una sola cuenta. Un anotado sin Persona (3T sin celular, historial) o un acreedor no asistente se suma a la Persona cuyo `real_name` coincide con su nombre (solo si ese nombre real no se repite). Cada detalle guarda el nombre de ese evento (`name`), que es el que se usa para subir el comprobante. `/mi-cuenta` elige sola la cuenta si el teléfono recuerda el celular, y vuelve con `?cuenta=<key>`.
 
 ---

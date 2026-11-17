@@ -24,6 +24,7 @@ export async function GET(_request: NextRequest, { params }: { params: { slug: s
           is_open: events.is_open,
           max_capacity: events.max_capacity,
           is_3t: events.is_3t,
+          requires_phone: events.requires_phone,
         })
         .from(events)
         .where(inArray(events.id, combo.event_ids))
@@ -62,5 +63,8 @@ export async function GET(_request: NextRequest, { params }: { params: { slug: s
     players = uniqueNames.sort((a, b) => a.localeCompare(b, "es"))
   }
 
-  return NextResponse.json({ ...combo, events: eventsWithCounts, is_3t, players })
+  // Combo con eventos que piden celular: se anota con celular, como esos eventos (salvo 3T, que elige de la lista)
+  const requires_phone = linkedEvents.some((e) => e.requires_phone) && !is_3t
+
+  return NextResponse.json({ ...combo, events: eventsWithCounts, is_3t, requires_phone, players })
 }

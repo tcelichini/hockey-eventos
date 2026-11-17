@@ -262,7 +262,7 @@ export default function ConfirmPage() {
 
               {asksPhone ? (
                 <PhoneRegistration
-                  event={event}
+                  target={{ kind: "event", id: event.id, inferiores_price: event.inferiores_price, unpaidAttendeeNames: event.unpaidAttendeeNames }}
                   isUploadMode={isUploadMode}
                   prefillName={prefillName}
                   startWithOther={registeringOther}
